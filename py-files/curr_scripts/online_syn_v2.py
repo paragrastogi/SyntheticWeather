@@ -211,16 +211,25 @@ ts_curr_norm = scaler.transform(ts_curr_in)
 
 start_time = time.monotonic()
 
+<<<<<<< HEAD
 # All these variables are in hours.
 # Length of history when "learning" hourly profiles for each day.
 learnhist = int(14*24)
 # Length of history when "predicting" the next day's hourly profiles.
 predhist = int(3*24)
+=======
+# Length of history when "predicting" the next day's hourly profiles.
+histlim = int(14*24)
+>>>>>>> db16a347c5967b6490b82891c9dd350c4882e602
 # Start of time loop.
 l_start = int(0*24)
 # End of time loop.
 l_end = int(365*24)
+<<<<<<< HEAD
 # Step size for time loop (in hours).
+=======
+# Step size for time loop.
+>>>>>>> db16a347c5967b6490b82891c9dd350c4882e602
 l_step = int(48)
 
 # Pre-allocate a list of lists to store gp models for
@@ -239,6 +248,7 @@ mae = np.zeros(len(column_names))
 # Array to store the day-ahead 'predictions'.
 pred_means = np.zeros([ts_curr_in.shape[0],
                        ts_curr_in.shape[1], n_samples])
+
 # pred_stds = np.zeros_like(xin_norm_diff)
 
 # Pre-allocate predictions matrices.
