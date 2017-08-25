@@ -6,7 +6,14 @@ import them in the script you are calling them from.
 """
 
 
-def rmseloss(e):
+def rmseloss(x1, *args):
+
+    if len(args) > 1:
+        x2 = args[1]
+        e = x1 - x2
+    else:
+        e = x1
+
     return np.sqrt((e**2).mean())
 
 

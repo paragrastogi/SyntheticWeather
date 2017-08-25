@@ -43,8 +43,8 @@ pathtop = os.path.join('..', '..', 'WeatherData', 'HistoricalData')
 #                 pathtop = r'C:\Users\rasto\OneDrive\Documents\WeatherData\HistoricalData'
 #                 print('Working in folder %s.\r\n' % pathtop)
 # =============================================================================
-            
-            
+
+
 
 # Length of one year of hourly data.
 # T = 8760
@@ -94,7 +94,9 @@ def load_typical(pathtop, stcode, force):
                     and not any(s in f for s in keywords['amy']):
                 tmy_filelist.append(f)
 
-    # If this particular station has already been processed, then there might 
+    print(tmy_filelist)
+
+    # If this particular station has already been processed, then there might
     # be a pickle file with the data. Load that, unless forced.
     if os.path.isfile(picklepath) and not force:
         print('Pickle file exists.\r\n')
@@ -484,9 +486,9 @@ def get_weather(stcode, citytab):
     # data from it.
     find_st = (citytab.WMO[citytab.StCode == stcode])
     find_st = find_st[find_st.index[0]]
-    
+
     typicaldata
-    
+
     st_idx = typicaldata.wmo == find_st
 
     # If more than one year of data is available, keep only the first and

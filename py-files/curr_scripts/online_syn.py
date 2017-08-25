@@ -1,7 +1,7 @@
 """
 Create Synthetic Weather based on some recorded data.
-The algorithm works by creating synthetic time series over 
-short periods based on short histories. These short series 
+The algorithm works by creating synthetic time series over
+short periods based on short histories. These short series
 may be comined to obtain a longer series.
 Script originally written by Parag Rastogi. Started: July 2017
 
@@ -21,15 +21,15 @@ Description of algorithm:
 Features to be implemented:
     1. Load climate change model information and add that to the model.
        The outputs of climate models are usually in the form of mean changes.
-       I've added them to my models in the past - need to figure out best way 
+       I've added them to my models in the past - need to figure out best way
        to do this now.
-    2. Ability to get recorded or typical data automatically from some web 
+    2. Ability to get recorded or typical data automatically from some web
        service if the user provides coordinates or WMO station number.
     3. Ability to download climate data the same way.
     4. Ability to learn a transfer function between urban and rural stations
-       for quick-and-not-too-dirty estimates of urban heat island effects. 
-       So long as time series of a year-ish are available from the locations 
-       of interest, the transfer _should_ be able to proceed without requiring 
+       for quick-and-not-too-dirty estimates of urban heat island effects.
+       So long as time series of a year-ish are available from the locations
+       of interest, the transfer _should_ be able to proceed without requiring
        too much information about the local urban canopy.
 """
 
@@ -87,6 +87,9 @@ from losses import maeloss
 from petites import yfinder
 from petites import gp_funcs
 
+# For storing data by pickling.
+import pickle
+
 # importlib is only needed if libraries need to be re-imported mid-script,
 # which would usually happen only during debugging.
 # import importlib as im
@@ -127,7 +130,7 @@ dc = len(date_cols)
 
 # %%
 
-# This bit of code loads data from pre-processed pickle files or 
+# This bit of code loads data from pre-processed pickle files or
 # processes CSV files. This is the 'starter' data that the script needs.
 
 # Load data about the cities. This is just for this example.
@@ -173,7 +176,7 @@ D = xin_un.shape[1]
 
 # Back to the generator.
 
-# Change the value of variables *l_start* and *l_end* to alter 
+# Change the value of variables *l_start* and *l_end* to alter
 # the time for which synthetic time series should be generated.
 # Generally leave to 0 and 365.
 
@@ -193,9 +196,9 @@ l_start = int(0*24)
 # End of time loop.
 l_end = int(365*24)
 # Step size for time loop.
-l_step = int(24)
+l_step = int(48)
 
-# Pre-allocate a list of lists to store gp models for 
+# Pre-allocate a list of lists to store gp models for
 # each day and variable.
 listicle = [None]*D
 gp_list = list()
@@ -302,14 +305,14 @@ for h in range(l_start+l_step, l_end+l_step, l_step):
             # though calling them stupid would be mean.
             # Delete them immediately.
             del ypred, ystd
-            
+
             x_query = x_train[-l_step:, :]
 
             x_pred = np.squeeze(gp_temp.sample_y(x_query,
                     n_samples=n_samples), axis = 1)
-            
-    # Use the GP of each day to predict that day, 
-    # but add the predictions from using the GPs of 
+
+    # Use the GP of each day to predict that day,
+    # but add the predictions from using the GPs of
     # surrounding days as well.
 
             tomorrows_vals[:, c, :] = x_pred
@@ -337,6 +340,10 @@ end_time = time.monotonic()
 print("Time taken to train month-wise hourly models was %6.2f seconds."
       % (end_time - start_time))
 
+# Save list to pickle file.
+with open('gp_list', 'wb') as fp:
+    pickle.dump(gp_list, fp)
+
 # Un-scale the series.
 # Create a ndarray like pred_means.
 xout_un = np.zeros_like(pred_means)
@@ -346,18 +353,18 @@ for n in range(0, n_samples):
 
 # Synthetic solar data requires post-processing.
 for c, colname in enumerate(column_names):
-    
+
     if colname in ['ghi', 'dni', 'dhi']:
-        
+
         for n in range(0, n_samples):
-            # Using the source data - check to see if there 
-            # should be sunlight at a given hour. If not, 
+            # Using the source data - check to see if there
+            # should be sunlight at a given hour. If not,
             # then set corresponding synthetic value to zero.
 
             temp = xout_un[:, c, n]
             temp[xin_un[:, c]==0] = 0
             xout_un[:, c, n] = temp
-            
+
             # If there is a negative value (usually at sunrise
             # or sunset), interpolate.
             temp = xout_un[:, c, n]
@@ -366,9 +373,9 @@ for c, colname in enumerate(column_names):
             temp[nans] = np.interp(xin_un[nans, 1],
                 xin_un[~nans, 1], temp[~nans])
             xout_un[:, c, n] = temp
-            
+
 # A potential improvement would be to calculate sunrise and sunset
-# independently since that is an almost deterministic calculation.         
+# independently since that is an almost deterministic calculation.
 
 # Save synthetic time series.
 for n in range(0, n_samples):
@@ -380,35 +387,35 @@ for n in range(0, n_samples):
 
 #
 # %%
-#    
+#
 # =============================================================================
-# 
-# # This bit is only for plotting (to see how generated values correspond 
+#
+# # This bit is only for plotting (to see how generated values correspond
 # # to summary statistics) and has nothing to do with the generator.
-# 
+#
 # # Calculate the iqr and median to plot later.
 # actualq3 = gw.weather_stats(actualdata, ['month'], 'q3')
 # actualmed = gw.weather_stats(actualdata, ['month'], 'med')
 # actualq1 = gw.weather_stats(actualdata, ['month'], 'q1')
-# 
+#
 # temp = np.repeat(actualq1.values,
 #                  int(typicaldata.shape[0]/actualq1.shape[0]), axis=0)
 # temp2 = pd.DataFrame(data=temp, columns=actualq1.columns)
 # actualq1 = temp2
 # del (temp, temp2)
-# 
+#
 # temp = np.repeat(actualq3.values,
 #                  int(typicaldata.shape[0]/actualq3.shape[0]), axis=0)
 # temp2 = pd.DataFrame(data=temp, columns=actualq3.columns)
 # actualq3 = temp2
 # del (temp, temp2)
-# 
+#
 # temp = np.repeat(actualmed.values,
 #                  int(typicaldata.shape[0]/actualmed.shape[0]), axis=0)
 # temp2 = pd.DataFrame(data=temp, columns=actualmed.columns)
 # actualmed = temp2
 # del (temp, temp2)
-    
+
 # ax = plt.figure(num=None, figsize=(8, 6), dpi=80,
 #                facecolor='w', edgecolor='k').add_subplot(111)
 # plt.plot(actualq1.tdb.values)
