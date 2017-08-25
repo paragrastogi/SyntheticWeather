@@ -173,12 +173,10 @@ def load_typical(pathtop, stcode, force):
 
 def load_actual(pathtop, stcode, force, sources):
 
-    picklepath = os.path.join(
-        '.', 'datatables',
-        'actualdata_{0}.p'.format(stcode))
-    csvpath = os.path.join(
-        '.', 'datatables',
-        'actualdata_{0}.csv'.format(stcode))
+    picklepath = os.path.join(pathtop, 'pickled_data',
+            'actualdata_{0}.p'.format(stcode))
+    csvpath = os.path.join(pathtop, 'csv_collated_data',
+            'actualdata_{0}.csv'.format(stcode))
 
     if os.path.isfile(picklepath) and not force:
         actualdata = pd.read_pickle(picklepath)
@@ -469,8 +467,10 @@ def get_weather(stcode, citytab, sources):
     # For now, we have a lot of data for the test station so it is all loaded.
     # The weather loading functions can be modified to work with full path file
     # in deployment.
-    if not os.path.isdir('datatables'):
-        os.mkdir('datatables')
+    if not os.path.isdir(os.path.join(pathtop,'pickled_data')):
+        os.mkdir(os.path.join(pathtop,'pickled_data'))
+    if not os.path.isdir(os.path.join(pathtop,'csv_collated_data')):
+        os.mkdir(os.path.join(pathtop,'csv_collated_data'))
 
     print('Running for station {}'.format(stcode))
 
