@@ -1,41 +1,53 @@
 % Create Synthetic Files
 
-% © All rights reserved. 
+% ï¿½ All rights reserved. 
 % ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, 
 % Interdisciplinary Laboratory of Performance-Integrate 
 % Design, 2016 
 % Parag Rastogi
 % See the LICENSE.TXT file for more details.
 
-function CreateSyntheticFiles(pathEPWfile, nameEPWfolder, MATfolder, CCpath, nboot)
+function CreateSyntheticFiles(pathEPWfile, namesavefldr, nboot, recdata, ccdata, varargin)
 
 % I haven't uploaded the climate change forecasts or recorded data, so
 % the following two variables are set to false:
-CCdata = false; RecData = false;
+% ccdata = false; recdata = false;
 % The problem is how to pull these data sources when this tool is being
 % used online
+p = inputParser;
+p.FunctionName = 'CreateSyntheticFiles';
 
+addRequired(p, 'pathEPWfile', @ischar)
+addRequired(p, 'namesavefldr', @ischar)
+addRequired(p, 'nboot', @isnumeric)
+addRequired(p, 'recdata', @islogical)
+addRequired(p, 'ccdata', @islogical)
+addParameter(p, 'nameEPWfolder', @ischar)
+addParameter(p, 'ccpath', '', @ischar)
+addParameter(p, 'recpath', '', @ischar)
+
+parse(p, pathEPWfile, namesavefldr, nboot, recdata, ccdata, varargin{:})
+
+pathEPWfile = p.Results.pathEPWfile;
+namesavefldr = p.Results.namesavefldr;
+nboot = p.Results.nboot;
+recdata = p.Results.recdata;
+ccdata = p.Results.ccdata;
+ccpath = p.Results.ccpath;
+recpath = p.Results.recpath;
 
 % % Initialise File Paths
 
-% prompt = 'Please enter full path to source EPW file: \n';
-
-% pathEPWfile = input(prompt,'s');
-
 [pathEPWfolder, nameEPWfile, ~] = fileparts(pathEPWfile);
 
-% nameEPWfolder = input(prompt, 's');
-
-if isempty(nameEPWfolder)
-    nameEPWfolder = pathEPWfolder(end-2:end);
-end
+nameEPWfolder = pathEPWfolder(end-2:end);
 
 % prompt = ['Please enter a name for the folder in which all source ', ...
 %     'and output files are placed. The best is to have a 3-letter ', ...
 %     'code representing the weather station. (e.g., GENEVA --> GEN)\n'];
 % pathMATsave = fullfile(pathEPWfolder, input(prompt,'s'));
 
-pathMATsave = fullfile(pathEPWfolder, MATfolder);
+pathMATsave = fullfile(pathEPWfolder, namesavefldr);
 
 if strcmp(pathMATsave,' ')
 	pathMATsave = pathEPWfolder;
@@ -45,10 +57,10 @@ figsavepath = fullfile(pathMATsave, 'SMYfigs');
 
 % prompt = ['Please enter full path to folder containing CC files: \n', ...
 %     '(Leave blank if you don''t have them)\n'];
-% CCpath = input(prompt,'s');
+% ccpath = input(prompt,'s');
 
-if strcmp(CCpath,' ')
-	CCpath = pathEPWfolder;
+if strcmp(ccpath,' ')
+	ccpath = pathEPWfolder;
 end
 
 % if ~contains(figsavepath, nameEPWfolder)
@@ -305,7 +317,7 @@ else
 			if SavedFileExists(3)
 				load(MATFileNames{3})
 			else
-				RecData = false;
+				recdata = false;
 			end
 		end
 	end
@@ -313,7 +325,7 @@ end
 
 % The MAT file loaded above should have a table called
 % RecTables
-if RecData
+if recdata
 	
 	% Delete the minutes column - it isn't used anywhere
 	RecTables.Minute = [];
@@ -371,7 +383,7 @@ if RecData
 		% While the lowest recorded temperature in DELHI has
 		% has been -2.2, the zeros in the record are
 		% unfortunately gaps in the record. Also, there are
-		% some funky values (e.g., -37°).
+		% some funky values (e.g., -37ï¿½).
 		RecTables.TDB(RecTables.TDB<=0) = NaN;
 		
 		nantdb = isnan(RecTables.TDB);
@@ -423,7 +435,7 @@ if RecData
 	% Kelvin
 	diffs.rec.tdb.raw = diff(RecTables.TDB)./StepSizesHours;
 	
-	% We found some step sizes to be too large (~15° /
+	% We found some step sizes to be too large (~15ï¿½ /
 	% hour). These might be result of errors in measurement.
 	% Now, we sort out those differences that may have been
 	% caused by erroneous measurements.
@@ -1018,16 +1030,16 @@ clear TSname
 
 % Load climate change data
 
-if CCdata
+if ccdata
 
-CCdataFilePath = fullfile(CCpath, 'HourlyFutureData.mat');
+CCdataFilePath = fullfile(ccpath, 'HourlyFutureData.mat');
 
 if exist(CCdataFilePath,'file')==2
 	% If concatenated file already exists
 	load(CCdataFilePath);
 else
 	% File does not exist
-	CCdataFilePath = CatClimChangeData(CCpath);
+	CCdataFilePath = CatClimChangeData(ccpath);
 	load(CCdataFilePath);
 end
 
@@ -1156,7 +1168,7 @@ diffs.syn.tdb.zsco = zscore(diffs.syn.tdb.raw);
 
 % Chicago seems to need a more aggresive cut for some
 % reason.
-if ~isempty(strfind(nameEPWfile,'CHI'))
+if ~contains(nameEPWfile,'CHI')
 	diffs.syn.tdb.zcut = max( ...
 		[abs(quantile(diffs.syn.tdb.zsco,0.99)), ...
 		abs(quantile(diffs.syn.tdb.zsco,0.01))]);
@@ -1188,7 +1200,7 @@ diffs.syn.tdb.minyear = min(diffs.syn.tdb.cenyear);
 % Clean outlandish raw values using the same procedure
 rawcen.syn.tdb.zsco = zscore(tdbsyn.col);
 
-if ~isempty(strfind(nameEPWfile,'CHI'))
+if ~contains(nameEPWfile,'CHI')
 	rawcen.syn.tdb.zcut = max( ...
 		[abs(quantile(diffs.syn.tdb.zsco,0.99)), ...
 		abs(quantile(diffs.syn.tdb.zsco,0.01))]);
@@ -1221,7 +1233,7 @@ tdbsyn.yearly = inpaint_nans(y,2);
 % Reshape the vector for some calculations
 tdbsyn.col = reshape(tdbsyn.yearly, [], 1);
 
-if CCdata
+if ccdata
 	
 	diffs.rcp45.tdb.raw = [diff(tdbsynCC.rcp45.col); 0];
 	diffs.rcp85.tdb.raw = [diff(tdbsynCC.rcp85.col); 0];
@@ -1352,12 +1364,12 @@ diffs.syn.rh.cenyear = diff(rhsyn.yearly,1,1);
 diffs.syn.rh.maxyear = max(diffs.syn.rh.cenyear);
 diffs.syn.rh.minyear = min(diffs.syn.rh.cenyear);
 
-% if CCdata
+% if ccdata
 % rhsynCC.rcp45.yearly = repmat(rhsyn.yearly,85,1);
 % rhsynCC.rcp85.yearly = repmat(rhsyn.yearly,85,1);
 % end
 
-if CCdata	
+if ccdata	
 	
 	rhsynCC.rcp45.col = reshape(rhsynCC.rcp45.yearly,[],1);
 	rhsynCC.rcp85.col = reshape(rhsynCC.rcp85.yearly,[],1);
@@ -1512,7 +1524,7 @@ dhisyn.yearly = reshape(dhisyn.col,N,nboot);
 clear nIDX nD nIDXmonthly
 %%
 
-if CCdata
+if ccdata
 	tdbsynCC.rcp45.daily.raw = reshape( ...
 		tdbsynCC.rcp45.col, 24, []);
 	tdbsynCC.rcp45.daily.means = (mean( ...
@@ -1723,7 +1735,7 @@ yrgrps = findgroups(syntime(:,1));
 % First calculate the extents of the values that will be
 % plotted in the probability density functions
 
-if RecData
+if recdata
     
     mines.tdb = round(min([tmytable.TDB; RecTables.TDB; tdbsyn.col]));
     maxes.tdb = round(max([tmytable.TDB; RecTables.TDB; tdbsyn.col]));
@@ -1766,7 +1778,7 @@ pdffun.rh = @(x) histcounts(x, ...
 [eCDF.tmy.rh.e, eCDF.tmy.rh.x] = ...
 	ecdffun.rh(tmytable.RH);
 
-if RecData
+if recdata
     % Calculate the empiricial CDF of the recorded data
     [eCDF.rec.tdb.e, eCDF.rec.tdb.x] = ...
         ecdffun.tdb(RecTables.TDB);
@@ -1811,7 +1823,7 @@ end
 	splitapply(@(x) pdffun.rh(x),rhsyn.col,yrgrps);
 
 
-if CCdata
+if ccdata
 
 	% This bit of code 
 uniqueyr_t = repmat((ones(8760,1)),1,85);
@@ -1949,7 +1961,7 @@ pdffun.rh = @(x) histcounts(x, ...
 [eCDF.tmy.rh.e, eCDF.tmy.rh.x] = ...
 	ecdffun.rh(tmytable.RH);
 
-if RecData
+if recdata
     % Calculate the empiricial CDF of the recorded data
     [eCDF.rec.tdb.e, eCDF.rec.tdb.x] = ...
         ecdffun.tdb(RecTables.TDB);
@@ -2028,7 +2040,7 @@ Corr.syn.r = [Corr.syn.r NaN];
 Corr.syn.prho = [Corr.syn.prho NaN];
 Corr.syn.pr = [Corr.syn.pr NaN];
 
-if RecData
+if recdata
 	
 	% Real data needs to be cleaned for correlation
 	% calculations
@@ -2054,7 +2066,7 @@ else
 	Corr.rec.prho = zeros(size(Corr.syn.prho));
 end
 
-if CCdata
+if ccdata
 	% Climate change data
 	[Corr.rcp45.r,Corr.rcp45.pr] = corr( ...
 		tdbsynCC.rcp45.col, ...
@@ -2165,7 +2177,7 @@ save(fullfile(pathMATsave, ...
 clear syndata
 
 
-if CCdata
+if ccdata
 	
 	% Write the climate change data as well
 	syndata.Year = repmat(FutureTime(:,1),bootlen,1);
@@ -2270,14 +2282,14 @@ clear rhsynCC rhsyn
 % episodes (i.e. heat waves or cold snaps). An episode would
 % be defined as the number of M consecutive hours occur
 % above or below a specified threshold. Magnano et al choose
-% 18°, 25°, 34° as their boundaries. This works well for
+% 18ï¿½, 25ï¿½, 34ï¿½ as their boundaries. This works well for
 % their specific application, however we think it might be
 % better to work with percentiles for generalisation. For
 % example, in the TMY methodology, Wilcox et al use the 67th
 % and 33rd percentile for persistence of warm and cold
 % spells respectively. Another difference is that while
 % Magnano et al look at consecutive hours, Wilcox et al look
-% at daily means. Hansen and Driscoll use 90°, 65°, 32°
+% at daily means. Hansen and Driscoll use 90ï¿½, 65ï¿½, 32ï¿½
 % (Fahrenheit)
 
 % We take a hybrid approach for the 'spell length' and a
@@ -2343,7 +2355,7 @@ Coverage.tmy.tdb.le990 = 1-CoverageCheck(tmytable.TDB, ...
 % basis of an underlying normal distribution
 Quants.syn.tdb = quantile(tdbsyn.col, quantsASHRAE);
 
-if RecData
+if recdata
 	Coverage.rec.tdb.ge020 = CoverageCheck( ...
 		RecTables.TDB, StationInfo.Cool.TDB020, 'ge');
 	Coverage.rec.tdb.ge010 = CoverageCheck( ...
@@ -2366,7 +2378,7 @@ Quants.tmy.tdb = [StationInfo.Cool.TDB004; ...
 	quantile(tmytable.TDB,0.02); ...
 	StationInfo.Heat.TDB990; StationInfo.Heat.TDB996];
 
-if CCdata
+if ccdata
 	Quants.rcp45.tdb = quantile(tdbsynCC.rcp45.col, ...
 		quantsASHRAE);
 	Quants.rcp85.tdb = quantile(tdbsynCC.rcp85.col, ...
@@ -2381,13 +2393,13 @@ fprintf(fIDcorr, ['\\toprule\r\n ', ...
 
 for k = 1:length(Quants.syn.tdb)
 	
-	if RecData
+	if recdata
 		QuantRec = Quants.rec.tdb(k);
 	else
 		QuantRec = 0;
 	end
 	
-	if CCdata
+	if ccdata
 		quant45 = Quants.rcp45.tdb(k);
 		quant85 = Quants.rcp85.tdb(k);
 	else
@@ -2406,7 +2418,7 @@ fprintf(fIDcorr, '\\bottomrule\r\n');
 fclose(fIDcorr);
 
 
-if RecData
+if recdata
 QuantsSpell = quantile(RecTables.TDB, ...
 	[quantsASHRAE(1:3); 0.67; 0.5; ...
 	0.33; quantsASHRAE(5:7)]);
@@ -2424,7 +2436,7 @@ for qs = 1:length(QuantsSpell)
 		[dur.rec, durtime.rec] = EpisodeFinder( ...
 			RecTables.TDB, QuantsSpell(qs), 'ge');
 
-		if CCdata
+		if ccdata
 			[dur.rcp45, durtime.rcp45] = ...
 				EpisodeFinder( ...
 				tdbsynCC.rcp45.col, ...
@@ -2448,7 +2460,7 @@ for qs = 1:length(QuantsSpell)
 			RecTables.TDB, QuantsSpell(qs), 'le');
 
 
-		if CCdata
+		if ccdata
 			[dur.rcp45, durtime.rcp45] = ...
 				EpisodeFinder( ...
 				tdbsynCC.rcp45.col, ...
@@ -2499,7 +2511,7 @@ for qs = 1:length(QuantsSpell)
 		'visible','off', ...
 		'xLabelCustom', 'Spell Duration [hrs]', ....
 		'plotCI', false, ...
-		'CCdata', false, 'titleCustom', titleCustom)
+		'ccdata', false, 'titleCustom', titleCustom)
 
 	recempty = cellfun(@isempty, Eps.rec.Dur);
 	durlimits.max.rec = cellfun(@max, ...
@@ -2508,7 +2520,7 @@ for qs = 1:length(QuantsSpell)
 		Eps.rec.Dur(~recempty));
 
 
-	if CCdata
+	if ccdata
 		Eps.rcp45.Dur(qs) = {dur.rcp45};
 		Eps.rcp45.Times(qs) = {durtime.rcp45};
 		Eps.rcp85.Dur(qs) = {dur.rcp85};
@@ -2528,7 +2540,7 @@ for qs = 1:length(QuantsSpell)
 			filepath, 'visible', 'off', ...
 			'xLabelCustom', 'Spell Duration [hrs]', ...
 			'plotCI', false, ...
-			'CCdata', true, ...
+			'ccdata', true, ...
 			'titleCustom', titleCustom)
 
 		durlimits.max.rcp45 = cellfun(@max, ...
