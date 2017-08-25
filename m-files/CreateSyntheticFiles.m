@@ -7,49 +7,58 @@
 % Parag Rastogi
 % See the LICENSE.TXT file for more details.
 
+function CreateSyntheticFiles(pathEPWfile, nameEPWfolder, MATfolder, CCpath, nboot)
 
 % I haven't uploaded the climate change forecasts or recorded data, so
 % the following two variables are set to false:
-CCdata = true; RecData = true;
+CCdata = false; RecData = false;
 % The problem is how to pull these data sources when this tool is being
 % used online
 
 
 % % Initialise File Paths
 
-prompt = 'Please enter full path to source EPW file \n';
+% prompt = 'Please enter full path to source EPW file: \n';
 
-pathEPWfile = input(prompt,'s');
+% pathEPWfile = input(prompt,'s');
 
 [pathEPWfolder, nameEPWfile, ~] = fileparts(pathEPWfile);
 
-prompt = ['Please enter a name for the folder in which all source ', ...
-    'and output files are placed. The best is to have a 3-letter ', ...
-    'code representing the weather station. (e.g., GENEVA --> GEN)\n']; 
+% nameEPWfolder = input(prompt, 's');
 
-nameEPWfolder = input(prompt, 's');
 if isempty(nameEPWfolder)
     nameEPWfolder = pathEPWfolder(end-2:end);
 end
 
-figsavepath = fullfile('D:','FiguresandImages', ...
-	'SMYfigs', nameEPWfolder);
+% prompt = ['Please enter a name for the folder in which all source ', ...
+%     'and output files are placed. The best is to have a 3-letter ', ...
+%     'code representing the weather station. (e.g., GENEVA --> GEN)\n'];
+% pathMATsave = fullfile(pathEPWfolder, input(prompt,'s'));
 
-pathMATsave = pathEPWfolder;
+pathMATsave = fullfile(pathEPWfolder, MATfolder);
 
-if strcmp(pathMATsave,'.')
+if strcmp(pathMATsave,' ')
 	pathMATsave = pathEPWfolder;
 end
 
-if strcmp(CCpath,'.')
+figsavepath = fullfile(pathMATsave, 'SMYfigs');
+
+% prompt = ['Please enter full path to folder containing CC files: \n', ...
+%     '(Leave blank if you don''t have them)\n'];
+% CCpath = input(prompt,'s');
+
+if strcmp(CCpath,' ')
 	CCpath = pathEPWfolder;
 end
 
-if isempty(strfind(figsavepath, nameEPWfolder))
-	figsavepath = fullfile(figsavepath, nameEPWfolder);
-end
+% if ~contains(figsavepath, nameEPWfolder)
+% 	figsavepath = fullfile(figsavepath, nameEPWfolder);
+% end
 
 PresentPath = fullfile(figsavepath,'Presentation');
+
+% prompt = 'How many files do you want out? \n';
+% nboot = str2double(input(prompt,'s')); 
 
 % Get default colours
 DefaultColours
@@ -57,17 +66,17 @@ set(0, 'defaultAxesFontName', 'Helvetica')
 
 % % When running special nboot values, change output
 % % folders.
-if nboot~=100
-	figsavepath = [figsavepath, num2str(nboot)];
-	pathMATsave = [pathEPWfolder, num2str(nboot)];
-end
+% if nboot~=100
+% 	figsavepath = [figsavepath, num2str(nboot)];
+% 	pathMATsave = [pathMATsave, num2str(nboot)];
+% end
 
 % This is the number of climate change files that will be
 % generated.
 bootlen = nboot;
 
 % Folder for R
-RsubFolder = fullfile(pathEPWfolder, ...
+RsubFolder = fullfile(pathMATsave, ...
 	sprintf('RinoutN%d',nboot));
 
 if exist(figsavepath,'dir')~=7
@@ -87,7 +96,7 @@ end
 % This function is only meant to generate files from
 % TMY-style files, so there are only two conditionals here
 % for reading the original data.
-if ~isempty(strfind(pathEPWfile,'Meteonorm'))
+if ~contains(pathEPWfile,'Meteonorm')
 	tmytable = WeatherFileParseEPWMeteonorm(pathEPWfile);
 else
 	tmytable = WeatherFileParseEPWUSDOE(pathEPWfile);
@@ -905,7 +914,7 @@ SimArimaR(InnPath, X1path, OutPathSim, OutPathRes, ...
 
 % % Read the R output
 fspec = repmat('%f',1,bootlen);
-fid = fopen(OutPathSim);
+fid = fopen(OutPathSim, 'r');
 temp = textscan(fid, fspec, ...
 	'Delimiter', ',', 'TreatAsEmpty', 'NA');
 fclose(fid);
@@ -914,7 +923,7 @@ selmdls.tdb.SimResid_R = inpaint_nans(temp2);
 clear temp temp2
 
 fspec = repmat('%f',1,bootlen);
-fid = fopen(OutPathRes);
+fid = fopen(OutPathRes, 'r');
 temp = textscan(fid, fspec, ...
 	'Delimiter', ',', 'TreatAsEmpty', 'NA');
 fclose(fid);
@@ -961,7 +970,7 @@ SimArimaR(InnPath, X1path, OutPathSim, OutPathRes, ...
 % Errors from R will be reported in ExtrafileFromRbatch.txt
 % Read the R output
 fspec = repmat('%f',1,bootlen);
-fid = fopen(OutPathSim);
+fid = fopen(OutPathSim, 'r');
 temp = textscan(fid, fspec, ...
 	'Delimiter', ',', 'TreatAsEmpty', 'NA');
 fclose(fid);
@@ -980,7 +989,7 @@ y = inpaint_nans(y);
 selmdls.rh.SimResid_R = y;
 
 fspec = repmat('%f',1,bootlen);
-fid = fopen(OutPathRes);
+fid = fopen(OutPathRes, 'r');
 temp = textscan(fid, fspec, ...
 	'Delimiter', ',', 'TreatAsEmpty', 'NA');
 fclose(fid);
@@ -1708,18 +1717,31 @@ mStats.syn.rh = structfun(@(x) reshape(x,12,[]), ...
 
 %%
 
-
 % Make groups of years for the splitapply functions below
 yrgrps = findgroups(syntime(:,1));
 
 % First calculate the extents of the values that will be
 % plotted in the probability density functions
-mines.tdb = round(min([tmytable.TDB; RecTables.TDB; tdbsyn.col]));
-maxes.tdb = round(max([tmytable.TDB; RecTables.TDB; tdbsyn.col]));
-mines.ghi = round(min([tmytable.GHI; RecTables.GHI; ghisyn.col]));
-maxes.ghi = round(max([tmytable.GHI; RecTables.GHI; ghisyn.col]));
-mines.rh = round(min([tmytable.RH; RecTables.RH; rhsyn.col]));
-maxes.rh = round(max([tmytable.RH; RecTables.RH; rhsyn.col]));
+
+if RecData
+    
+    mines.tdb = round(min([tmytable.TDB; RecTables.TDB; tdbsyn.col]));
+    maxes.tdb = round(max([tmytable.TDB; RecTables.TDB; tdbsyn.col]));
+    mines.ghi = round(min([tmytable.GHI; RecTables.GHI; ghisyn.col]));
+    maxes.ghi = round(max([tmytable.GHI; RecTables.GHI; ghisyn.col]));
+    mines.rh = round(min([tmytable.RH; RecTables.RH; rhsyn.col]));
+    maxes.rh = round(max([tmytable.RH; RecTables.RH; rhsyn.col]));
+    
+else
+    
+    mines.tdb = round(min([tmytable.TDB; tdbsyn.col]));
+    maxes.tdb = round(max([tmytable.TDB; tdbsyn.col]));
+    mines.ghi = round(min([tmytable.GHI; ghisyn.col]));
+    maxes.ghi = round(max([tmytable.GHI; ghisyn.col]));
+    mines.rh = round(min([tmytable.RH; rhsyn.col]));
+    maxes.rh = round(max([tmytable.RH; rhsyn.col]));
+    
+end
 
 % Now create a function for each quantity
 ecdffun.tdb = @(x) histcounts(x, mines.tdb:2:maxes.tdb, ...
@@ -1744,13 +1766,23 @@ pdffun.rh = @(x) histcounts(x, ...
 [eCDF.tmy.rh.e, eCDF.tmy.rh.x] = ...
 	ecdffun.rh(tmytable.RH);
 
-% Calculate the empiricial CDF of the recorded data
-[eCDF.rec.tdb.e, eCDF.rec.tdb.x] = ...
-	ecdffun.tdb(RecTables.TDB);
-[eCDF.rec.ghi.e, eCDF.rec.ghi.x] = ...
-	ecdffun.ghi(GHIrec(GHIrec>0));
-[eCDF.rec.rh.e, eCDF.rec.rh.x] = ...
-	ecdffun.rh(RecTables.RH);
+if RecData
+    % Calculate the empiricial CDF of the recorded data
+    [eCDF.rec.tdb.e, eCDF.rec.tdb.x] = ...
+        ecdffun.tdb(RecTables.TDB);
+    [eCDF.rec.ghi.e, eCDF.rec.ghi.x] = ...
+        ecdffun.ghi(GHIrec(GHIrec>0));
+    [eCDF.rec.rh.e, eCDF.rec.rh.x] = ...
+        ecdffun.rh(RecTables.RH);
+
+    % Calculate the PDF of the recorded data
+    [ePDF.rec.tdb.y, ePDF.rec.tdb.x] = ...
+        pdffun.tdb(RecTables.TDB);
+    [ePDF.rec.ghi.y, ePDF.rec.ghi.x] = ...
+        pdffun.ghi(GHIrec(GHIrec>0));
+    [ePDF.rec.rh.y, ePDF.rec.rh.x] = ...
+        pdffun.rh(RecTables.RH);
+end
 
 % ECDF of the synthetic hours
 [eCDF.syn.tdb.e,eCDF.syn.tdb.x] = ...
@@ -1769,14 +1801,6 @@ pdffun.rh = @(x) histcounts(x, ...
 [ePDF.tmy.rh.y, ePDF.tmy.rh.x] = ...
 	pdffun.rh(tmytable.RH);
 
-% Calculate the PDF of the recorded data
-[ePDF.rec.tdb.y, ePDF.rec.tdb.x] = ...
-	pdffun.tdb(RecTables.TDB);
-[ePDF.rec.ghi.y, ePDF.rec.ghi.x] = ...
-	pdffun.ghi(GHIrec(GHIrec>0));
-[ePDF.rec.rh.y, ePDF.rec.rh.x] = ...
-	pdffun.rh(RecTables.RH);
-
 % Plotting without zeros
 [ePDF.syn.tdb.y, ePDF.syn.tdb.x] = ...
 	splitapply(@(x) pdffun.tdb(x),tdbsyn.col,yrgrps);
@@ -1785,7 +1809,7 @@ pdffun.rh = @(x) histcounts(x, ...
 	ghisyn.col(ghisyn.col>0), yrgrps(ghisyn.col>0));
 [ePDF.syn.rh.y, ePDF.syn.rh.x] = ...
 	splitapply(@(x) pdffun.rh(x),rhsyn.col,yrgrps);
-	
+
 
 if CCdata
 
@@ -1925,14 +1949,23 @@ pdffun.rh = @(x) histcounts(x, ...
 [eCDF.tmy.rh.e, eCDF.tmy.rh.x] = ...
 	ecdffun.rh(tmytable.RH);
 
-% Calculate the empiricial CDF of the recorded data
-[eCDF.rec.tdb.e, eCDF.rec.tdb.x] = ...
-	ecdffun.tdb(RecTables.TDB);
-[eCDF.rec.ghi.e, eCDF.rec.ghi.x] = ...
-	ecdffun.ghi(GHIrec(GHIrec>0));
-[eCDF.rec.rh.e, eCDF.rec.rh.x] = ...
-	ecdffun.rh(RecTables.RH);
-
+if RecData
+    % Calculate the empiricial CDF of the recorded data
+    [eCDF.rec.tdb.e, eCDF.rec.tdb.x] = ...
+        ecdffun.tdb(RecTables.TDB);
+    [eCDF.rec.ghi.e, eCDF.rec.ghi.x] = ...
+        ecdffun.ghi(GHIrec(GHIrec>0));
+    [eCDF.rec.rh.e, eCDF.rec.rh.x] = ...
+        ecdffun.rh(RecTables.RH);
+    
+    % Calculate the PDF of the recorded data
+    [ePDF.rec.tdb.y, ePDF.rec.tdb.x] = ...
+        pdffun.tdb(RecTables.TDB);
+    [ePDF.rec.ghi.y, ePDF.rec.ghi.x] = ...
+        pdffun.ghi(GHIrec(GHIrec>0));
+    [ePDF.rec.rh.y, ePDF.rec.rh.x] = ...
+        pdffun.rh(RecTables.RH);
+end
 
 % Calculate the PDF of the TMY data
 [ePDF.tmy.tdb.y, ePDF.tmy.tdb.x] = ...
@@ -1942,13 +1975,6 @@ pdffun.rh = @(x) histcounts(x, ...
 [ePDF.tmy.rh.y, ePDF.tmy.rh.x] = ...
 	pdffun.rh(tmytable.RH);
 
-% Calculate the PDF of the recorded data
-[ePDF.rec.tdb.y, ePDF.rec.tdb.x] = ...
-	pdffun.tdb(RecTables.TDB);
-[ePDF.rec.ghi.y, ePDF.rec.ghi.x] = ...
-	pdffun.ghi(GHIrec(GHIrec>0));
-[ePDF.rec.rh.y, ePDF.rec.rh.x] = ...
-	pdffun.rh(RecTables.RH);
 
 [eCDF.rcp45.tdb.e,eCDF.rcp45.tdb.x] = splitapply( ...
 	@(x) ecdffun.tdb(x), tdbsynCC.rcp45.col, fyrgrps);
@@ -2126,8 +2152,8 @@ synplottab = structfun(@(x)(x(:,randi([1,nboot]))), ...
 RawPlots(syndata,figsavepath,nameEPWfile, ...
 	'plotser', 'syn', 'visible','off');
 
-% Save to a MAT file
-save(fullfile(pathMATsave, [nameEPWfile,'_Syn.mat']), ...
+% Save to a MAT file in the original EPW folder.
+save(fullfile(pathEPWfolder, [nameEPWfile,'_Syn.mat']), ...
 	'syndata')
 
 % Save extras to a MAT file
