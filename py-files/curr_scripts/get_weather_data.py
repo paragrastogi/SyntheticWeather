@@ -94,7 +94,7 @@ def load_typical(pathtop, stcode, force):
                     and not any(s in f for s in keywords['amy']):
                 tmy_filelist.append(f)
 
-    print(tmy_filelist)
+    # print(tmy_filelist)
 
     # If this particular station has already been processed, then there might
     # be a pickle file with the data. Load that, unless forced.
@@ -358,15 +358,14 @@ def load_actual(pathtop, stcode, force, sources):
         notnans = actualdata.tdb.values[np.logical_not(
                 np.isnan(actualdata.tdb.values))]
         notnanidx = np.logical_not(np.isnan(actualdata.tdb.values))
-        notnans[(notnans>55) | (notnans<-55)] = np.nan
+        notnans[(notnans > 55) | (notnans < -55)] = np.nan
 
         actualdata.tdb.values[notnanidx] = notnans
-
 
         notnans = actualdata.tdp.values[np.logical_not(
                 np.isnan(actualdata.tdp.values))]
         notnanidx = np.logical_not(np.isnan(actualdata.tdp.values))
-        notnans[(notnans>60) | (notnans<-60)] = np.nan
+        notnans[(notnans > 60) | (notnans < -60)] = np.nan
 
         actualdata.tdp.values[notnanidx] = notnans
 
@@ -378,15 +377,16 @@ def load_actual(pathtop, stcode, force, sources):
 
 def nsrdb_solar_clean(wdata_nsrdb):
 
-    copy = wdata_nsrdb.copy()
+    wdata_copy = wdata_nsrdb.copy()
 
-    metstat = copy.GHI_metstat
-    measure = copy.GHI_measure
+    metstat = wdata_copy.GHI_metstat
+    measure = wdata_copy.GHI_measure
 
     idx = 0
-    temp = copy.GHI_suny
+    temp = wdata_copy.GHI_suny
 
-    copy = copy.drop(['GHI_suny', 'GHI_metstat', 'GHI_measure'], axis=1)
+    wdata_copy = wdata_copy.drop([
+            'GHI_suny', 'GHI_metstat', 'GHI_measure'], axis=1)
 
     for e in temp:
         if not np.isnan(e):
@@ -402,18 +402,19 @@ def nsrdb_solar_clean(wdata_nsrdb):
 
         idx += 1
 
-    copy = pd.concat([temp, copy], axis=1, join='inner')
-    copy = copy.rename(columns={'GHI_suny': 'ghi'})
+    wdata_copy = pd.concat([temp, wdata_copy], axis=1, join='inner')
+    wdata_copy = wdata_copy.rename(columns={'GHI_suny': 'ghi'})
 
     # Do the same for the DNI columns.
 
-    metstat = copy.DNI_metstat
-    measure = copy.DNI_measure
+    metstat = wdata_copy.DNI_metstat
+    measure = wdata_copy.DNI_measure
 
     idx = 0
-    temp = copy.DNI_suny
+    temp = wdata_copy.DNI_suny
 
-    copy = copy.drop(['DNI_suny', 'DNI_metstat', 'DNI_measure'], axis=1)
+    wdata_copy = wdata_copy.drop([
+            'DNI_suny', 'DNI_metstat', 'DNI_measure'], axis=1)
 
     for e in temp:
         if not np.isnan(e):
@@ -429,18 +430,19 @@ def nsrdb_solar_clean(wdata_nsrdb):
 
         idx += 1
 
-    copy = pd.concat([temp, copy], axis=1, join='inner')
-    copy = copy.rename(columns={'DNI_suny': 'dni'})
+    wdata_copy = pd.concat([temp, wdata_copy], axis=1, join='inner')
+    wdata_copy = wdata_copy.rename(columns={'DNI_suny': 'dni'})
 
     # And for DHI.
 
-    metstat = copy.DHI_metstat
-    measure = copy.DHI_measure
+    metstat = wdata_copy.DHI_metstat
+    measure = wdata_copy.DHI_measure
 
     idx = 0
-    temp = copy.DHI_suny
+    temp = wdata_copy.DHI_suny
 
-    copy = copy.drop(['DHI_suny', 'DHI_metstat', 'DHI_measure'], axis=1)
+    wdata_copy = wdata_copy.drop([
+            'DHI_suny', 'DHI_metstat', 'DHI_measure'], axis=1)
 
     for e in temp:
         if not np.isnan(e):
@@ -456,13 +458,13 @@ def nsrdb_solar_clean(wdata_nsrdb):
 
         idx += 1
 
-    copy = pd.concat([temp, copy], axis=1, join='inner')
-    copy = copy.rename(columns={'DHI_suny': 'dhi'})
+    wdata_copy = pd.concat([temp, wdata_copy], axis=1, join='inner')
+    wdata_copy = wdata_copy.rename(columns={'DHI_suny': 'dhi'})
 
-    return copy
+    return wdata_copy
 
 
-def get_weather(stcode, citytab):
+def get_weather(stcode, citytab, sources):
     # This bit of the script is only valid if local data exists.
     # For now, we have a lot of data for the test station so it is all loaded.
     # The weather loading functions can be modified to work with full path file
@@ -478,7 +480,7 @@ def get_weather(stcode, citytab):
 
     # Load actual data for given station
     force = False
-    actualdata = load_actual(pathtop, stcode, force, ('ncdc', 'meteosuisse'))
+    actualdata = load_actual(pathtop, stcode, force, sources)
     # Always use NCDC in addition to the country-specific weather source
     # (like meteosuisse), since that can help fill data.
 

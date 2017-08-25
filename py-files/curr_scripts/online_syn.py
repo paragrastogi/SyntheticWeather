@@ -138,16 +138,18 @@ citytab = pd.read_csv(os.path.join('..', 'CityData.csv'),
                       dtype=dict(WMO=str, StCode=str))
 # The following inputs would be input by the user.
 # Station code.
-stcode = citytab.StCode[22]
+stcode = citytab.StCode[41]
 # Longitude.
-stlong = 46.25
+stlong = 40.78
 # Latitude.
-stlat = 6.13
+stlat = -73.7
 # Altitude.
-stalt = 416.0
+stalt = 47.5
+# Specify the sources of the actual data - please follow AMY keywords list.
+sources = ('ncdc', 'nsrdb')
 
 # See accompanying script "gw".
-typicaldata, actualdata = gw.get_weather(stcode, citytab)
+typicaldata, actualdata = gw.get_weather(stcode, citytab, sources)
 
 T = typicaldata.shape[0]
 
@@ -376,6 +378,9 @@ for c, colname in enumerate(column_names):
 
 # A potential improvement would be to calculate sunrise and sunset
 # independently since that is an almost deterministic calculation.
+
+picklepath = os.path.join(path_fldr_csv, 'ts_syn_%s.p' % stcode)
+pd.to_pickle(xout_un, picklepath)
 
 # Save synthetic time series.
 for n in range(0, n_samples):
