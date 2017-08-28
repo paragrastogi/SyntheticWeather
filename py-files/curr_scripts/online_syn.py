@@ -33,7 +33,7 @@ Features to be implemented:
        too much information about the local urban canopy.
 """
 
-import os.path
+import os
 import random as random
 
 import matplotlib.pyplot as plt
