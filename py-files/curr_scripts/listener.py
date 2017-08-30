@@ -30,18 +30,24 @@ import pandas as pd
 citytab = pd.read_csv(os.path.join('..', 'CityData.csv'),
                       dtype=dict(WMO=str, StCode=str))
 # The following inputs would be input by the user.
+# Longitude.
+stlong = -73.7
+# Latitude.
+stlat = 40.78
+
+# Take the entered latitude and longitude, and first search for a match
+# with all the significant figures.
+latmatch = stlat in citytab.Latitude
+
 # Station code.
 stcode = citytab.StCode[41]
-# Longitude.
-stlong = 40.78
-# Latitude.
-stlat = -73.7
 # Altitude.
-stalt = 47.5
+stalt = 40.
+
+
 # Specify the sources of the actual data - please follow AMY keywords list.
-sources = ('ncdc', 'nsrdb')
-
+# sources = ('ncdc', 'nsrdb')
 # See accompanying script "gw".
-#typicaldata, actualdata = gw.get_weather(stcode, citytab, sources)
+# typicaldata, actualdata = gw.get_weather(stcode, citytab, sources)
 
-picklename = str(stlong) + ',' + str(stlat)
+# picklename = str(stlong) + ',' + str(stlat)
