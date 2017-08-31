@@ -25,6 +25,7 @@ addRequired(p, 'ccdata', @islogical)
 addParameter(p, 'nameEPWfolder', @ischar)
 addParameter(p, 'ccpath', '', @ischar)
 addParameter(p, 'recpath', '', @ischar)
+addParameter(p, 'randseed', 8760, @isnumeric)
 
 parse(p, pathEPWfile, namesavefldr, nboot, recdata, ccdata, varargin{:})
 
@@ -35,6 +36,10 @@ recdata = p.Results.recdata;
 ccdata = p.Results.ccdata;
 ccpath = p.Results.ccpath;
 recpath = p.Results.recpath;
+randseed = p.Results.randseed;
+
+% Set random seed.
+rng(randseed)
 
 % % Initialise File Paths
 
@@ -292,44 +297,45 @@ close all
 % Get the current AMY files, concatenated and de-duplicated,
 % in a TABLE
 
-% These are the possible file names and save paths
-MATFileNames = {fullfile(pathEPWfolder, ...
-	['TruncatedRecordedData', '_', nameEPWfolder,'.mat']);
-	fullfile(pathEPWfolder, ...
-	['RecordedData', '_', nameEPWfolder, '.mat']);
-	fullfile(pathMATsave, ...
-	['TruncatedRecordedData', '_', nameEPWfolder,'.mat']);
-	fullfile(pathMATsave, ...
-	['RecordedData', '_', nameEPWfolder,'.mat'])};
-SavedFileExists = cellfun(@(x) (exist(x,'file')==2), ...
-	MATFileNames);
-
-% Prefer full file instead of truncated
-if SavedFileExists(2)
-	load(MATFileNames{2})
-else
-	if SavedFileExists(4)
-		load(MATFileNames{4})
-	else
-		if SavedFileExists(1)
-			load(MATFileNames{1})
-		else
-			if SavedFileExists(3)
-				load(MATFileNames{3})
-			else
-				recdata = false;
-			end
-		end
-	end
-end
-
-% The MAT file loaded above should have a table called
-% RecTables
 if recdata
-	
-	% Delete the minutes column - it isn't used anywhere
-	RecTables.Minute = [];
-	
+    
+    % These are the possible file names and save paths.
+    % These MAT file should have a table called RecTables.
+    
+    MATFileNames = {fullfile(recpath, ...
+        ['TruncatedRecordedData', '_', nameEPWfolder,'.mat']);
+        fullfile(recpath, ...
+        ['RecordedData', '_', nameEPWfolder, '.mat']);
+        fullfile(recpath, ...
+        ['TruncatedRecordedData', '_', nameEPWfolder,'.mat']);
+        fullfile(recpath, ...
+        ['RecordedData', '_', nameEPWfolder,'.mat'])};
+    SavedFileExists = cellfun(@(x) (exist(x,'file')==2), ...
+        MATFileNames);
+    
+    % Prefer full file instead of truncated
+    if SavedFileExists(2)
+        load(MATFileNames{2})
+    else
+        if SavedFileExists(4)
+            load(MATFileNames{4})
+        else
+            if SavedFileExists(1)
+                load(MATFileNames{1})
+            else
+                if SavedFileExists(3)
+                    load(MATFileNames{3})
+                else
+                    recdata = false;
+                end
+            end
+        end
+    end
+    
+    
+    % Delete the minutes column - it isn't used anywhere
+    RecTables.Minute = [];
+    
 	% Calculate the daily statistics
 	[mprep,dprep,tprep] = prepareSurfaceData(...
 		RecTables.Month, RecTables.Day, RecTables.TDB);
@@ -912,11 +918,20 @@ filenameOutModel = sprintf('%sModelFromR_%s.csv', ...
 	TSname, nameEPWfile);
 OutPathModel = fullfile(RsubFolder,filenameOutModel);
 
+% Periodicity can be determined by taking the length of either SAR or SMA.
+% Since either one can be zero, it is better to select the larger one.
+switch length(selmdls.tdb.EstMdl.SMA) > length(selmdls.tdb.EstMdl.SAR)
+    case true 
+        periodicity = length(selmdls.tdb.EstMdl.SMA);
+    case false
+        periodicity = length(selmdls.tdb.EstMdl.SAR);
+end
+
 % Call a function which writes a custom R file and runs it
 % using R. For this to work, R has to be on the system path
 SimArimaR(InnPath, X1path, OutPathSim, OutPathRes, ...
 	OutPathModel, ...
-	length(selmdls.tdb.EstMdl.SAR), ...
+	periodicity, ...
 	length(selmdls.tdb.EstMdl.AR), ...
 	length(selmdls.tdb.EstMdl.MA), ...
 	sum(cellfun(@(x) (x~=0), selmdls.tdb.EstMdl.SAR)), ...
@@ -968,12 +983,20 @@ filenameOutModel = sprintf('%sModelFromR_%s.csv', ...
 	TSname, nameEPWfile);
 OutPathModel = fullfile(RsubFolder,filenameOutModel);
 
+% Periodicity can be determined by taking the length of either SAR or SMA.
+% Since either one can be zero, it is better to select the larger one.
+switch length(selmdls.rh.EstMdl.SMA) > length(selmdls.rh.EstMdl.SAR)
+    case true 
+        periodicity = length(selmdls.rh.EstMdl.SMA);
+    case false
+        periodicity = length(selmdls.rh.EstMdl.SAR);
+end
 
 % Call a function which writes a custom R file and runs it
 % using R. For this to work, R has to be on the system path
 SimArimaR(InnPath, X1path, OutPathSim, OutPathRes, ...
 	OutPathModel, ...
-	length(selmdls.rh.EstMdl.SAR), ...
+	periodicity, ...
 	length(selmdls.rh.EstMdl.AR), ...
 	length(selmdls.rh.EstMdl.MA), ...
 	sum(cellfun(@(x) (x~=0), selmdls.rh.EstMdl.SAR)), ...

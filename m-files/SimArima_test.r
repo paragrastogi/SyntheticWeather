@@ -15,7 +15,7 @@ if (!(exists('PsiModel')) | !(exists('testsim'))) {
  try( PsiModel <- Arima(IncomingX, order=c(ARp,0,MAq), seasonal=list(order=c(SARp,0,SMAq), period=periodicity), method = 'CSS', n.cond=0) )
 }
 if (!(exists('testsim'))) {
-  try( PsiModel <- Arima(IncomingX, order=c(ARp,0,MAq), seasonal=list(order=c(SARp,0,0), period=periodicity), method = 'CSS-ML', n.cond=0) )
+  try( PsiModel <- Arima(IncomingX, order=c(ARp,0,MAq), seasonal=list(order=c(0,0,0), period=periodicity), method = 'CSS-ML', n.cond=0) )
 }
 tsOut <- array(0,c(N,npaths))
 for (s in 1:ncol(tsOut)) { 

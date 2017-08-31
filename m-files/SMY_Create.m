@@ -1,4 +1,4 @@
-function SMY_Create(folderstorun,pathEPWtopfolder, ...
+function SMY_Create(folderstorun, pathEPWtopfolder, ...
 	pathOUTtopfolder, varargin)
 
 
@@ -28,7 +28,7 @@ addParameter(p, 'nameLOGfile', fullfile('LogFiles', ...
 	sprintf('LogFile_SMY_Create_%s.txt',date)),@ischar)
 addParameter(p, 'synformat', 'mat', @ischar)
 addParameter(p, 'scenario', 'syn', @ischar)
-addParameter(p, 'sublabelshift', 0, @isnumeric)
+addParameter(p, 'sublabel', 'x', @ischar)
 addParameter(p, 'srcEPWfile', '', @ischar)
 
 parse(p,folderstorun, pathEPWtopfolder, ...
@@ -41,7 +41,7 @@ pathOUTtopfolder = p.Results.pathOUTtopfolder;
 nameLOGfile = p.Results.nameLOGfile;
 synformat = p.Results.synformat;
 scenario = p.Results.scenario;
-sublabelshift = p.Results.sublabelshift;
+sublabel = p.Results.sublabel;
 srcEPWfile = p.Results.srcEPWfile;
 
 if exist(pathOUTtopfolder, 'dir') ~= 7
@@ -116,7 +116,7 @@ for CityNumber = 1:length(TopFolderDirList)
 		mkdir(CityDirPathOut)
 	end
 	
-	try
+% 	try
 		
 		fprintf(fIDlog,'Processing folder %s\n', ...
 			TopFolderDirList{CityNumber});
@@ -194,8 +194,8 @@ for CityNumber = 1:length(TopFolderDirList)
 				cellfun(@(x) (strfind(x,StationID)), ...
 				WthrFilesListEPW,'UniformOutput',0)));
 			
-			clear TMYfind AMYfind
-			
+			clear TMYfind AMYfind	
+            		
 			% Search for all TMY keywords
 			TMYfind = ~cellfun(@isempty,(strfind(WthrFilesListEPW, ...
 				FileParserNames.TMYKeyword{1})));
@@ -275,9 +275,9 @@ for CityNumber = 1:length(TopFolderDirList)
                 end
                 
             else
-                FileNameMaster = srcEPWfile;
+                [~, FileNameMaster, ~] = fileparts(srcEPWfile);
                 % Path to master file
-                FilePathMaster = fullfile(CityDirPathIn, FileNameMaster);
+                FilePathMaster = srcEPWfile;
                 % Read the file using Meteonorm parser
                 mastertable = WeatherFileParseEPWUSDOE...
                     (FilePathMaster);
@@ -322,11 +322,23 @@ for CityNumber = 1:length(TopFolderDirList)
 			
 			% If no actual weather data files are found,
 			% skip this city
-			if isempty(MATfileSyn)
-				fprintf(fIDlog,['No synthetic data files found for', ...
-					' station %s\n'], FileNameMaster);
-				continue
-			end
+            if isempty(MATfileSyn)
+                fprintf(fIDlog,['No synthetic data files found for', ...
+                    ' base file %s\n'], FileNameMaster);
+                continue
+            elseif all(size(MATfileSyn)>1)
+                fprintf(fIDlog,['Multiple synthetic data files found for', ...
+                    ' base file %s. Continuing with data file name that matches best.\n'], FileNameMaster);
+                for f = 1:size(MATfileSyn, 1)
+                    if strcmp(MATfileSyn(f, 1:end-8), FileNameMaster)
+                        temp = MATfileSyn(f,:);
+                        break
+                    else
+                        temp = 'na';
+                    end
+                end
+                MATfileSyn = temp;
+            end
 			
 			
 			if strcmpi(synformat,'mat')
@@ -357,20 +369,20 @@ for CityNumber = 1:length(TopFolderDirList)
 				length(UniqueSynYears) / N;
 			SynYears = repmat(UniqueSynYears, PickBootLen, 1);
 			
-			% New batch has a set of sub labels shifted by
-			% 500.
-			SubLabel = reshape(repmat(sublabelshift+(1:PickBootLen), ...
-				length(UniqueSynYears),1), [], 1);
-			
-			SynYearsNames = cellfun(@num2str, num2cell([SynYears, ...
-				SubLabel]), 'UniformOutput', 0);
+			% New batch has a set of sub labels shifted by the value of
+			% sublabel.
+			SubLabelArray = cell(length(UniqueSynYears),1);
+            SubLabelArray(:) = {sublabel};
+            
+            [temp1, temp2] = ndgrid(cellfun(@num2str, ...
+                num2cell(SynYears), 'UniformOutput', 0), SubLabelArray);
+			SynYearsNames = strcat(temp1(:), '-', temp2(:));
 			
 			OutFilePath = fullfile(pathOUTtopfolder, CityMasterName);
 			% Path to the new file, i.e. output file
-			FilePathNew = fullfile(OutFilePath, cellfun(@(x,y) ...
-				sprintf('%s_%s_%04s-%03s.epw', StationID, ...
-				scenario, x, y), SynYearsNames(:,1), ...
-				SynYearsNames(:,2), 'UniformOutput', 0));
+			FilePathNew = fullfile(OutFilePath, cellfun(@(x) ...
+				sprintf('%s_%s_%08s.epw', StationID, ...
+				scenario, x), SynYearsNames, 'UniformOutput', 0));
 			
 			% Check if file already exists. If destroyer was
 			% true, the existing file should have been
@@ -482,7 +494,12 @@ for CityNumber = 1:length(TopFolderDirList)
 					CurrIdx = 1:N;
 				else
 					CurrIdx = ((f-1)*N)+1:(f*N);
-				end
+                end
+                
+                % Break loop when you are out of the syndata index.
+                if any(CurrIdx>numel(syndata.Year))
+                    break
+                end
 				
 				
 				% Copy the entire master table first.
@@ -537,16 +554,16 @@ for CityNumber = 1:length(TopFolderDirList)
 		end
 		
 		
-	catch err
-		
-		fprintf('%s \r\n', err.message);
-		for e=1:length(err.stack)
-			fprintf('%s at %i\n', err.stack(e).name, ...
-				err.stack(e).line);
-		end
-		fprintf('Error in folder %s .\r\n', ...
-			TopFolderDirList{CityNumber})
-	end
+% 	catch err
+% 		
+% 		fprintf('%s \r\n', err.message);
+% 		for e=1:length(err.stack)
+% 			fprintf('%s at %i\n', err.stack(e).name, ...
+% 				err.stack(e).line);
+% 		end
+% 		fprintf('Error in folder %s .\r\n', ...
+% 			TopFolderDirList{CityNumber})
+% 	end
 end
 
 fclose(fIDlog);
