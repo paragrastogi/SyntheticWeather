@@ -44,13 +44,13 @@ pathtop = os.path.join('..', '..', 'WeatherData', 'HistoricalData')
 #                 print('Working in folder %s.\r\n' % pathtop)
 # =============================================================================
 
-
-
 # Length of one year of hourly data.
 # T = 8760
 
 # List of values that could be NaNs.
 nanlist = ('9900', '-9900', '9999', '99', '-99', '9999.9', '999.9', ' ', '-')
+
+# %%
 
 
 def load_typical(pathtop, stcode, force):
@@ -196,7 +196,7 @@ def load_actual(pathtop, stcode, force, sources):
         ncdc_filelist = [os.path.join(path_ncdc, o)
                          for o in os.listdir(path_ncdc)
                          if not os.path.isdir(os.path.join(path_ncdc, o))]
-        ncdc_colnames = ['wmo', 'date', 'time', 'wdr', 'wspd',
+        ncdc_colnames = ['date', 'time', 'wdr', 'wspd',
                          'tdb', 'tdp', 'atmpr', 'rh']
 
         wdata_ncdc = pd.DataFrame()
@@ -211,13 +211,13 @@ def load_actual(pathtop, stcode, force, sources):
                 print('Processing station {0}.\r\n'.format(stcode))
                 wdata_ncdc = pd.read_csv(f, delimiter=',', skiprows=2,
                                          header=None,
-                                         usecols=[0, 2, 3, 7, 10,
+                                         usecols=[2, 3, 7, 10,
                                                   12, 14, 16, 18],
                                          na_filter=True,
                                          na_values=nanlist,
                                          names=ncdc_colnames,
                                          dtype=dict(date=str,
-                                                    time=str, wmo=str))
+                                                    time=str))
                 dater = wdata_ncdc['date'].str.extract(
                     '(\d{4})(\d{2})(\d{2})', expand=False)
                 dater.columns = ['year', 'month', 'day']
@@ -345,12 +345,35 @@ def load_actual(pathtop, stcode, force, sources):
               'Returning empty table.\r\n')
         return actualdata
     else:
-        actualdata['wmo'] = actualdata['wmo'].apply(str)
+        # delete  the minute column
+        del actualdata['minute']
         # Reorganise columns and return.
-        actualdata = actualdata[['year', 'month', 'day', 'hour', 'minute',
+        actualdata = actualdata[['year', 'month', 'day', 'hour',
                                  'tdb', 'tdp', 'rh',
                                  'ghi', 'dni', 'dhi',
-                                 'wdr', 'wspd', 'atmpr', 'wmo']]
+                                 'wdr', 'wspd', 'atmpr']]
+
+        # Convert time columns to numbers.
+        actualdata.year = pd.to_numeric(actualdata.year)
+        actualdata.month = pd.to_numeric(actualdata.month)
+        actualdata.day = pd.to_numeric(actualdata.day)
+        actualdata.hour = pd.to_numeric(actualdata.hour)
+
+        tempdata = pd.DataFrame()
+        for col in list(actualdata):
+            tempdata[col] = actualdata.groupby(['year',
+                    'month', 'day', 'hour'])[col].mean()
+
+        # If all elements of a row are nans, then discard that row.
+        tempnans = tempdata.apply(np.isnan, axis=1)
+        nancheck = tempnans.all(axis=1).values
+
+        actualdata = pd.DataFrame()
+
+        for col in list(tempdata):
+            actualdata[col] = tempdata[col][np.logical_not(nancheck)]
+
+        del tempdata
 
         # Final sanity checks.
         notnans = actualdata.tdb.values[np.logical_not(
@@ -366,6 +389,10 @@ def load_actual(pathtop, stcode, force, sources):
         notnans[(notnans > 60) | (notnans < -60)] = np.nan
 
         actualdata.tdp.values[notnanidx] = notnans
+
+        # Reassing original index.
+        actualdata.index = pd.to_datetime(
+                    actualdata[['year', 'month', 'day', 'hour']])
 
         pd.to_pickle(actualdata, picklepath)
         actualdata.to_csv(csvpath, na_rep='NA')
@@ -467,10 +494,10 @@ def get_weather(stcode, citytab, sources):
     # For now, we have a lot of data for the test station so it is all loaded.
     # The weather loading functions can be modified to work with full path file
     # in deployment.
-    if not os.path.isdir(os.path.join(pathtop,'pickled_data')):
-        os.mkdir(os.path.join(pathtop,'pickled_data'))
-    if not os.path.isdir(os.path.join(pathtop,'csv_collated_data')):
-        os.mkdir(os.path.join(pathtop,'csv_collated_data'))
+    if not os.path.isdir(os.path.join(pathtop, 'pickled_data')):
+        os.mkdir(os.path.join(pathtop, 'pickled_data'))
+    if not os.path.isdir(os.path.join(pathtop, 'csv_collated_data')):
+        os.mkdir(os.path.join(pathtop, 'csv_collated_data'))
 
     print('Running for station {}'.format(stcode))
 
