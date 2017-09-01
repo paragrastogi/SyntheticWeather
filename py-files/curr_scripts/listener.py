@@ -9,10 +9,10 @@ This script is meant to "listen" for a request for weather files.
 The script will begin by locating/recognising the location
 (represented by latitude and longitude). Then, it can take
 one of the following actions:
-    1. Search for a pickle file containing pre-generated synthetic 
-    files. -> Load pickle file. -> Return as many time series as 
+    1. Search for a pickle file containing pre-generated synthetic
+    files. -> Load pickle file. -> Return as many time series as
     were asked.
-    2. 
+    2.
 
 
 """
@@ -26,23 +26,61 @@ import pandas as pd
 # This bit of code loads data from pre-processed pickle files or
 # processes CSV files. This is the 'starter' data that the script needs.
 
+# Where am I to search for the pickle files?
+picklepath = os.path.join('/home', 'rasto', 'Documents', 'WeatherData',
+                          'SyntheticData', 'pickled')
+picklelist = os.listdir(picklepath)
+
 # Load data about the cities. This is just for this example.
 citytab = pd.read_csv(os.path.join('..', 'CityData.csv'),
                       dtype=dict(WMO=str, StCode=str))
 # The following inputs would be input by the user.
 # Longitude.
-stlong = -73.7
+stlong = -73.76
 # Latitude.
-stlat = 40.78
+stlat = 40.76
 
 # Take the entered latitude and longitude, and first search for a match
 # with all the significant figures.
-latmatch = stlat in citytab.Latitude
+all_lats = citytab.Latitude
+all_longs = citytab.Longitude
 
-# Station code.
-stcode = citytab.StCode[41]
-# Altitude.
-stalt = 40.
+latmatch = stlat == all_lats
+longmatch = stlong == all_longs
+
+stfind = np.zeros(latmatch.shape, dtype=np.bool)
+patience = 0
+
+while not any(stfind):
+
+    stfind = latmatch & longmatch
+
+    if any(stfind):
+        # Station code.
+        stcode = citytab.StCode[stfind]  # [41]
+        # Altitude.
+        stalt = citytab.Altitude[stfind]
+
+    else:
+        stlat = round(stlat, patience)
+        stlong = round(stlong, patience)
+
+        all_longs = round(all_longs, patience)
+        all_lats = round(all_lats, patience)
+
+        latmatch = stlat == all_lats
+        longmatch = stlong == all_longs
+
+        stfind = latmatch & longmatch
+
+        stcode = citytab.StCode[stfind]
+        stalt = citytab.Altitude[stfind]
+
+    patience += 1
+
+    if patience == 2:
+        break
+
 
 
 # Specify the sources of the actual data - please follow AMY keywords list.

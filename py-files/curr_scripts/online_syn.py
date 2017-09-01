@@ -58,7 +58,7 @@ import copy
 
 # from sklearn.model_selection import GridSearchCV
 # from sklearn.model_selection import RandomizedSearchCV
-from sklearn.model_selection import KFold
+# from sklearn.model_selection import KFold
 
 # from skopt import gp_minimize
 # from sklearn.datasets import fetch_mldata
@@ -75,8 +75,8 @@ from statsmodels.graphics.tsaplots import plot_pacf
 # These custom functions load and clean recorded data.
 # For now, we are only concerned with ncdc and nsrdb.
 import get_weather_data as gw
-#from get_weather_data import load_actual
-#from get_weather_data import load_typical
+# from get_weather_data import load_actual
+# from get_weather_data import load_typical
 
 # Custom functions to calculate error metrics.
 # import losses.
@@ -102,14 +102,17 @@ get_ipython().magic('matplotlib inline')
 # Where do you want to save figures?
 figpath = 'figures'
 # ... and the csv outputs?
-path_fldr_csv = 'pred_means'
+path_fldr_csv = os.path.join('/home', 'rasto', 'Documents', 'WeatherData',
+                             'SyntheticData', 'csv_saves')
+path_fldr_pickle = os.path.join('/home', 'rasto', 'Documents', 'WeatherData',
+                                'SyntheticData', 'pickled')
 # Check if these folders exist.
 # If they don't, create them.
 if not os.path.isdir(path_fldr_csv):
     os.mkdir(path_fldr_csv)
 if not os.path.isdir(figpath):
     os.mkdir(figpath)
-# %%
+#%%
 
 # Make a standard scaler to scale variables to \mu = 0 and \sigma = 1.
 scaler = StandardScaler()
@@ -128,7 +131,7 @@ column_names = ('day', 'hour', 'tdb', 'tdp', 'rh', 'ghi', 'dni', 'dhi',
 date_cols = ('day', 'hour')
 dc = len(date_cols)
 
-# %%
+#%%
 
 # This bit of code loads data from pre-processed pickle files or
 # processes CSV files. This is the 'starter' data that the script needs.
@@ -138,13 +141,13 @@ citytab = pd.read_csv(os.path.join('..', 'CityData.csv'),
                       dtype=dict(WMO=str, StCode=str))
 # The following inputs would be input by the user.
 # Station code.
-stcode = citytab.StCode[41]
+stcode = citytab.StCode[22]
 # Longitude.
-stlong = 40.78
+stlong = citytab.Longitude[22]
 # Latitude.
-stlat = -73.7
+stlat = citytab.Latitude[22]
 # Altitude.
-stalt = 47.5
+stalt = citytab.Altitude[22]
 # Specify the sources of the actual data - please follow AMY keywords list.
 sources = ('ncdc', 'nsrdb')
 
@@ -153,7 +156,7 @@ typicaldata, actualdata = gw.get_weather(stcode, citytab, sources)
 
 T = typicaldata.shape[0]
 
-# %%
+#%%
 
 # Extract the relevant data from the loaded 'starter' data.
 # This step won't be needed if only the relevant variables are in the
@@ -174,7 +177,7 @@ D = xin_un.shape[1]
 # The column order is as follows:
 # day, hour, tdb, tdp, rh, ghi, dni, dhi, wspd, wdr
 
-# %%
+#%%
 
 # Back to the generator.
 
@@ -196,7 +199,7 @@ histlim = int(14*24)
 # Start of time loop.
 l_start = int(0*24)
 # End of time loop.
-l_end = int(365*24)
+l_end = int(3*24)
 # Step size for time loop.
 l_step = int(48)
 
@@ -228,6 +231,8 @@ hh = typicaldata.hour + (typicaldata.index.dayofyear-1)*24
 # Simply copy the input for the first l_start+l_step hours.
 pred_means[0:l_start+l_step, :, :] = np.tile(np.atleast_3d(
     xin_norm[0:l_start+l_step, :]), n_samples)
+
+#%%
 
 # Loop over each day, starting from the second day.
 for h in range(l_start+l_step, l_end+l_step, l_step):
@@ -343,7 +348,8 @@ print("Time taken to train month-wise hourly models was %6.2f seconds."
       % (end_time - start_time))
 
 # Save list to pickle file.
-with open('gp_list', 'wb') as fp:
+path_file_list = os.path.join(path_fldr_pickle, 'gp_list')
+with open(path_file_list, 'wb') as fp:
     pickle.dump(gp_list, fp)
 
 # Un-scale the series.
@@ -379,7 +385,7 @@ for c, colname in enumerate(column_names):
 # A potential improvement would be to calculate sunrise and sunset
 # independently since that is an almost deterministic calculation.
 
-picklepath = os.path.join(path_fldr_csv, 'ts_syn_%s.p' % stcode)
+picklepath = os.path.join(path_fldr_pickle, 'ts_syn_%s.p' % stcode)
 pd.to_pickle(xout_un, picklepath)
 
 # Save synthetic time series.
@@ -391,7 +397,7 @@ for n in range(0, n_samples):
 # The generation part ends here - the rest is just plotting various things.
 
 #
-# %%
+#%%
 #
 # =============================================================================
 #
@@ -429,7 +435,7 @@ for n in range(0, n_samples):
 
 # =============================================================================
 
-# %%
+#%%
 
 plotrange = range(l_start, l_end)
 p = 2
@@ -462,7 +468,7 @@ figname = os.path.join(figpath, 'line_{0}.pdf'.format('tdb'))
 #plt.savefig(figname)
 plt.show()
 
-# %%
+#%%
 
 p = 2
 n = 0  # random.randint(0, n_samples)
@@ -502,7 +508,7 @@ plt.xlabel('Lags [Hours]')
 plt.ylabel('Corr.')
 plt.title('TDB vs TDP')
 plt.legend(['Recorded', 'Synthetic'])
-# %%
+#%%
 
 # Repeat the RGB spec for grey n_sample times to plot n_sample synthetic series.
 grey_reps = np.repeat(np.atleast_2d(colours.grey).T,n_samples, axis=1).T
@@ -529,7 +535,7 @@ plt.legend(['Recorded', 'Synthetic'], loc='upper right')
 figname = os.path.join(figpath, 'hist_{0}.pdf'.format('tdb'))
 plt.savefig(figname)
 plt.show()
-# %% TDP
+#%% TDP
 
 plotrange = range(l_start, 48)
 p = 5
@@ -559,7 +565,7 @@ figname = os.path.join(figpath, 'line_{0}.pdf'.format('tdp'))
 plt.savefig(figname)
 plt.show()
 
-# %%
+#%%
 
 # Histogram.
 plt.figure(num=None, figsize=(6, 4), dpi=80, facecolor='w', edgecolor='k')
