@@ -28,7 +28,7 @@ addParameter(p, 'nameLOGfile', fullfile('LogFiles', ...
 	sprintf('LogFile_SMY_Create_%s.txt',date)),@ischar)
 addParameter(p, 'synformat', 'mat', @ischar)
 addParameter(p, 'scenario', 'syn', @ischar)
-addParameter(p, 'sublabel', 'x', @ischar)
+addParameter(p, 'sublabel', 'x', @isnumeric)
 addParameter(p, 'srcEPWfile', '', @ischar)
 
 parse(p,folderstorun, pathEPWtopfolder, ...
@@ -371,12 +371,17 @@ for CityNumber = 1:length(TopFolderDirList)
 			
 			% New batch has a set of sub labels shifted by the value of
 			% sublabel.
-			SubLabelArray = cell(length(UniqueSynYears),1);
-            SubLabelArray(:) = {sublabel};
+            temp1 = sublabel:1:(PickBootLen-1);
+            temp2 = repmat(temp1,length(UniqueSynYears),1);
+            temp2 = temp2(:);
+% 			SubLabelArray = cell(length(UniqueSynYears)*PickBootLen,1);
+            SubLabelArray = cellfun(@num2str, num2cell(temp2), 'UniformOutput', 0); % {};
             
-            [temp1, temp2] = ndgrid(cellfun(@num2str, ...
-                num2cell(SynYears), 'UniformOutput', 0), SubLabelArray);
-			SynYearsNames = strcat(temp1(:), '-', temp2(:));
+            %             [temp1, temp2] = ndgrid(cellfun(@num2str, ...
+            %                 num2cell(SynYears), 'UniformOutput', 0), SubLabelArray);
+            % 			SynYearsNames = strcat(temp1(:), '-', temp2(:));
+            SynYearsNames = strcat(cellfun(@num2str, ...
+                num2cell(SynYears), 'UniformOutput', 0), '-', SubLabelArray);
 			
 			OutFilePath = fullfile(pathOUTtopfolder, CityMasterName);
 			% Path to the new file, i.e. output file

@@ -70,7 +70,7 @@ fprintf(fIDwrite, ['CustomInn = read.csv(file.', ...
 fprintf(fIDwrite, ['IncomingX = read.csv(file.', ...
 	'path("%s"))\r\n'], X1path);
 s = rng;
-fprint(fIDwrite, ['set.seed(%d)\r\n'], s.Seed)
+fprintf(fIDwrite, ['set.seed(%d)\r\n'], s.Seed);
 clear s
 
 % Initalise the ARIMA model
