@@ -371,10 +371,10 @@ for CityNumber = 1:length(TopFolderDirList)
 			
 			% New batch has a set of sub labels shifted by the value of
 			% sublabel.
-            temp1 = sublabel:1:(PickBootLen-1);
+            temp1 = (0:1:(PickBootLen-1)) + sublabel;
             temp2 = repmat(temp1,length(UniqueSynYears),1);
             temp2 = temp2(:);
-% 			SubLabelArray = cell(length(UniqueSynYears)*PickBootLen,1);
+            % SubLabelArray = cell(length(UniqueSynYears)*PickBootLen,1);
             SubLabelArray = cellfun(@num2str, num2cell(temp2), 'UniformOutput', 0); % {};
             
             %             [temp1, temp2] = ndgrid(cellfun(@num2str, ...
