@@ -98,7 +98,9 @@ import pickle
 
 __author__ = 'Parag Rastogi'
 
+# Disbale this command if you want figures in a new window.
 get_ipython().magic('matplotlib inline')
+# Also disable when running in command window.
 
 # Where do you want to save figures?
 figpath = 'figures'
@@ -155,6 +157,8 @@ sources = ('ncdc', 'nsrdb')
 # See accompanying script "gw".
 currentdata, historicaldata = gw.get_weather(stcode, citytab, sources)
 
+T = currentdata.shape[0]
+
 #%%
 
 # Extract the relevant data from the loaded 'starter' data.
@@ -194,9 +198,9 @@ metvars = ts_curr_in.shape[1]
 
 # Re-scale the hourly values (Normalize).
 s_c = scaler.fit(ts_curr_in)
-s_h = scaler.fit(ts_hist_in)
+#s_h = scaler.fit(ts_hist_in)
 ts_curr_norm = scaler.transform(ts_curr_in)
-ts_hist_norm = scaler.transform(ts_hist_in)
+#ts_hist_norm = scaler.transform(ts_hist_in)
 
 start_time = time.monotonic()
 
@@ -205,26 +209,29 @@ histlim = int(14*24)
 # Start of time loop.
 l_start = int(0*24)
 # End of time loop.
-l_end = int(3*24)
+l_end = int(31*24)
 # Step size for time loop.
-l_step = int(48)
+l_step = int(4*24)
 
 # Pre-allocate a list of lists to store gp models for
 # each day and variable.
-listicle = [None]*metvars
+listicle = [None]*int(((l_end-l_start)/24)+1)
 gp_list = list()
-for n in range(0, int(l_end/24)+1, 1):
+for n in range(0, metvars, 1):
     gp_list.append(copy.copy(listicle))
 
 # Number of synthetic series to be created.
-n_samples = int(histlim/l_step)
+# For now, number of models per month times 10.
+n_samples = 10
+# Number of mdoels in a month, i.e., no. of 'periods'/month.
+subperiods = int((720)/l_step)
 
 # To check the change in values from the previous step.
 mae = np.zeros(len(column_names))
 
 # Array to store the day-ahead 'predictions'.
-pred_means = np.zeros([ts_curr_norm.shape[0],
-                       ts_curr_norm.shape[1], n_samples])
+#pred_means = np.zeros([ts_curr_norm.shape[0],
+#                       ts_curr_norm.shape[1], n_samples*subperiods])
 # pred_stds = np.zeros_like(xin_norm_diff)
 
 # Pre-allocate predictions matrices.
@@ -235,13 +242,13 @@ y_std = np.zeros([l_step, n_samples])
 hh = currentdata.hour + (currentdata.index.dayofyear-1)*24
 
 # Simply copy the input for the first l_start+l_step hours.
-pred_means[0:l_start+l_step, :, :] = np.tile(np.atleast_3d(
-    ts_curr_norm[0:l_start+l_step, :]), n_samples)
+#pred_means[0:l_start+l_step, :, :] = np.tile(np.atleast_3d(
+#    ts_curr_norm[0:l_start+l_step, :]), n_samples)
 
 #%%
 
 # Loop over each day, starting from the second day.
-for h in range(l_start+l_step, l_end+l_step, l_step):
+for h in range(l_start+l_step, l_end, l_step):
 
     # Train initial model on the first day.
     # Take the last $histlim$ hours into account.
@@ -252,6 +259,7 @@ for h in range(l_start+l_step, l_end+l_step, l_step):
         slicer = slicer[b:h+1]
         del b
 
+    # Find the current month and date.
     m = np.squeeze(currentdata.month.values[h == hh])
     d = int(h/24)
 
@@ -264,7 +272,7 @@ for h in range(l_start+l_step, l_end+l_step, l_step):
     # Array to store stdev of predictions.
     # Array shape is l_step x number of variables - 2,
     # (since time variables do not have predictions).
-    ystd_slice = np.zeros((l_step, ts_curr_norm.shape[1]-2))
+#    ystd_slice = np.zeros((l_step, ts_curr_norm.shape[1]-2))
 
     # Cycle through all columns.
     for c, colname in enumerate(column_names):
@@ -294,16 +302,14 @@ for h in range(l_start+l_step, l_end+l_step, l_step):
     if (h+l_step) > T:
         break
 
-    # The next day's values ($histlim$), which will be updated by the
-    # Gibbs sampling loop.
-    tomorrows_vals = np.zeros((l_step, ts_curr_norm.shape[1], n_samples))
-
     for c, colname in enumerate(column_names):
 
         if colname in date_cols:
             # Use original values of time variables.
-            tomorrows_vals[:, c, :] = np.tile(np.atleast_2d(
-                ts_curr_norm[tomorrows_slice, c]).T, n_samples)
+            # tomorrows_vals[:, c, :] = np.tile(np.atleast_2d(
+            #     ts_curr_norm[tomorrows_slice, c]).T, n_samples)
+            continue
+
         else:
             # Find the current column in the overall array.
             find_y = yfinder(colname)
@@ -319,10 +325,53 @@ for h in range(l_start+l_step, l_end+l_step, l_step):
             # Delete them immediately.
             del ypred, ystd
 
+            gp_list[c][d] = gp_temp
+
+for c, colname in enumerate(column_names):
+    gp_list[c][1:int((l_start+l_step)/24)+1] = []
+
+
+#%%
+
+x_pred = np.zeros([l_step, n_samples*subperiods])
+
+# Loop over each day, starting from the second day.
+for h in range(l_start+l_step, l_end, l_step):
+
+    # Train initial model on the first day.
+    # Take the last $histlim$ hours into account.
+    slicer = range(l_start, h)
+
+    if len(slicer) > histlim:
+        b = int(len(slicer) - histlim)
+        slicer = slicer[b:h+1]
+        del b
+
+    # Find the current month and date.
+    m = np.squeeze(currentdata.month.values[h == hh])
+    d = int(h/24)
+
+
+    # The 'predicted' next day's values (size = l_step).
+    tomorrows_vals = np.zeros((l_step, ts_curr_norm.shape[1], n_samples*subperiods))
+
+    print("Month %d, day %d" % (m, d))
+
+    for c, colname in enumerate(column_names):
+
+        if colname in date_cols:
+            # Use original values of time variables.
+            tomorrows_vals[:, c, :] = np.tile(np.atleast_2d(
+                ts_curr_norm[tomorrows_slice, c]).T, tomorrows_vals.shape[-1])
+
+        else:
+
+            # The model will be 'queried' at these points.
             x_query = x_train[-l_step:, :]
 
-            x_pred = np.squeeze(gp_temp.sample_y(x_query,
-                    n_samples=n_samples), axis = 1)
+            for g, gps in gp_list[c]:
+                srange = range((g-1)*n_samples, g*n_samples)
+                x_pred[:, srange] = np.squeeze(gps.sample_y(x_query, n_samples=n_samples), axis = 1)
 
     # Use the GP of each day to predict that day,
     # but add the predictions from using the GPs of
@@ -343,11 +392,11 @@ for h in range(l_start+l_step, l_end+l_step, l_step):
 #                dd += 1
 #            del dd
 
-            gp_list[d][c] = gp_temp
-
     pred_means[tomorrows_slice, :, :] = tomorrows_vals
 
     # End of hourly loop.
+
+
 
 end_time = time.monotonic()
 print("Time taken to train month-wise hourly models was %6.2f seconds."
@@ -363,7 +412,7 @@ with open(path_file_list, 'wb') as fp:
 xout_un = np.zeros_like(pred_means)
 # Inverse transform all columns together, for each sample.
 for n in range(0, n_samples):
-    xout_un[:, :, n] = s_h.inverse_transform(pred_means[:, :, n])
+    xout_un[:, :, n] = s_c.inverse_transform(pred_means[:, :, n])
 
 # Synthetic solar data requires post-processing.
 for c, colname in enumerate(column_names):
