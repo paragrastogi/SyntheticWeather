@@ -82,6 +82,21 @@ while not any(stfind):
         break
 
 
+# Start of time loop.
+l_start = int(0*24)
+# End of time loop.
+l_end = int(60*24)
+# Step size for time loop.
+l_step = int(4*24)
+
+
+
+# Two modes
+#1. WIth seed file
+#2. Sampleing run
+#Go get files from espr climate folder
+#Output file in pwd
+
 
 # Specify the sources of the actual data - please follow AMY keywords list.
 # sources = ('ncdc', 'nsrdb')

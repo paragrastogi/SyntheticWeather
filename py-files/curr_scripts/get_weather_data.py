@@ -22,7 +22,7 @@ keywords = dict(tmy=('NREL', 'IWEC', 'ISHRAE', 'CWEC',
 
 # # FILE PATHS.
 # I don't know how to make this work in every situation!
-pathtop = os.path.join('..', '..', 'WeatherData', 'HistoricalData')
+#pathtop = os.path.join('..', '..', 'WeatherData', 'HistoricalData')
 # =============================================================================
 # pathtop = '/media/rasto/SmallKaali/WeatherData/HistoricalData'
 # if os.path.isdir(pathtop):
@@ -80,6 +80,8 @@ def load_typical(pathtop, stcode, force):
     # This command throws out files.
     pathsub = [os.path.join(pathtop, o) for o in os.listdir(pathtop)
                if os.path.isdir(os.path.join(pathtop, o))]
+
+    # print(pathsub)
 
     # List of TMY files.
     tmy_filelist = []
@@ -158,7 +160,7 @@ def load_typical(pathtop, stcode, force):
 
     if typdata.empty:
         print('Could not locate a file with given station name.' +
-              'Returning empty table.\r\n')
+              ' Returning empty table.\r\n')
         return typdata, tmy_filelist
 
     else:
