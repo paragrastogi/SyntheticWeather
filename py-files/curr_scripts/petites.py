@@ -3,8 +3,9 @@
 """
 Created on Tue Jul  4 16:23:50 2017
 
-@author: Parag Rastogi
 """
+__author__ = 'Parag Rastogi'
+
 import os
 import time
 import copy
@@ -118,8 +119,8 @@ def learngp(l_start, l_end, l_step, histlim,
     # y_sample = np.zeros([l_step, n_samples])
     # y_std = np.zeros([l_step, n_samples])
 
-    # Hours of the year.
-    hh = ts_curr_norm.hour + (ts_curr_norm.index.dayofyear-1)*24
+    # Hours of the year - calculated from hours of the day and day of the year.
+    hh = ts_curr_in[:,2] + (ts_curr_in[:,1]-1)*24
 
     d = 0
 
@@ -130,15 +131,23 @@ def learngp(l_start, l_end, l_step, histlim,
 
         # Train initial model on the first day.
         # Take the last $histlim$ hours into account.
-        slicer = range(l_start, h)
+        slicer = np.arange(l_start, h)
 
         if len(slicer) > histlim:
             b = int(len(slicer) - histlim)
             slicer = slicer[b:h+1]
             del b
 
+        date_slice = [(mslice, dslice, hslice)
+                      for (mslice, dslice, hslice) in
+                      zip(ts_curr_in[:, 0], ts_curr_in[:, 1], hh)
+                      if hslice in slicer]
+
+        print(date_slice)
+        print(slicer)
+
         # Output the current month and day.
-        month_tracker[d] = np.squeeze(ts_curr_norm.month.values[h == hh])
+        month_tracker[d] = np.squeeze(ts_curr_in[h == hh, 0])
 
         print("Month %d, day %d" % (month_tracker[d], int(h/24)))
 
@@ -197,7 +206,7 @@ def learngp(l_start, l_end, l_step, histlim,
                 y_train = train_slice[:, find_y]
 
                 # Call
-                gp_temp, _, _ = gp_funcs(colname, x_train, y_train)
+                gp_temp, _, _ = fitgp(colname, x_train, y_train)
                 # The second and third outputs are dummies,
                 # though calling them stupid would be mean.
 
@@ -219,8 +228,9 @@ def learngp(l_start, l_end, l_step, histlim,
 
     return gp_list, month_tracker
 
+
 def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples, ts_curr_in,
-             month_tracker, picklepath=os.getcwd(), outpath = os.getcwd()):
+             month_tracker, picklepath=os.getcwd(), outpath=os.getcwd()):
 
     start_time = time.monotonic()
 
@@ -231,7 +241,7 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples, ts_curr_in,
 
     # Array to store the day-ahead 'predictions'.
     xout_norm = np.zeros([ts_curr_norm.shape[0],
-                           ts_curr_norm.shape[1], n_samples])
+                          ts_curr_norm.shape[1], n_samples])
     # pred_stds = np.zeros_like(ts_curr_norm)
 
     # Simply copy the input for the first l_start+l_step hours.

@@ -8,6 +8,8 @@ This file contains functions to load weather data from 'typical' and
 'actual' (recorded) weather data files.
 """
 
+__author__ = 'Parag Rastogi'
+
 # ISSUES TO ADDRESS
 # 1. Harmonize WMO numbers - if the incoming number is 5 digits,
 # add leading zero (e.g., Geneva)
@@ -15,51 +17,74 @@ This file contains functions to load weather data from 'typical' and
 # Maybe use Erbs model like before.
 
 # List of keywords that identify TMY and AMY files.
-keywords = dict(tmy=('NREL', 'IWEC', 'ISHRAE', 'CWEC',
-                     'IGDG', 'TMY3', 'Meteonorm'),
-                amy=('NSRDB', 'NRELIndiaSolar', 'NCDC',
-                     'MeteoSuisse', 'WY2', 'NASASaudi'))
-
-# # FILE PATHS.
-# I don't know how to make this work in every situation!
-#pathtop = os.path.join('..', '..', 'WeatherData', 'HistoricalData')
-# =============================================================================
-# pathtop = '/media/rasto/SmallKaali/WeatherData/HistoricalData'
-# if os.path.isdir(pathtop):
-#     print('Working in folder %s.\r\n' % pathtop)
-# else:
-#     pathtop = r'f:\WeatherData\HistoricalData'
-#     if os.path.isdir(pathtop):
-#         print('Working in folder %s.\r\n' % pathtop)
-#     else:
-#         pathtop = r'C:\Users\prastogi\Documents\WeatherData\HistoricalData'
-#         if os.path.isdir(pathtop):
-#             print('Working in folder %s.\r\n' % pathtop)
-#         else:
-#             pathtop = r'/home/rasto/Documents/WeatherData/HistoricalData'
-#             if os.path.isdir(pathtop):
-#                 print('Working in folder %s.\r\n' % pathtop)
-#             else:
-#                 pathtop = r'C:\Users\rasto\OneDrive\Documents\WeatherData\HistoricalData'
-#                 print('Working in folder %s.\r\n' % pathtop)
-# =============================================================================
-
-# Length of one year of hourly data.
-# T = 8760
+keywords = dict(tmy=('nrel', 'iwec', 'ishrae', 'cwec',
+                     'igdg', 'tmy3', 'meteonorm'),
+                amy=('ncdc', 'nsrdb', 'nrel_indiasolar',
+                       'ms', 'WY2', 'nasa_saudi'))
 
 # List of values that could be NaNs.
 nanlist = ('9900', '-9900', '9999', '99', '-99', '9999.9', '999.9', ' ', '-')
 
+
+# %%
+def get_weather(stcode, citytab, sources, path_wthr_fldr,
+                path_actual=os.path.join(
+                        '..', '..', 'WeatherData', 'HistoricalData')):
+
+    # This bit of the script is only valid if local data exists.
+    # For now, we have a lot of data for the test station so it is all loaded.
+    # The weather loading functions can be modified to work with full path file
+    # in deployment.
+    if not os.path.isdir(os.path.join(path_wthr_fldr, 'pickled_data')):
+        os.makedirs(os.path.join(path_wthr_fldr, 'pickled_data'))
+    if not os.path.isdir(os.path.join(path_wthr_fldr, 'csv_collated_data')):
+        os.makedirs(os.path.join(path_wthr_fldr, 'csv_collated_data'))
+
+    print('Running for station {}'.format(stcode))
+
+    # Load data for given station.
+    force = False  # Force the script to re-read the raw files (true) or not.
+    typicaldata, tmy_filelist = load_typical(path_wthr_fldr, stcode, force)
+
+    # Load actual data for given station
+    force = False
+    actualdata = load_actual(stcode, force, sources)
+    # Always use NCDC in addition to the country-specific weather source
+    # (like meteosuisse), since that can help fill data.
+
+    # Find the relevant station in the typicaldata dataframe, and get all
+    # data from it.
+    find_st = (citytab.WMO[citytab.StCode == stcode])
+    find_st = find_st[find_st.index[0]]
+
+    typicaldata
+
+    st_idx = typicaldata.wmo == find_st
+
+    # If more than one year of data is available, keep only the first and
+    # leave the rest out for testing later.
+    typicaldata_st = typicaldata[st_idx]
+
+    if sum(st_idx) > 8784:  # More than one year is available.
+        typicaldata = typicaldata_st[0:8760]  # Keep the first year
+        # typicaldata_test = typicaldata_st[8760:]
+
+    del typicaldata_st
+
+    return typicaldata, actualdata
+
 # %%
 
 
-def load_typical(pathtop, stcode, force):
+def load_typical(path_wthr_fldr, stcode, force):
+
+    print('Loading typical data...')
 
     picklepath = os.path.join(
-        pathtop, 'pickled_data',
+        path_wthr_fldr, 'pickled_data',
         'typicaldata_{0}.p'.format(stcode))
     csvpath = os.path.join(
-        pathtop, 'csv_collated_data',
+        path_wthr_fldr, 'csv_collated_data',
         'typicaldata_{0}.csv'.format(stcode))
 
     # Names of the columns in EPW files.
@@ -76,27 +101,18 @@ def load_typical(pathtop, stcode, force):
     # Convert the names to lowercase.
     tmy_colnames = [x.lower() for x in tmy_colnames]
 
-    # Get list of subdirectories in the top folder.
-    # This command throws out files.
-    pathsub = [os.path.join(pathtop, o) for o in os.listdir(pathtop)
-               if os.path.isdir(os.path.join(pathtop, o))]
-
-    # print(pathsub)
-
     # List of TMY files.
     tmy_filelist = []
 
     # Look in each subfolder in the top-level weather data folder.
-    for fd in pathsub:
-        filepaths = [os.path.join(fd, o) for o in os.listdir(fd)
-                     if not os.path.isdir(os.path.join(fd, o))]
-        for f in filepaths:
-            # Avoid AMY files.
-            if 'epw' in f and any(s in f for s in keywords['tmy']) \
-                    and not any(s in f for s in keywords['amy']):
-                tmy_filelist.append(f)
+    filepaths = [os.path.join(path_wthr_fldr, f.lower())
+                 for f in (os.listdir(path_wthr_fldr))]
 
-    # print(tmy_filelist)
+    for f in filepaths:
+        # Avoid AMY files.
+        if 'epw' in f and any(s in f for s in keywords['tmy']) \
+                and not any(s in f for s in keywords['amy']):
+            tmy_filelist.append(f)
 
     # If this particular station has already been processed, then there might
     # be a pickle file with the data. Load that, unless forced.
@@ -173,12 +189,13 @@ def load_typical(pathtop, stcode, force):
         return typdata, tmy_filelist
 
 
-def load_actual(pathtop, stcode, force, sources):
+def load_actual(stcode, force, sources, path_wthr_fldr=os.path.join(
+                '..', '..', 'WeatherData', 'HistoricalData')):
 
-    picklepath = os.path.join(pathtop, 'pickled_data',
-            'actualdata_{0}.p'.format(stcode))
-    csvpath = os.path.join(pathtop, 'csv_collated_data',
-            'actualdata_{0}.csv'.format(stcode))
+    picklepath = os.path.join(path_wthr_fldr, 'pickled_data',
+                              'actualdata_{0}.p'.format(stcode))
+    csvpath = os.path.join(path_wthr_fldr, 'csv_collated_data',
+                           'actualdata_{0}.csv'.format(stcode))
 
     if os.path.isfile(picklepath) and not force:
         actualdata = pd.read_pickle(picklepath)
@@ -194,7 +211,7 @@ def load_actual(pathtop, stcode, force, sources):
     actualdata = pd.DataFrame()
 
     if 'ncdc' in sources:
-        path_ncdc = os.path.join(pathtop, 'ncdc')
+        path_ncdc = os.path.join(path_wthr_fldr, 'ncdc')
         ncdc_filelist = [os.path.join(path_ncdc, o)
                          for o in os.listdir(path_ncdc)
                          if not os.path.isdir(os.path.join(path_ncdc, o))]
@@ -209,7 +226,7 @@ def load_actual(pathtop, stcode, force, sources):
                       'the resulting dataframe would be too big.\r\n')
                 break
 
-            if ('NCDC' in f) and (stcode in f):
+            if ('ncdc' in f) and (stcode in f):
                 print('Processing station {0}.\r\n'.format(stcode))
                 wdata_ncdc = pd.read_csv(f, delimiter=',', skiprows=2,
                                          header=None,
@@ -242,7 +259,7 @@ def load_actual(pathtop, stcode, force, sources):
         del wdata_ncdc
 
     if 'nsrdb' in sources:
-        path_nsrdb = os.path.join(pathtop, 'nsrdb')
+        path_nsrdb = os.path.join(path_wthr_fldr, 'nsrdb')
         nsrdb_filelist = [os.path.join(path_nsrdb, o)
                           for o in os.listdir(path_nsrdb)
                           if not os.path.isdir(os.path.join(path_nsrdb, o))]
@@ -261,7 +278,7 @@ def load_actual(pathtop, stcode, force, sources):
                 actualdata = actualdata.append(wdata_nsrdb)
                 break
 
-            if all(s in f for s in ('NSRDB', 'csv', stcode)):
+            if all(s in f for s in ('nsrdb', 'csv', stcode)):
                 wdata_nsrdb = pd.read_csv(f, delimiter=',', skiprows=1,
                                           header=None,
                                           usecols=[0, 1, 6, 9, 12, 15,
@@ -291,7 +308,7 @@ def load_actual(pathtop, stcode, force, sources):
             actualdata = actualdata.append(wdata_nsrdb)
 
     if 'meteosuisse' in sources:
-        path_ms = os.path.join(pathtop, 'ms')
+        path_ms = os.path.join(path_wthr_fldr, 'ms')
         ms_filelist = [os.path.join(path_ms, o) for o in os.listdir(path_ms)
                        if not os.path.isdir(os.path.join(path_ms, o))]
         ms_colnames = ['datetime', 'ghi', 'atmpr', 'tdb',
@@ -307,7 +324,7 @@ def load_actual(pathtop, stcode, force, sources):
                 actualdata = actualdata.append(wdata_ms)
                 break
 
-            if all(s in f for s in ('MeteoSuisse', 'txt', stcode)):
+            if all(s in f for s in ('meteosuisse', 'txt', stcode)):
                 wdata_ms = pd.read_csv(f, delimiter=';', skiprows=1,
                                        header=None,
                                        usecols=[1, 2, 3, 4, 5, 6, 7, 8],
@@ -489,50 +506,6 @@ def nsrdb_solar_clean(wdata_nsrdb):
     wdata_copy = wdata_copy.rename(columns={'DHI_suny': 'dhi'})
 
     return wdata_copy
-
-
-def get_weather(stcode, citytab, sources):
-    # This bit of the script is only valid if local data exists.
-    # For now, we have a lot of data for the test station so it is all loaded.
-    # The weather loading functions can be modified to work with full path file
-    # in deployment.
-    if not os.path.isdir(os.path.join(pathtop, 'pickled_data')):
-        os.mkdir(os.path.join(pathtop, 'pickled_data'))
-    if not os.path.isdir(os.path.join(pathtop, 'csv_collated_data')):
-        os.mkdir(os.path.join(pathtop, 'csv_collated_data'))
-
-    print('Running for station {}'.format(stcode))
-
-    # Load data for given station.
-    force = False  # Force the script to re-read the raw files (true) or not.
-    typicaldata, tmy_filelist = load_typical(pathtop, stcode, force)
-
-    # Load actual data for given station
-    force = False
-    actualdata = load_actual(pathtop, stcode, force, sources)
-    # Always use NCDC in addition to the country-specific weather source
-    # (like meteosuisse), since that can help fill data.
-
-    # Find the relevant station in the typicaldata dataframe, and get all
-    # data from it.
-    find_st = (citytab.WMO[citytab.StCode == stcode])
-    find_st = find_st[find_st.index[0]]
-
-    typicaldata
-
-    st_idx = typicaldata.wmo == find_st
-
-    # If more than one year of data is available, keep only the first and
-    # leave the rest out for testing later.
-    typicaldata_st = typicaldata[st_idx]
-
-    if sum(st_idx) > 8784:  # More than one year is available.
-        typicaldata = typicaldata_st[0:8760]  # Keep the first year
-        # typicaldata_test = typicaldata_st[8760:]
-
-    del typicaldata_st
-
-    return typicaldata, actualdata
 
 
 def weather_stats(data, key, stat):

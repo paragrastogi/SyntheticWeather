@@ -33,84 +33,58 @@ Features to be implemented:
        too much information about the local urban canopy.
 """
 
-import os
-import random as random
 
-import matplotlib.pyplot as plt
-# import matplotlib.mlab as mlab
-import numpy as np
-import pandas as pd
-
-# import scipy as sp
-# from scipy import signal
-
-import default_colours as colours
-
-# To time the script.
-#import time
-
-# Lets you copy objects if you need two
-# distinct objects instead of the usual pointers.
-#import copy
-
-# from sklearn.neural_network import MLPRegressor
-# from sklearn.gaussian_process import GaussianProcessRegressor
-
-# from sklearn.model_selection import GridSearchCV
-# from sklearn.model_selection import RandomizedSearchCV
-# from sklearn.model_selection import KFold
-
-# from skopt import gp_minimize
-# from sklearn.datasets import fetch_mldata
-from sklearn.preprocessing import RobustScaler
-from sklearn.preprocessing import Imputer
-
-# import statsmodels as sm
-from statsmodels.graphics.tsaplots import plot_acf
-from statsmodels.graphics.tsaplots import plot_pacf
-# Not needed if you don't want to plot autorrrelation plots.
-# Could also use pandas:
-# from pandas.tools.plotting import autocorrelation_plot
-
-
-# These custom functions load and clean recorded data.
-# For now, we are only concerned with ncdc and nsrdb.
-import get_weather_data as gw
-# from get_weather_data import load_actual
-# from get_weather_data import load_typical
-
-# Custom functions to calculate error metrics.
-# import losses.
-from losses import rmseloss
-from losses import maeloss
-
-# import les petites fonctionnes utiles.
-from petites import yfinder
-from petites import fitgp
-from petites import learngp
-from petites import samplegp
-
-# For storing data by pickling.
-#import pickle
-
-# importlib is only needed if libraries need to be re-imported mid-script,
-# which would usually happen only during debugging.
-# import importlib as im
-# from importlib import reload
-
-__author__ = 'Parag Rastogi'
-
-# Disbale this command if you want figures in a new window.
-#get_ipython().magic('matplotlib inline')
-# Also disable when running in command window.
-
-def synweather(seedfile, stcode='GLA',
+def synweather(seedfile, stcode='gla',
                path_wthr_fldr='/usr/esru/esp-r/climate',
-               outpath=os.getcwd(), n_samples=100,
+               outpath='.', n_samples=100,
                l_start=int(0), l_end=int(31*24),
                l_step=int(4*24), histlim=int(14*24),
                stlat=0.0, stlong=0.0, stalt=0.0,
-               path_fldr_pickle=os.getcwd()):
+               path_fldr_pickle='.'):
+
+    import os
+    import random
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+
+    import default_colours as colours
+
+    from statsmodels.graphics.tsaplots import plot_acf
+    from statsmodels.graphics.tsaplots import plot_pacf
+    # Not needed if you don't want to plot autorrrelation plots.
+    # Could also use pandas:
+    # from pandas.tools.plotting import autocorrelation_plot
+
+    # These custom functions load and clean recorded data.
+    # For now, we are only concerned with ncdc and nsrdb.
+    import get_weather_data as gw
+
+    # Custom functions to calculate error metrics.
+    # import losses.
+    # from losses import rmseloss
+    # from losses import maeloss
+
+    # import les petites fonctionnes utiles.
+    # from petites import yfinder
+    # from petites import fitgp
+    from petites import learngp
+    from petites import samplegp
+
+    # For storing data by pickling.
+    # import pickle
+
+    # importlib is only needed if libraries need to be re-imported mid-script,
+    # which would usually happen only during debugging.
+    # import importlib as im
+    # from importlib import reload
+
+    __author__ = 'Parag Rastogi'
+
+    # Disbale this command if you want figures in a new window.
+    # get_ipython().magic('matplotlib inline')
+    # Also disable when running in command window.
 
     # ------------------
     # Some initialisation house work.
@@ -119,6 +93,9 @@ def synweather(seedfile, stcode='GLA',
     seed = 8760
     np.random.seed(seed)
     random.seed = seed
+
+    # Convert incoming stcode to lowercase.
+    stcode = stcode.lower()
 
     # This is the master tuple of column names, which should not be modified.
     # If it is modified, then the same tuple in in the script called
@@ -147,9 +124,7 @@ def synweather(seedfile, stcode='GLA',
             currentdata, _ = gw.load_typical(
                     path_wthr_fldr, stcode, force=True)
         except:
-            print('Could not find the files in %s with station ' +
-                  'code %s or could not read the file I found.'
-                  % path_wthr_fldr, stcode)
+            print('Could not find the files in %s with station code %s or could not read the file I found.'.format(path_wthr_fldr, stcode))
 
         # If there is no path to a weather file, then this bit of code loads
         # data from pre-processed pickle files or processes CSV files.
@@ -166,7 +141,7 @@ def synweather(seedfile, stcode='GLA',
 
             # See accompanying script "gw".
             currentdata, historicaldata = gw.get_weather(
-                    stcode, citytab, sources)
+                    stcode, citytab, sources, path_wthr_fldr)
 
         # T = currentdata.shape[0]
 
@@ -175,6 +150,7 @@ def synweather(seedfile, stcode='GLA',
         # in the input matrix. Conversely, the user might have
         # to identify the relevant time series.
         ts_curr_in = (np.vstack([
+                currentdata.month.values,
                 currentdata.index.dayofyear, currentdata.hour.values,
                 currentdata.tdb.values, currentdata.tdp.values,
                 currentdata.rh.values, currentdata.ghi.values,
@@ -218,15 +194,16 @@ def synweather(seedfile, stcode='GLA',
     # the incoming data. Naturally, it is only invoked if the function
     # was invoked with starter data.
 
-    gp_list, month_tracker = learngp(l_start, l_end, l_step, histlim,
-                       ts_curr_in)
+    gp_list, month_tracker = learngp(l_start, l_end, l_step,
+                                     histlim, ts_curr_in)
 
     # %%
 
     picklepath = os.path.join(path_fldr_pickle, 'ts_syn_%s.p' % stcode)
 
-    xout_un = samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
-              ts_curr_in, month_tracker, picklepath, outpath)
+    xout_un = samplegp(gp_list, l_start, l_end, l_step, histlim,
+                       n_samples, ts_curr_in, month_tracker,
+                       picklepath, outpath)
 
     # The generation part ends here - the rest is just plotting various things.
 
