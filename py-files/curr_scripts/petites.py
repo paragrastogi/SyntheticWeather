@@ -9,27 +9,28 @@ __author__ = 'Parag Rastogi'
 import os
 import time
 import copy
-import pickle
+#import pickle
 import random
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import StandardScaler
 import pandas as pd
 
 # This is the master tuple of column names, which should not be modified.
-column_names = ('day', 'hour', 'tdb', 'tdp', 'rh', 'ghi', 'dni', 'dhi',
-                'wspd', 'wdr')
+column_names = ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
+                'ghi', 'dni', 'dhi', 'wspd', 'wdr')
 
 # This is the master tuple of time variable names,
 # which should also not be modified.
-date_cols = ('day', 'hour')
+date_cols = ('month', 'day', 'hour')
 dc = len(date_cols)
 
 # Make a scaler - either standard (to scale variables to \mu = 0 and \sigma = 1) or robust (with median and iqr).
-scaler = RobustScaler()
+scaler = StandardScaler()
 
-# Set a kernel with seasonal periodicity (ExpSineSquared) and allow it to
+# Alternate (more complicated) kernels:
+# With seasonal periodicity (ExpSineSquared) and allow it to
 # decay away from exact periodicity (RBF).
 # Allow for a rising/falling trend with a separate RBF kernel and noise
 # with a WhiteKernel.
@@ -120,7 +121,7 @@ def learngp(l_start, l_end, l_step, histlim,
     # y_std = np.zeros([l_step, n_samples])
 
     # Hours of the year - calculated from hours of the day and day of the year.
-    hh = ts_curr_in[:,2] + (ts_curr_in[:,1]-1)*24
+    hh = ts_curr_in[:, 2] + (ts_curr_in[:, 1] - 1)*24
 
     d = 0
 
@@ -143,28 +144,28 @@ def learngp(l_start, l_end, l_step, histlim,
                       zip(ts_curr_in[:, 0], ts_curr_in[:, 1], hh)
                       if hslice in slicer]
 
-        print(date_slice)
-        print(slicer)
+        # If tomorrow's slice is beyond the 31st of December,
+        # then break this loop.
+        if (h+l_step) > ts_curr_norm.shape[0]:
+            break
 
         # Output the current month and day.
-        month_tracker[d] = np.squeeze(ts_curr_in[h == hh, 0])
+        month_tracker[d] = int(np.unique(np.squeeze(ts_curr_in[h == hh, 0])))
+        # Change the unique function here to accomodate
+        # multi-year records.
 
-        print("Month %d, day %d" % (month_tracker[d], int(h/24)))
+        print("Model no. {0}, month {1}, day {2}".format(
+                d, month_tracker[d], int(h/24)))
 
         # Concatenate the daily means with the hourly values, leaving
         # out the day variable from the daily means array (first column).
         train_slice = ts_curr_norm[slicer, :]
-
-        # Array to store stdev of predictions.
-        # Array shape is l_step x number of variables - 2,
-        # (since time variables do not have predictions).
-        #    ystd_slice = np.zeros((l_step, ts_curr_norm.shape[1]-2))
+        # USE dateslice here instead of slicer.
 
         # Cycle through all columns.
         for c, colname in enumerate(column_names):
 
             if colname in date_cols:
-                # gp_h.append(None)
                 continue
             else:
                 # Find current output column.
@@ -178,16 +179,6 @@ def learngp(l_start, l_end, l_step, histlim,
                 # No test values.
 
             # End of columns loop.
-
-        # Index for the next day's data.
-        # tomorrows_slice = range(h, h+l_step)
-
-        print('Model number %d' % d)
-
-        # If tomorrow's slice is beyond the 31st of December,
-        # then break this loop.
-        if (h+l_step) > ts_curr_norm.shape[1]:
-            break
 
         for c, colname in enumerate(column_names):
 
@@ -216,11 +207,6 @@ def learngp(l_start, l_end, l_step, histlim,
         d += 1
 
         # End 'h' loop.
-
-    # Save list to pickle file.
-    path_file_list = os.path.join(path_fldr_pickle, 'gp_list')
-    with open(path_file_list, 'wb') as fp:
-        pickle.dump(gp_list, fp)
 
     end_time = time.monotonic()
     print("Time taken to train models was %6.2f seconds."
@@ -301,8 +287,9 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples, ts_curr_in,
 
                 x_pred = np.zeros([l_step, n_samples])
 
-                month_gps = [gp_list[c][a] for a,b in
-                             enumerate(month_tracker[d]==month_tracker) if b]
+                month_gps = [gp_list[c][a] for a, b in
+                             enumerate(month_tracker[d] ==
+                                       month_tracker) if b]
                 for s in range(0, x_pred.shape[1]):
                     # Select a random gp model from this month's models.
                     gp_sel = random.choice(month_gps)
@@ -364,17 +351,11 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples, ts_curr_in,
 
     pd.to_pickle(xout_un, picklepath)
 
-    # Save synthetic time series.
-    for n in range(0, n_samples):
-        filepath = os.path.join(outpath, 'ts_syn_%s.csv' % n)
-        np.savetxt(filepath, np.squeeze(xout_un[:, :, n]), '%6.2f',
-                   delimiter=',', header=','.join(column_names))
-
     end_time = time.monotonic()
     print("Time taken to sample models was %6.2f seconds."
           % (end_time - start_time))
 
-    return xout_un
+    return xout_un, column_names
 
 
 def yfinder(colname):

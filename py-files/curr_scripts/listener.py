@@ -1,106 +1,48 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Aug 27 10:41:29 2017
+Created on Fri Sep 22 16:32:27 2017
 
-@author: Parag Rastogi
-
-This script is meant to "listen" for a request for weather files.
-
-The script will begin by locating/recognising the location
-(represented by latitude and longitude). Then, it can take
-one of the following actions:
-    1. Search for a pickle file containing pre-generated synthetic
-    files. -> Load pickle file. -> Return as many time series as
-    were asked.
-    2.
-
-
+@author: rasto
 """
 
-__author__ = 'Parag Rastogi'
 
-import os
-import numpy as np
-import pandas as pd
+import argparse
 
-# This bit of code loads data from pre-processed pickle files or
-# processes CSV files. This is the 'starter' data that the script needs.
+# Invoke indra.
+from indra import synweather
 
-# Where am I to search for the pickle files?
-picklepath = os.path.join('/home', 'rasto', 'Documents', 'WeatherData',
-                          'SyntheticData', 'pickled')
-picklelist = os.listdir(picklepath)
+parser = argparse.ArgumentParser(description='You have invoked Indra.')
 
-# Load data about the cities. This is just for this example.
-citytab = pd.read_csv(os.path.join('..', 'CityData.csv'),
-                      dtype=dict(WMO=str, StCode=str))
-# The following inputs would be input by the user.
-# Longitude.
-stlong = -73.76
-# Latitude.
-stlat = 40.76
+parser.add_argument('seedfile', dest='seedfile', type=bool)
+parser.add_argument('--stcode=gla', dest='stcode')
 
-# Take the entered latitude and longitude, and first search for a match
-# with all the significant figures.
-all_lats = citytab.Latitude
-all_longs = citytab.Longitude
+parser.parse_args('-seedfile', '--stcode')
 
-latmatch = stlat == all_lats
-longmatch = stlong == all_longs
+args = parser.parse_args()
 
-stfind = np.zeros(latmatch.shape, dtype=np.bool)
-patience = 0
+print(seedfile)
+print(stcode)
 
-while not any(stfind):
+exit
 
-    stfind = latmatch & longmatch
+# This command allows this script to be called from the command line.
+if __name__ == '__main__':
+    synweather(seedfile, stcode='gla', n_samples=10,
+       path_wthr_fldr='/usr/esru/esp-r/climate',
+       outpath='.',
+       l_start=int(0), l_end=int(31*24),
+       l_step=int(4*24), histlim=int(14*24),
+       stlat=0.0, stlong=0.0, stalt=0.0,
+       randomseed=8760)
 
-    if any(stfind):
-        # Station code.
-        stcode = citytab.StCode[stfind]  # [41]
-        # Altitude.
-        stalt = citytab.Altitude[stfind]
-
-    else:
-        stlat = round(stlat, patience)
-        stlong = round(stlong, patience)
-
-        all_longs = round(all_longs, patience)
-        all_lats = round(all_lats, patience)
-
-        latmatch = stlat == all_lats
-        longmatch = stlong == all_longs
-
-        stfind = latmatch & longmatch
-
-        stcode = citytab.StCode[stfind]
-        stalt = citytab.Altitude[stfind]
-
-    patience += 1
-
-    if patience == 2:
-        break
-
-
-# Start of time loop.
-l_start = int(0*24)
-# End of time loop.
-l_end = int(60*24)
-# Step size for time loop.
-l_step = int(4*24)
-
-
-
-# Two modes
-#1. WIth seed file
-#2. Sampleing run
-#Go get files from espr climate folder
-#Output file in pwd
-
-
-# Specify the sources of the actual data - please follow AMY keywords list.
-# sources = ('ncdc', 'nsrdb')
-# See accompanying script "gw".
-# typicaldata, actualdata = gw.get_weather(stcode, citytab, sources)
-
-# picklename = str(stlong) + ',' + str(stlat)
+#    if (len(inputlist) == 3):
+#        synweather(sys.argv[1], stcode=sys.argv[2],
+#                   path_wthr_fldr='/home/rasto/Documents/WeatherData/HistoricalData/gen')
+#    elif (len(inputlist) == 4):
+#        synweather(sys.argv[1], stcode=sys.argv[2],
+#                   path_wthr_fldr=sys.argv[3])
+#
+#    elif (len(inputlist) == 5):
+#        synweather(sys.argv[1], stcode=sys.argv[2],
+#                   path_wthr_fldr=sys.argv[3])
