@@ -26,7 +26,7 @@ parser.add_argument('stcode', type=str, default='xxx',
 parser.add_argument('--n_samples', type=int, default=10,
                     help='How many samples do you want out?')
 parser.add_argument('--path_wthr', type=str, help='Path to a folder' +
-                    'containing the seed file or the seed file itself.' + 
+                    'containing the seed file or the seed file itself.' +
                     ' If you pass a path to a file, I will only use ' +
                     ' that file. If you pass a folder path, I will ' +
                     'look for files whose names contain the station code.',
@@ -60,7 +60,7 @@ parser.add_argument('--lat', type=int, default=0,
                     'models for data.')
 parser.add_argument('--long', type=int, default=0,
                     help='Station longitude.')
-parser.add_argument('--alt', type=int, default=0, 
+parser.add_argument('--alt', type=int, default=0,
                     help='Station altitude.')
 parser.add_argument('--randomseed', type=int, default=8760,
                     help="Set the seed for this sampling " +
@@ -87,8 +87,6 @@ if data_in:
     print('Invoking Indra for {0} with seed data.'.format(stcode))
 else:
     print('Invoking Indra for {0} without seed data.'.format(stcode))
-
-exit
 
 # This command allows this script to be called from the command line.
 if __name__ == '__main__':
