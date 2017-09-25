@@ -150,7 +150,8 @@ def learngp(l_start, l_end, l_step, histlim,
             break
 
         # Output the current month and day.
-        month_tracker[d] = int(np.unique(np.squeeze(ts_curr_in[h == hh, 0])))
+        month_tracker[d] = int(np.unique(np.squeeze(
+                ts_curr_in[h == hh, 0])))
         # Change the unique function here to accomodate
         # multi-year records.
 
@@ -215,8 +216,9 @@ def learngp(l_start, l_end, l_step, histlim,
     return gp_list, month_tracker
 
 
-def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples, ts_curr_in,
-             month_tracker, picklepath=os.getcwd(), outpath=os.getcwd()):
+def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
+             ts_curr_in, month_tracker,
+             picklepath=os.getcwd(), outpath=os.getcwd()):
 
     start_time = time.monotonic()
 

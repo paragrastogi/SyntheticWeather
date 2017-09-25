@@ -35,13 +35,13 @@ Features to be implemented:
 """
 
 
-def synweather(seedfile, stcode='gla', n_samples=10,
-               path_wthr_fldr='/usr/esru/esp-r/climate',
-               outpath='.',
-               l_start=int(0), l_end=int(31*24),
-               l_step=int(4*24), histlim=int(14*24),
-               stlat=0.0, stlong=0.0, stalt=0.0,
-               randomseed=8760):
+def indra(seedfile, stcode='gla', n_samples=10,
+          path_wthr='/usr/esru/esp-r/climate',
+          outpath='.',
+          l_start=int(0), l_end=int(31*24),
+          l_step=int(4*24), histlim=int(14*24),
+          stlat=0.0, stlong=0.0, stalt=0.0,
+          randomseed=8760):
 
     import os
     import random
@@ -98,15 +98,10 @@ def synweather(seedfile, stcode='gla', n_samples=10,
     # Convert incoming stcode to lowercase.
     stcode = stcode.lower()
 
-    # Where do you want to save figures?
-    figpath = 'figures'
-
     # Check if these folders exist.
     # If they don't, create them.
-    if not os.path.isdir(outpath):
-        os.mkdir(outpath)
-    if not os.path.isdir(figpath):
-        os.mkdir(figpath)
+    if not os.path.isdir(os.path.join(outpath, stcode)):
+        os.makedirs(os.path.join(outpath, stcode))
 
     path_file_list = os.path.join(outpath, stcode,
                                   'gp_list_{0}.p'.format(stcode))
@@ -129,12 +124,13 @@ def synweather(seedfile, stcode='gla', n_samples=10,
         currentdata = None
 
         try:
+            # See accompanying script "gw".
             currentdata, _ = gw.load_typical(
-                    path_wthr_fldr, stcode, force=True)
+                    path_wthr, stcode, force=True)
         except:
             print('Could not find the files in %s with station code ' \
                   '%s or could not read the file I found.'.format(
-                          path_wthr_fldr, stcode))
+                          path_wthr, stcode))
 
         # If there is no path to a weather file, then this bit of code loads
         # data from pre-processed pickle files or processes CSV files.
@@ -151,7 +147,7 @@ def synweather(seedfile, stcode='gla', n_samples=10,
 
             # See accompanying script "gw".
             currentdata, historicaldata = gw.get_weather(
-                    stcode, citytab, sources, path_wthr_fldr)
+                    stcode, citytab, sources, path_wthr)
 
         # T = currentdata.shape[0]
 
