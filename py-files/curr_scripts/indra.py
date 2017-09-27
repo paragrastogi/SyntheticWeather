@@ -110,7 +110,7 @@ def indra(seedfile, stcode='gla', n_samples=10,
 
         try:
             # See accompanying script "gw".
-            currentdata, _ = gw.load_typical(
+            currentdata, _ = gw.read_epw(
                     path_wthr, stcode, force=True, outpath=outpath)
         except:
             print('Could not find file {0} or could not read ' \

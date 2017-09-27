@@ -16,9 +16,10 @@ parser = argparse.ArgumentParser(
         description='This is Indra, a generator of ' +
         'synthetic weather time series.')
 
-parser.add_argument('data_in', type=int, choices=[0, 1], help='Enter 0 ' +
-                    'for no seed data, and 1 if you are passing seed data.')
-parser.add_argument('stcode', type=str, default='xxx',
+parser.add_argument('--data_in', type=int, choices=[0, 1], default=0,
+                    help='Enter 0 for no seed data, ' +
+                    'and 1 if you are passing seed data.')
+parser.add_argument('--stcode', type=str, default='xxx',
                     help='Make up a station code. ' +
                     'If you are not passing seed data, and want me to ' +
                     'pick up a saved model, please use the station code' +

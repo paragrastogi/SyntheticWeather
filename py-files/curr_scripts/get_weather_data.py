@@ -46,12 +46,12 @@ def get_weather(stcode, sources, path_typ, citytab=None, outpath='xxx',
 
     # Load data for given station.
     force = False  # Force the script to re-read the raw files (true) or not.
-    typicaldata, tmy_filelist = load_typical(path_typ, stcode,
+    typicaldata, tmy_filelist = read_epw(path_typ, stcode,
                                              force, outpath=outpath)
 
     # Load actual data for given station
     force = False
-    actualdata = load_actual(stcode, force, sources, outpath=outpath)
+    actualdata = read_others(stcode, force, sources, outpath=outpath)
     # Always use NCDC in addition to the country-specific weather source
     # (like meteosuisse), since that can help fill data.
 
@@ -81,7 +81,7 @@ def get_weather(stcode, sources, path_typ, citytab=None, outpath='xxx',
 # %%
 
 
-def load_typical(path_typ, stcode, force, outpath='xxx'):
+def read_epw(path_typ, stcode, force, outpath='xxx'):
 
     print('Loading typical data...')
 
@@ -194,9 +194,9 @@ def load_typical(path_typ, stcode, force, outpath='xxx'):
         didx += 1
 
     if typdata.empty:
+
         print('Could not locate a file with given station name.' +
               ' Returning empty table.\r\n')
-        return typdata, tmy_filelist
 
     else:
         try:
@@ -205,10 +205,11 @@ def load_typical(path_typ, stcode, force, outpath='xxx'):
             print('Could not create pickle file because I cannot ' +
                   'write to {0}'.format(picklepath))
         typdata.to_csv(csvpath, na_rep='NA')
-        return typdata, tmy_filelist
+
+    return typdata, tmy_filelist
 
 
-def load_actual(stcode, force, sources, outpath='xxx',
+def read_others(stcode, force, sources, outpath='xxx',
                 path_actual_top=os.path.join(
                         '..', '..', 'WeatherData', 'HistoricalData')):
 
