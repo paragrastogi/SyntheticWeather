@@ -1,6 +1,6 @@
 % Create Synthetic Files
 
-% � All rights reserved. 
+% (R) All rights reserved. 
 % ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, 
 % Interdisciplinary Laboratory of Performance-Integrate 
 % Design, 2016 
