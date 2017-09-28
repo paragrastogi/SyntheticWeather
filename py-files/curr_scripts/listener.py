@@ -6,17 +6,17 @@ Created on Fri Sep 22 16:32:27 2017
 @author: rasto
 """
 
-
+# For parsing the arguments.
 import argparse
 
-# Invoke indra.
+# Import indra to invoke it later.
 from indra import indra
 
 parser = argparse.ArgumentParser(
         description='This is Indra, a generator of ' +
         'synthetic weather time series.')
 
-parser.add_argument('--data_in', type=int, choices=[0, 1], default=0,
+parser.add_argument('--train', type=int, choices=[0, 1], default=0,
                     help='Enter 0 for no seed data, ' +
                     'and 1 if you are passing seed data.')
 parser.add_argument('--stcode', type=str, default='xxx',
@@ -26,12 +26,20 @@ parser.add_argument('--stcode', type=str, default='xxx',
                     ' of the saved model.')
 parser.add_argument('--n_samples', type=int, default=10,
                     help='How many samples do you want out?')
-parser.add_argument('--path_wthr', type=str, help='Path to a folder' +
+parser.add_argument('--fpath_in', type=str, help='Path to a folder' +
                     'containing the seed file or the seed file itself.' +
                     ' If you pass a path to a file, I will only use ' +
                     ' that file. If you pass a folder path, I will ' +
                     'look for files whose names contain the station code.',
-                    default='/usr/esru/esp-r/climate')
+                    default='/usr/esru/esp-r/climate/CHE_Geneva_IWEC')
+parser.add_argument('--ftype', type=str, help='What kind of file ' +
+                    'are you giving me? Default is the ESP-r ascii ' +
+                    'format [espr]. For now, I can read EPW [epw] and ' +
+                    'ESP-r ascii files. If you pass a plain csv [csv] ' +
+                    'or python pickle [py] file, it must contain a ' +
+                    'table with the requisite data in the correct order. ' +
+                    'See file data_in_spec.txt for the format.',
+                    default='espr')
 parser.add_argument('--outpath', type=str, default='.',
                     help='Path to the folder where all outputs will go.' +
                     ' Default is the present working directory.')
@@ -70,10 +78,11 @@ parser.add_argument('--randomseed', type=int, default=8760,
 
 args = parser.parse_args()
 
-data_in = bool(args.data_in)
+train = bool(args.train)
 stcode = args.stcode.lower()
 n_samples = args.n_samples
-path_wthr = args.path_wthr
+fpath_in = args.fpath_in
+ftype = args.ftype
 outpath = args.outpath
 l_start = args.l_start
 l_end = args.l_end
@@ -84,16 +93,20 @@ stlong = args.long
 stalt = args.alt
 randomseed = args.randomseed
 
-if data_in:
-    print('Invoking Indra for {0} with seed data.'.format(stcode))
+print('Invoking Indra for {0}.\r\n'.format(stcode))
+
+if train:
+    print('You have asked to train new models. This might take a while.\r\n')
 else:
-    print('Invoking Indra for {0} without seed data.'.format(stcode))
+    print('You have asked for samples only. This should be quick.\r\n')
 
 # This command allows this script to be called from the command line.
+# Call indra.
 if __name__ == '__main__':
-    indra(data_in, stcode=stcode,
+    indra(train, stcode=stcode,
           n_samples=n_samples,
-          path_wthr=path_wthr,
+          fpath_in=fpath_in,
+          ftype = ftype,
           outpath=outpath,
           l_start=l_start, l_end=l_end,
           l_step=l_step, histlim=histlim,

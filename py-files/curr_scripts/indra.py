@@ -34,9 +34,16 @@ Features to be implemented:
        too much information about the local urban canopy.
 """
 
+# These are the sources of measured data I am familiar with. So far, the
+# get_weather script can only read the following:
+# 1. NCDC, 2. NSRDB, 3. MS (MeteoSuisse)
+#sources = ('ncdc', 'nsrdb', 'nrel_indiasolar',
+#           'ms', 'WY2', 'nasa_saudi')
 
-def indra(seedfile, stcode='gla', n_samples=10,
-          path_wthr='/usr/esru/esp-r/climate',
+
+def indra(train, stcode='gla', n_samples=10,
+          fpath_in='/usr/esru/esp-r/climate/che_gen_iwec.a',
+          ftype='espr',
           outpath='.',
           l_start=int(0), l_end=int(31*24),
           l_step=int(4*24), histlim=int(14*24),
@@ -52,7 +59,7 @@ def indra(seedfile, stcode='gla', n_samples=10,
 
     # These custom functions load and clean recorded data.
     # For now, we are only concerned with ncdc and nsrdb.
-    import get_weather_data as gw
+    import get_weather as gw
 
     # Custom functions to calculate error metrics.
     # import losses.
@@ -78,99 +85,56 @@ def indra(seedfile, stcode='gla', n_samples=10,
     if not os.path.isdir(outpath):
         os.makedirs(outpath)
 
-    path_file_list = os.path.join(outpath,
-                                  'gp_list_{0}.p'.format(stcode))
-    path_other_file = os.path.join(outpath,
-                                   'm_tracker_{0}.p'.format(stcode))
-    path_seed_data = os.path.join(outpath,
-                                  'seed_data_{0}.p'.format(stcode))
+    # These will be the files where the outputs will be stored.
+    path_file_list = os.path.join(
+            outpath, 'model_{0}_{1}.p'.format(stcode, randomseed))
+    path_other_file = os.path.join(
+            outpath, 'm_tracker_{0}_{1}.p'.format(stcode, randomseed))
+    path_seed_data = os.path.join(
+            outpath, 'seed_data_{0}_{1}.p'.format(stcode, randomseed))
+    
+    # Oth
+#    if not os.path.isdir(os.path.join(outpath, 'pickled_data')):
+#        os.makedirs(os.path.join(outpath, 'pickled_data'))
+#    if not os.path.isdir(os.path.join(
+#            outpath, 'csv_data')):
+#        os.makedirs(os.path.join(outpath, 'csv_data'))
 
-    if not os.path.isdir(os.path.join(outpath, 'pickled_data')):
-        os.makedirs(os.path.join(outpath, 'pickled_data'))
-    if not os.path.isdir(os.path.join(
-            outpath, 'csv_collated_data')):
-        os.makedirs(os.path.join(outpath, 'csv_collated_data'))
-
-    print('Storing everything in folder {0}\r'.format(outpath))
+    print('Storing everything in folder {0}\r\n'.format(outpath))
 
     # ----------------
 
-    # The program needs to know the mode you are running in.
-    # There are two modes supported:
-    # 1. With starter data - seedfile = True
-    # 2. Without started data - seedfile = False
+    # Load data about the cities. This isn't usually necessary, so it
+    # doesn't matter if this file isn't present.
+    #    try:
+    #        citytab = pd.read_csv(os.path.join('CityData.csv'),
+    #                              dtype=dict(WMO=str, StCode=str))
+    #    except:
+    #        citytab = None
+    #        print("I could not find CityData.csv, continuing without...")
 
-    # print('cwd = %s' % os.getcwd())
+    # See accompanying script "gw".
+#    try:
+    ts_in = gw.get_weather(
+            stcode, fpath_in, ftype,
+            outpath=outpath)
+#        print('Successfully retrieved weather data.\r\n')
+#    except:
+#        print('I could not read the incoming weather file. ' + \
+#              'Terminating this run.')
+#        return 0
 
-    if seedfile:
+    # Extract the relevant data from the loaded 'starter' data.
+    # This step won't be needed if only the relevant variables are
+    # in the input matrix. Conversely, the user might have
+    # to identify the relevant time series.
 
-        # The script needs some 'starter' data.
+    if train:
 
-        currentdata = None
-
-        try:
-            # See accompanying script "gw".
-            currentdata, _ = gw.read_epw(
-                    path_wthr, stcode, force=True, outpath=outpath)
-        except:
-            print('Could not find file {0} or could not read ' \
-                  'the file I found.'.format(path_wthr))
-
-        # If there is no path to a weather file, then this bit of code loads
-        # data from pre-processed pickle files or processes CSV files.
-
-        if (currentdata is None):
-
-            # Load data about the cities. This is just for this example.
-            try:
-                citytab = pd.read_csv(os.path.join('CityData.csv'),
-                                      dtype=dict(WMO=str, StCode=str))
-            except:
-                citytab = None
-                print("I could not find CityData.csv, continuing without...")
-
-            # Specify the sources of the actual data -
-            # please follow AMY keywords list.
-            sources = ('ncdc', 'nsrdb', 'nrel_indiasolar',
-                       'ms', 'WY2', 'nasa_saudi')
-
-            # See accompanying script "gw".
-            currentdata, _ = gw.get_weather(
-                    stcode, sources, path_wthr,
-                    citytab=citytab, outpath=outpath)
-
-        # T = currentdata.shape[0]
-
-        # Extract the relevant data from the loaded 'starter' data.
-        # This step won't be needed if only the relevant variables are
-        # in the input matrix. Conversely, the user might have
-        # to identify the relevant time series.
-        ts_curr_in = (np.vstack([
-                currentdata.month.values,
-                currentdata.index.dayofyear, currentdata.hour.values,
-                currentdata.tdb.values, currentdata.tdp.values,
-                currentdata.rh.values, currentdata.ghi.values,
-                currentdata.dni.values, currentdata.dhi.values,
-                currentdata.wspd.values, currentdata.wdr.values])).T
-
-        # ts_hist_norm = scaler.transform(ts_hist_in)
-
-        # ts_hist_in = (np.vstack([
-        #        historicaldata.index.dayofyear, historicaldata.hour.values,
-        #        historicaldata.tdb.values, historicaldata.tdp.values,
-        #        historicaldata.rh.values, historicaldata.ghi.values,
-        #        historicaldata.dni.values, historicaldata.dhi.values,
-        #        historicaldata.wspd.values, historicaldata.wdr.values])).T
-
-        #
-        # %%
-
-        # This is the part of the generator where GP models are fitted to
-        # the incoming data. Naturally, it is only invoked if the function
-        # was invoked with starter data.
-
+        # Train the models and store them on drive.
+        
         gp_list, month_tracker = learngp(l_start, l_end, l_step,
-                                     histlim, ts_curr_in)
+                                         histlim, ts_in)
 
         # Save gp_list and month_tracker to pickle file.
         with open(path_file_list, 'wb') as fp:
@@ -180,26 +144,27 @@ def indra(seedfile, stcode='gla', n_samples=10,
             pickle.dump(month_tracker, fp)
 
         with open(path_seed_data, 'wb') as fp:
-            pickle.dump(ts_curr_in, fp)
-
-        # end seedfile if statement.
+            pickle.dump(ts_in, fp)
 
     else:
+        
+        # Load models from file.
 
         with open(path_file_list, 'rb') as fp:
             gp_list = pickle.load(fp)
         with open(path_other_file, 'rb') as fp:
             month_tracker = pickle.load(fp)
         with open(path_seed_data, 'rb') as fp:
-            ts_curr_in = pickle.load(fp)
+            ts_in = pickle.load(fp)
 
     # %%
 
-    picklepath = os.path.join(outpath, 'syn_{0}.p'.format(stcode))
+    picklepath = os.path.join(
+            outpath, 'syn_{0}_{1}.p'.format(stcode, randomseed))
 
     xout_un, column_names = samplegp(
             gp_list, l_start, l_end, l_step, histlim, n_samples,
-            ts_curr_in, month_tracker, picklepath, outpath)
+            ts_in, month_tracker, picklepath, outpath)
     # Save synthetic time series.
     for n in range(0, n_samples):
         filepath = os.path.join(

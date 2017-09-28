@@ -99,7 +99,7 @@ def tdb2tdp(tdb, rh):
 # %%
 
 
-def read_espr(filein='./che_geneva.iwec.a', filetype='ascii'):
+def r_espr(filein='./che_geneva.iwec.a', filetype='ascii'):
 
     filein_fldr, filein_name = os.path.split(filein)
     sitename = filein_name.split(sep='.')
@@ -147,7 +147,7 @@ def read_espr(filein='./che_geneva.iwec.a', filetype='ascii'):
         # Month.
         dataout[dayslice, 1] = np.repeat(int(splitday[-1]), len(dayslice))
 
-        # Day.
+        # Day of year.
         dataout[dayslice, 1] = np.repeat(int(splitday[2]), len(dayslice))
 
         # Hour (of day).
@@ -188,7 +188,7 @@ def read_espr(filein='./che_geneva.iwec.a', filetype='ascii'):
 
 
 
-#def writeclm(fileout, filetype='ascii'):
+#def w_espr(fileout, filetype='ascii'):
 #src = 'indra'
 ## filein_name and sitename taken from incoming file name.
 ## Set year to some ridiculous value so it's never mistaken for an actual year.
