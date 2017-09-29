@@ -26,7 +26,8 @@ column_names = ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
 date_cols = ('month', 'day', 'hour')
 dc = len(date_cols)
 
-# Make a scaler - either standard (to scale variables to \mu = 0 and \sigma = 1) or robust (with median and iqr).
+# Make a scaler - either standard (with \mu = 0 and
+# \sigma = 1) or robust (with median and iqr).
 scaler = StandardScaler()
 
 # Alternate (more complicated) kernels:
@@ -93,14 +94,14 @@ def fitgp(series, xtrain, ytrain, xtest=np.empty(0), *args):
 
 
 def learngp(l_start, l_end, l_step, histlim,
-            ts_curr_in, path_fldr_pickle=os.getcwd()):
+            ts_in, path_fldr_pickle=os.getcwd()):
 
     start_time = time.monotonic()
 
     # Re-scale the hourly values (Normalize).
-    s_c = scaler.fit(ts_curr_in)
+    s_c = scaler.fit(ts_in)
     # s_h = scaler.fit(ts_hist_in)
-    ts_curr_norm = s_c.transform(ts_curr_in)
+    ts_curr_norm = s_c.transform(ts_in)
 
     # Number of variables being considered =
     # number of columns minus time variables.
@@ -121,7 +122,7 @@ def learngp(l_start, l_end, l_step, histlim,
     # y_std = np.zeros([l_step, n_samples])
 
     # Hours of the year - calculated from hours of the day and day of the year.
-    hh = ts_curr_in[:, 2] + (ts_curr_in[:, 1] - 1)*24
+    hh = ts_in[:, 2] + (ts_in[:, 1] - 1)*24
 
     d = 0
 
@@ -139,10 +140,14 @@ def learngp(l_start, l_end, l_step, histlim,
             slicer = slicer[b:h+1]
             del b
 
-        date_slice = [(mslice, dslice, hslice)
-                      for (mslice, dslice, hslice) in
-                      zip(ts_curr_in[:, 0], ts_curr_in[:, 1], hh)
-                      if hslice in slicer]
+        # This bit of code is dormant right now but should be revived when
+        # the function is updated to learn from more than one year of data.
+        # Then the train slice would be selected by month, day, and hour,
+        # with the same timestamps used from each year.
+        #        date_slice = [(mslice, dslice, hslice)
+        #                      for (mslice, dslice, hslice) in
+        #                      zip(ts_in[:, 0], ts_in[:, 1], hh)
+        #                      if hslice in slicer]
 
         # If tomorrow's slice is beyond the 31st of December,
         # then break this loop.
@@ -151,7 +156,7 @@ def learngp(l_start, l_end, l_step, histlim,
 
         # Output the current month and day.
         month_tracker[d] = int(np.unique(np.squeeze(
-                ts_curr_in[h == hh, 0])))
+                ts_in[h == hh, 0])))
         # Change the unique function here to accomodate
         # multi-year records.
 
@@ -217,15 +222,14 @@ def learngp(l_start, l_end, l_step, histlim,
 
 
 def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
-             ts_curr_in, month_tracker,
-             picklepath=os.getcwd(), outpath=os.getcwd()):
+             ts_in, month_tracker):
 
     start_time = time.monotonic()
 
     # Re-scale the hourly values (Normalize).
-    s_c = scaler.fit(ts_curr_in)
+    s_c = scaler.fit(ts_in)
     # s_h = scaler.fit(ts_hist_in)
-    ts_curr_norm = s_c.transform(ts_curr_in)
+    ts_curr_norm = s_c.transform(ts_in)
 
     # Array to store the day-ahead 'predictions'.
     xout_norm = np.zeros([ts_curr_norm.shape[0],
@@ -332,7 +336,7 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
                 # then set corresponding synthetic value to zero.
 
                 temp = xout_un[:, c, n]
-                temp[ts_curr_in[:, c] == 0] = 0
+                temp[ts_in[:, c] == 0] = 0
                 xout_un[:, c, n] = temp
 
                 # If there is a negative value (usually at sunrise
@@ -340,8 +344,8 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
                 temp = xout_un[:, c, n]
                 temp[temp < 0] = np.nan
                 nans = np.isnan(temp)
-                temp[nans] = np.interp(ts_curr_in[nans, 1],
-                    ts_curr_in[~nans, 1], temp[~nans])
+                temp[nans] = np.interp(ts_in[nans, 1],
+                    ts_in[~nans, 1], temp[~nans])
                 xout_un[:, c, n] = temp
 
             # End loop over samples.
@@ -350,8 +354,6 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
 
     # A potential improvement would be to calculate sunrise and sunset
     # independently since that is an almost deterministic calculation.
-
-    pd.to_pickle(xout_un, picklepath)
 
     end_time = time.monotonic()
     print("Time taken to sample models was %6.2f seconds."

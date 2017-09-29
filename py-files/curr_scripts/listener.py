@@ -4,6 +4,9 @@
 Created on Fri Sep 22 16:32:27 2017
 
 @author: rasto
+
+This script is called from the command line. It only parses the arguments
+and invokes Indra.
 """
 
 # For parsing the arguments.
@@ -13,8 +16,10 @@ import argparse
 from indra import indra
 
 parser = argparse.ArgumentParser(
-        description='This is Indra, a generator of ' +
-        'synthetic weather time series.')
+        description="This is Indra, a generator of synthetic weather " +
+        "time series. This function both 'learns' the structure of data " +
+        "and samples from the learnt model. Both run modes need 'seed' " +
+        "data, i.e., some input weather data.\r\n")
 
 parser.add_argument('--train', type=int, choices=[0, 1], default=0,
                     help='Enter 0 for no seed data, ' +
@@ -24,7 +29,7 @@ parser.add_argument('--stcode', type=str, default='xxx',
                     'If you are not passing seed data, and want me to ' +
                     'pick up a saved model, please use the station code' +
                     ' of the saved model.')
-parser.add_argument('--n_samples', type=int, default=10,
+parser.add_argument('--n_sample', type=int, default=10,
                     help='How many samples do you want out?')
 parser.add_argument('--fpath_in', type=str, help='Path to a folder' +
                     'containing the seed file or the seed file itself.' +
@@ -71,7 +76,7 @@ parser.add_argument('--long', type=int, default=0,
                     help='Station longitude.')
 parser.add_argument('--alt', type=int, default=0,
                     help='Station altitude.')
-parser.add_argument('--randomseed', type=int, default=8760,
+parser.add_argument('--randseed', type=int, default=8760,
                     help="Set the seed for this sampling " +
                     "run. If you don't know what this " +
                     "is, don't worry. The default is 8760.")
@@ -80,7 +85,7 @@ args = parser.parse_args()
 
 train = bool(args.train)
 stcode = args.stcode.lower()
-n_samples = args.n_samples
+n_sample = args.n_sample
 fpath_in = args.fpath_in
 ftype = args.ftype
 outpath = args.outpath
@@ -91,7 +96,7 @@ histlim = args.histlim
 stlat = args.lat
 stlong = args.long
 stalt = args.alt
-randomseed = args.randomseed
+randseed = args.randseed
 
 print('Invoking Indra for {0}.\r\n'.format(stcode))
 
@@ -104,11 +109,11 @@ else:
 # Call indra.
 if __name__ == '__main__':
     indra(train, stcode=stcode,
-          n_samples=n_samples,
+          n_sample=n_sample,
           fpath_in=fpath_in,
           ftype = ftype,
           outpath=outpath,
           l_start=l_start, l_end=l_end,
           l_step=l_step, histlim=histlim,
           stlat=stlat, stlong=stlong, stalt=stalt,
-          randomseed=randomseed)
+          randseed=randseed)

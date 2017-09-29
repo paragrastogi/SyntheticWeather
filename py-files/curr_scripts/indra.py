@@ -41,16 +41,17 @@ Features to be implemented:
 #           'ms', 'WY2', 'nasa_saudi')
 
 
-def indra(train, stcode='gla', n_samples=10,
+def indra(train, stcode='gla', n_sample=10,
           fpath_in='/usr/esru/esp-r/climate/che_gen_iwec.a',
           ftype='espr',
           outpath='.',
           l_start=int(0), l_end=int(31*24),
           l_step=int(4*24), histlim=int(14*24),
           stlat=0.0, stlong=0.0, stalt=0.0,
-          randomseed=8760):
+          randseed=8760):
 
     import os
+    import sys
     import random
 
     import numpy as np
@@ -66,16 +67,16 @@ def indra(train, stcode='gla', n_samples=10,
     # from losses import rmseloss
     # from losses import maeloss
 
-    # import les petites fonctionnes utiles.
-    from petites import learngp
-    from petites import samplegp
+    # import learn and sample functions from gp_funcs.
+    from gp_funcs import learngp
+    from gp_funcs import samplegp
 
     # ------------------
     # Some initialisation house work.
 
     # Seed random number generators.
-    np.random.seed(randomseed)
-    random.seed = randomseed
+    np.random.seed(randseed)
+    random.seed = randseed
 
     # Convert incoming stcode to lowercase.
     stcode = stcode.lower()
@@ -87,12 +88,12 @@ def indra(train, stcode='gla', n_samples=10,
 
     # These will be the files where the outputs will be stored.
     path_file_list = os.path.join(
-            outpath, 'model_{0}_{1}.p'.format(stcode, randomseed))
+            outpath, 'model_{0}_{1}.p'.format(stcode, randseed))
     path_other_file = os.path.join(
-            outpath, 'm_tracker_{0}_{1}.p'.format(stcode, randomseed))
+            outpath, 'm_tracker_{0}_{1}.p'.format(stcode, randseed))
     path_seed_data = os.path.join(
-            outpath, 'seed_data_{0}_{1}.p'.format(stcode, randomseed))
-    
+            outpath, 'seed_data_{0}_{1}.p'.format(stcode, randseed))
+
     # Oth
 #    if not os.path.isdir(os.path.join(outpath, 'pickled_data')):
 #        os.makedirs(os.path.join(outpath, 'pickled_data'))
@@ -114,15 +115,24 @@ def indra(train, stcode='gla', n_samples=10,
     #        print("I could not find CityData.csv, continuing without...")
 
     # See accompanying script "gw".
-#    try:
-    ts_in = gw.get_weather(
-            stcode, fpath_in, ftype,
-            outpath=outpath)
-#        print('Successfully retrieved weather data.\r\n')
-#    except:
-#        print('I could not read the incoming weather file. ' + \
-#              'Terminating this run.')
-#        return 0
+    try:
+        ts_in, locdata = gw.get_weather(stcode, fpath_in, ftype,
+                                        outpath=outpath)
+
+        temp = gw.day_of_year(ts_in[:, 0], ts_in[:, 1])
+        ts_in[:, 1] = temp
+        del temp
+
+        print('Successfully retrieved weather data.\r\n')
+
+    except Exception as err:
+        print('Error: ' + str(err))
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print(exc_type, fname, exc_tb.tb_lineno)
+        print('I could not read the incoming weather file. ' +
+              'Terminating this run.')
+        return 0
 
     # Extract the relevant data from the loaded 'starter' data.
     # This step won't be needed if only the relevant variables are
@@ -132,7 +142,7 @@ def indra(train, stcode='gla', n_samples=10,
     if train:
 
         # Train the models and store them on drive.
-        
+
         gp_list, month_tracker = learngp(l_start, l_end, l_step,
                                          histlim, ts_in)
 
@@ -147,7 +157,7 @@ def indra(train, stcode='gla', n_samples=10,
             pickle.dump(ts_in, fp)
 
     else:
-        
+
         # Load models from file.
 
         with open(path_file_list, 'rb') as fp:
@@ -160,16 +170,17 @@ def indra(train, stcode='gla', n_samples=10,
     # %%
 
     picklepath = os.path.join(
-            outpath, 'syn_{0}_{1}.p'.format(stcode, randomseed))
+            outpath, 'syn_{0}_{1}.p'.format(stcode, randseed))
 
     xout_un, column_names = samplegp(
-            gp_list, l_start, l_end, l_step, histlim, n_samples,
-            ts_in, month_tracker, picklepath, outpath)
+            gp_list, l_start, l_end, l_step, histlim, n_sample,
+            ts_in, month_tracker)
+
+    # Save the outputs as a pickle.
+    pd.to_pickle(xout_un, picklepath)
+
+
     # Save synthetic time series.
-    for n in range(0, n_samples):
-        filepath = os.path.join(
-                outpath, 'syn_{0}_{1}.csv'.format(stcode, n))
-        np.savetxt(filepath, np.squeeze(xout_un[:, :, n]), '%6.2f',
-                   delimiter=',', header=','.join(column_names))
+    gw.
 
     # The generation part ends here - the rest is just plotting various things.

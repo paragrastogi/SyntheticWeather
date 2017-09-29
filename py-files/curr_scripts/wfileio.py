@@ -36,37 +36,42 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
     # Initialise as a non-object.
     wdata = None
 
+    locdata = None
+
     if os.path.isfile(fpath):
-        print('Running weather file reader for station ' + 
+        print('Running weather file reader for station ' +
               '{0}. Expecting format {1}.\r\n'.format(stcode, ftype))
     else:
-        print('I cannot find file {0}.'.format(fpath) + \
+        print('I cannot find file {0}.'.format(fpath) +
               ' Returning empty dataframe.\r\n')
-        return wdata
-    
+        return wdata, locdata
+
     # Load data for given station.
 
     if ftype == 'pickle':
         try:
             ts_in = pd.read_pickle(fpath)
             return ts_in
-        except:
-            print('You asked me to read a pickle but I could not. ' + \
+        except Exception as err:
+            print('You asked me to read a pickle but I could not. ' +
                   'Trying all other formats.\r\n')
+            print('Error: ' + str(err))
             wdata = None
 
     elif ftype == 'epw':
-        
+
         try:
-            wdata, _ = read_epw(fpath, stcode)
-        except:
+            wdata, locdata, _ = read_epw(fpath)
+        except Exception as err:
+            print('Error: ' + str(err))
             wdata = None
 
     elif ftype == 'espr':
 
         try:
-            wdata, _ = read_espr(fpath, stcode)
-        except:
+            wdata, locdata, _ = read_espr(fpath)
+        except Exception as err:
+            print('Error: ' + str(err))
             wdata = None
 
     elif ftype == 'csv':
@@ -75,72 +80,140 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
             wdata = pd.read_csv(fpath, header=0)
             wdata.columns = ['month', 'day', 'hour', 'tdb', 'tdp', 'rh',
                              'ghi', 'dni', 'dhi', 'wspd', 'wdr']
-        except:
+            # Location data is nonsensical, except for station code,
+            # which will be reassigned later in this function.
+            locdata = dict(loc='xxx', lat='00', long='00',
+                       tz='00', alt='00', wmo='000000')
+
+        except Exception as err:
+            print('Error: ' + str(err))
             wdata = None
 
     # End ftype if statement.
-    
+
     # The first try didn't work for some reason.
 
     if wdata is None:
-        print('I could not read the file you gave me with the format ' + \
+        print('I could not read the file you gave me with the format ' +
               'you specified. Trying all readers.\r\n')
-        
+
         # Once more unto the breach.
-        
+
         for fmt in wformats:
             if fmt == 'epw':
                 try:
-                    wdata, _ = read_epw(fpath, stcode)
-                except:
+                    wdata, locdata, _ = read_epw(fpath)
+                except Exception as err:
+                    print('Error: ' + str(err))
                     wdata = None
             elif fmt == 'espr':
                 try:
-                    wdata, _ = read_espr(fpath, stcode)
-                except:
+                    wdata, locdata = read_espr(fpath)
+                except Exception as err:
+                    print('Error: ' + str(err))
                     wdata = None
             elif fmt == 'csv':
                 try:
                     wdata = pd.read_csv(fpath, header=0)
                     wdata.columns = ['month', 'day', 'hour', 'tdb', 'tdp',
                                      'rh', 'ghi', 'dni', 'dhi', 'wspd', 'wdr']
-                except:
+                    locdata = dict(loc='xxx', lat='00', long='00',
+                                   tz='00', alt='00', wmo='000000')
+
+                except Exception as err:
+                    print('Error: ' + str(err))
                     wdata = None
-            
+
             if wdata is not None:
                 break
 
     # End wformats for loop and if wdata is None.
 
+    locdata['loc'] = stcode
+
     if wdata is None:
-        print('All attempts to read your file were unsuccesful, ' + \
+        print('All attempts to read your file were unsuccesful, ' +
               'returning empty table.')
-        return wdata
+        return wdata, locdata
 
     else:
+
         ts_in = (np.vstack([
                 wdata.month.values,
-                wdata.index.dayofyear, wdata.hour.values,
+                wdata.day.values, wdata.hour.values,
                 wdata.tdb.values, wdata.tdp.values,
                 wdata.rh.values, wdata.ghi.values,
                 wdata.dni.values, wdata.dhi.values,
                 wdata.wspd.values, wdata.wdr.values])).T
+        # Note that the second column is day_of_month here but in the main
+        # indra script it will be converted to day_of_year.
 
-        return ts_in
+        return ts_in, locdata
 
     # Ignore this bit of code for now.
 
     # Load actual data for given station
     # force = False
-    # actualdata = read_others(stcode, force, sources, outpath=outpath)
+    # dataout = read_others(stcode, force, sources, outpath=outpath)
     # Always use NCDC in addition to the country-specific weather source
     # (like meteosuisse), since that can help fill data.
 
 
 # %%
 
+# Number of days in each month.
+m_days = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 
-def read_epw(fpath, stcode):
+
+def day_of_year(month, day):
+
+    month = month.astype(int) - 1
+    doy = np.zeros_like(day, dtype=int)
+
+    for m, mon in enumerate(month):
+        doy[m] = (day[m] + np.sum(m_days[0:mon])).astype(int)
+
+    return doy
+
+# End function day_of_year
+
+
+def day_of_month(day):
+
+    month = np.zeros_like(day, dtype=int)
+    dom = np.zeros_like(day, dtype=int)
+
+    for d, doy in enumerate(day):
+
+        rem = doy
+        prev_ndays = 0
+
+        for m, ndays in enumerate(m_days):
+            # The iterator 'm' starts at zero.
+
+            if rem <= 0:
+                # Iterator has now reached the incomplete month.
+
+                # The previous month is the correct month.
+                # Not subtracting 1 because the iterator starts at 0.
+                month[d] = m
+
+                # Add the negative remainder to the previous month's days.
+                dom[d] = rem + prev_ndays
+                break
+
+            # Subtract number of days in this month from the day.
+            rem -= ndays
+            # Store number of days from previous month.
+            prev_ndays = ndays
+
+    return month, dom
+
+# End function day_of_month
+# %%
+
+
+def read_epw(fpath='./gen_iwec.epw'):
 
     # Names of the columns in EPW files.
     tmy_colnames = ['Year', 'Month', 'Day', 'Hour', 'Minute', 'QualFlags',
@@ -188,10 +261,9 @@ def read_epw(fpath, stcode):
 
     didx = 0
     typdata = pd.DataFrame()
-    
 
     for f in tmy_filelist:
-    
+
         # All stations were NOT requested.
         # If they were, then this conditional will not activate.
         #        if stcode is not 'all':
@@ -218,38 +290,34 @@ def read_epw(fpath, stcode):
         with open(f, 'r') as epwfile:
             read_header = csv.reader(epwfile, delimiter=',')
             header = next(read_header)
-            location = np.repeat(header[1], wdata_typ.shape[0])
-            loccode = np.repeat(header[1].upper()[0:3], wdata_typ.shape[0])
-            wmo = np.repeat(header[5], wdata_typ.shape[0])
-            latitude = np.repeat(header[6], wdata_typ.shape[0])
-            longitude = np.repeat(header[7], wdata_typ.shape[0])
-            tz = np.repeat(header[8], wdata_typ.shape[0])
-            altitude = np.repeat(header[9], wdata_typ.shape[0])
+
+        locdata = dict(loc=header[1], lat=header[6], long=header[7],
+                       tz=header[8], alt=header[9], wmo=header[5])
 
         # Assign header information to table.
-        wdata_typ = wdata_typ.assign(
-                latitude=latitude, longitude=longitude,
-                altitude=altitude, wmo=wmo, tz=tz,
-                location=location, loccode=loccode)
+        #        wdata_typ = wdata_typ.assign(
+        #                latitude=latitude, longitude=longitude,
+        #                altitude=altitude, wmo=wmo, tz=tz,
+        #                location=location, loccode=loccode)
         if didx == 0:
             typdata = wdata_typ
         else:
             typdata = typdata.append(wdata_typ)
 
         didx += 1
-        
+
     if typdata.empty:
 
         print('Could not locate a file with given station name.' +
               ' Returning empty table.\r\n')
 
-    return typdata, tmy_filelist
+    return typdata, locdata, tmy_filelist
 
 # ----------- END read_epw function -----------
 
 
 def read_espr(fpath='./che_geneva.iwec.a'):
-    
+
     # Missing functionality - reject call if path points to binary file.
 
     fpath_fldr, fpath_name = os.path.split(fpath)
@@ -263,6 +331,13 @@ def read_espr(fpath='./che_geneva.iwec.a'):
 
     # Split the contents into a header and body.
     header = content[0:13]
+
+    locline = [line for line in header if ('latitude' in line)][0].split()
+    siteline = [line for line in header if ('site name' in line)][0].split()
+    locdata = dict(loc=siteline[0], lat=locline[1], long=locline[2],
+                   tz='00', alt='0000', wmo='000000')
+    # ESP-r files do not contain timezone, altitude, or WMO number.
+
     body = content[12:]
     del content
 
@@ -293,9 +368,9 @@ def read_espr(fpath='./che_geneva.iwec.a'):
         splitday = day.split()
 
         # Month.
-        dataout[dayslice, 1] = np.repeat(int(splitday[-1]), len(dayslice))
+        dataout[dayslice, 0] = np.repeat(int(splitday[-1]), len(dayslice))
 
-        # Day of year.
+        # Day of month.
         dataout[dayslice, 1] = np.repeat(int(splitday[2]), len(dayslice))
 
         # Hour (of day).
@@ -319,20 +394,26 @@ def read_espr(fpath='./che_geneva.iwec.a'):
         # wspd, clockwise deg from north.
         dataout[dayslice, 10] = daydata[:, 4]
 
-
         dcount += 24
 
     # tdp, calculated from tdb and rh.
     dataout[:, 4] = tdb2tdp(dataout[:, 3], dataout[:, 5])
 
+    # wspd can have bogus values (999)
+    dataout[dataout[:, 10] >= 999., 10] = np.nan
+    idx = np.arange(0, dataout.shape[0])
+    duds = np.logical_or(np.isinf(dataout[:, 10]), np.isnan(dataout[:, 10]))
+    int_func = interpolate.interp1d(
+            idx[np.logical_not(duds)], dataout[np.logical_not(duds), 10],
+            kind='nearest', fill_value='extrapolate')
+    dataout[duds, 10] = int_func(idx[duds])
 
     clmdata = pd.DataFrame(data=dataout,
-            columns=['month', 'day', 'hour',
-                     'tdb', 'tdp', 'rh',
-                     'ghi', 'dni', 'dhi',
-                     'wspd', 'wdr'])
+                           columns=['month', 'day', 'hour',
+                                    'tdb', 'tdp', 'rh',
+                                    'ghi', 'dni', 'dhi', 'wspd', 'wdr'])
 
-    return clmdata, header
+    return clmdata, locdata
 
 # ----------- END read_espr function -----------
 
@@ -341,11 +422,8 @@ def read_others(stcode, sources, outpath='xxx',
                 path_actual_top=os.path.join(
                         '..', '..', 'WeatherData', 'HistoricalData')):
 
-    print('Pickle file {0} not found,\r\n'.format(picklepath) +
-          'continuing to load from raw files.\r\n')
-
     # Create an empty data frame to be appended to later.
-    actualdata = pd.DataFrame()
+    dataout = pd.DataFrame()
 
     if 'ncdc' in sources:
         path_ncdc = os.path.join(path_actual_top, 'ncdc')
@@ -389,10 +467,10 @@ def read_others(stcode, sources, outpath='xxx',
             else:
                 continue
 
-        # The dataframe wdata_ncdc is renamed to actualdata.
+        # The dataframe wdata_ncdc is renamed to dataout.
         # In case only NCDC data is found, actual data
         # returned will consist only of NCDC data.
-        actualdata = actualdata.append(wdata_ncdc)
+        dataout = dataout.append(wdata_ncdc)
         del wdata_ncdc
 
     if 'nsrdb' in sources:
@@ -412,7 +490,7 @@ def read_others(stcode, sources, outpath='xxx',
             if stcode is 'all':
                 print('I cannot load NSRDB data for all stations -- ' +
                       'the resulting dataframe would be too big.\r\n')
-                actualdata = actualdata.append(wdata_nsrdb)
+                dataout = dataout.append(wdata_nsrdb)
                 break
 
             if all(s in f for s in ('nsrdb', 'csv', stcode)):
@@ -442,7 +520,7 @@ def read_others(stcode, sources, outpath='xxx',
             else:
                 continue
 
-            actualdata = actualdata.append(wdata_nsrdb)
+            dataout = dataout.append(wdata_nsrdb)
 
     if 'meteosuisse' in sources:
         path_ms = os.path.join(path_actual_top, 'ms')
@@ -458,7 +536,7 @@ def read_others(stcode, sources, outpath='xxx',
             if stcode is 'all':
                 print('I cannot load MeteoSuisse data for all stations -- ' +
                       'the resulting dataframe would be too big.\r\n')
-                actualdata = actualdata.append(wdata_ms)
+                dataout = dataout.append(wdata_ms)
                 break
 
             if all(s in f for s in ('meteosuisse', 'txt', stcode)):
@@ -493,67 +571,66 @@ def read_others(stcode, sources, outpath='xxx',
             else:
                 continue
 
-            actualdata = actualdata.append(wdata_ms)
+            dataout = dataout.append(wdata_ms)
 
     # If blank, output blank.
-    if actualdata.empty:
+    if dataout.empty:
         print('Could not locate any files with given station name. ' +
               'Returning empty table.\r\n')
-        return actualdata
+        return dataout
     else:
         # delete  the minute column
-        del actualdata['minute']
+        del dataout['minute']
         # Reorganise columns and return.
-        actualdata = actualdata[['year', 'month', 'day', 'hour',
-                                 'tdb', 'tdp', 'rh',
-                                 'ghi', 'dni', 'dhi',
-                                 'wdr', 'wspd', 'atmpr']]
+        dataout = dataout[['year', 'month', 'day', 'hour',
+                           'tdb', 'tdp', 'rh', 'ghi', 'dni', 'dhi',
+                           'wdr', 'wspd', 'atmpr']]
 
         # Convert time columns to numbers.
-        actualdata.year = pd.to_numeric(actualdata.year)
-        actualdata.month = pd.to_numeric(actualdata.month)
-        actualdata.day = pd.to_numeric(actualdata.day)
-        actualdata.hour = pd.to_numeric(actualdata.hour)
+        dataout.year = pd.to_numeric(dataout.year)
+        dataout.month = pd.to_numeric(dataout.month)
+        dataout.day = pd.to_numeric(dataout.day)
+        dataout.hour = pd.to_numeric(dataout.hour)
 
         tempdata = pd.DataFrame()
-        for col in list(actualdata):
-            tempdata[col] = actualdata.groupby(['year',
-                    'month', 'day', 'hour'])[col].mean()
+        for col in list(dataout):
+            tempdata[col] = dataout.groupby([
+                    'year', 'month', 'day', 'hour'])[col].mean()
 
         # If all elements of a row are nans, then discard that row.
         tempnans = tempdata.apply(np.isnan, axis=1)
         nancheck = tempnans.all(axis=1).values
 
-        actualdata = pd.DataFrame()
+        dataout = pd.DataFrame()
 
         for col in list(tempdata):
-            actualdata[col] = tempdata[col][np.logical_not(nancheck)]
+            dataout[col] = tempdata[col][np.logical_not(nancheck)]
 
         del tempdata
 
         # Final sanity checks.
-        notnans = actualdata.tdb.values[np.logical_not(
-                np.isnan(actualdata.tdb.values))]
-        notnanidx = np.logical_not(np.isnan(actualdata.tdb.values))
+        notnans = dataout.tdb.values[np.logical_not(
+                np.isnan(dataout.tdb.values))]
+        notnanidx = np.logical_not(np.isnan(dataout.tdb.values))
         notnans[(notnans > 55) | (notnans < -55)] = np.nan
 
-        actualdata.tdb.values[notnanidx] = notnans
+        dataout.tdb.values[notnanidx] = notnans
 
-        notnans = actualdata.tdp.values[np.logical_not(
-                np.isnan(actualdata.tdp.values))]
-        notnanidx = np.logical_not(np.isnan(actualdata.tdp.values))
+        notnans = dataout.tdp.values[np.logical_not(
+                np.isnan(dataout.tdp.values))]
+        notnanidx = np.logical_not(np.isnan(dataout.tdp.values))
         notnans[(notnans > 60) | (notnans < -60)] = np.nan
 
-        actualdata.tdp.values[notnanidx] = notnans
+        dataout.tdp.values[notnanidx] = notnans
 
         # Reassing original index.
-        actualdata.index = pd.to_datetime(
-                    actualdata[['year', 'month', 'day', 'hour']])
+        dataout.index = pd.to_datetime(
+                    dataout[['year', 'month', 'day', 'hour']])
 
-        pd.to_pickle(actualdata, picklepath)
-        actualdata.to_csv(csvpath, na_rep='NA')
+        #        pd.to_pickle(dataout, picklepath)
+        #        dataout.to_csv(csvpath, na_rep='NA')
 
-        return actualdata
+        return dataout
 
 # ----------- END read_others function -----------
 
@@ -646,8 +723,20 @@ def nsrdb_solar_clean(wdata_nsrdb):
 
     return wdata_copy
 
+# END nsrdb_solar_clean function.
 
-def weather_stats(data, key, stat):
+
+def give_weather(ts_out, locdata):
+
+    for n in range(0, n_sample):
+        filepath = os.path.join(
+                outpath, 'syn_{0}_{1}.csv'.format(stcode, n))
+
+        np.savetxt(filepath, np.squeeze(xout_un[:, :, n]), '%6.2f',
+                   delimiter=',', header=','.join(column_names))
+
+
+def wstats(data, key, stat):
 
     a = data.groupby(key)
 
@@ -677,8 +766,8 @@ def tdb2tdp(tdb, rh):
     phi = rh/100
 
     # Remove weird values.
-    phi[phi>1] = 1
-    phi[phi<0] = 0
+    phi[phi > 1] = 1
+    phi[phi < 0] = 0
 
     # Convert tdb to Kelvin.
     tdb_k = tdb + 273.15
@@ -723,8 +812,6 @@ def tdb2tdp(tdb, rh):
     # Temperature in the above formulae must be absolute,
     # i.e. in Kelvin
 
-    # THIS step is generating a lot of inf and nan - check against fundamentals handbook.
-
     # Continuing from eqs. 5 and 6
     p_ws = np.e**(lnp_ws)  # [Pa]
 
@@ -742,7 +829,8 @@ def tdb2tdp(tdb, rh):
     idx = np.arange(0, alpha.size)
     duds = np.logical_or(np.isinf(alpha), np.isnan(alpha))
     int_func = interpolate.interp1d(
-            idx, alpha, kind='nearest', fill_value='extrapolate')
+            idx[np.logical_not(duds)], alpha[np.logical_not(duds)],
+            kind='nearest', fill_value='extrapolate')
     alpha[duds] = int_func(idx[duds])
 
     # Eq. 39
