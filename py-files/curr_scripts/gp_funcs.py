@@ -359,7 +359,7 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
     print("Time taken to sample models was %6.2f seconds."
           % (end_time - start_time))
 
-    return xout_un, column_names
+    return xout_un
 
 
 def yfinder(colname):

@@ -91,7 +91,7 @@ ftype = args.ftype
 outpath = args.outpath
 l_start = args.l_start
 l_end = args.l_end
-l_step = args.l_step
+l_step = args.l_stepcsv
 histlim = args.histlim
 stlat = args.lat
 stlong = args.long
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     indra(train, stcode=stcode,
           n_sample=n_sample,
           fpath_in=fpath_in,
-          ftype = ftype,
+          ftype=ftype,
           outpath=outpath,
           l_start=l_start, l_end=l_end,
           l_step=l_step, histlim=histlim,

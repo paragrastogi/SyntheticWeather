@@ -37,8 +37,28 @@ Features to be implemented:
 # These are the sources of measured data I am familiar with. So far, the
 # get_weather script can only read the following:
 # 1. NCDC, 2. NSRDB, 3. MS (MeteoSuisse)
-#sources = ('ncdc', 'nsrdb', 'nrel_indiasolar',
-#           'ms', 'WY2', 'nasa_saudi')
+# sources = ('ncdc', 'nsrdb', 'nrel_indiasolar', 'ms', 'WY2', 'nasa_saudi')
+
+import os
+import sys
+import pickle
+import random
+
+import numpy as np
+import pandas as pd
+
+# These custom functions load and clean recorded data.
+# For now, we are only concerned with ncdc and nsrdb.
+import wfileio as wf
+
+# Custom functions to calculate error metrics - not currently used.
+# import losses.
+# from losses import rmseloss
+# from losses import maeloss
+
+# import learn and sample functions from gp_funcs.
+from gp_funcs import learngp
+from gp_funcs import samplegp
 
 
 def indra(train, stcode='gla', n_sample=10,
@@ -49,27 +69,6 @@ def indra(train, stcode='gla', n_sample=10,
           l_step=int(4*24), histlim=int(14*24),
           stlat=0.0, stlong=0.0, stalt=0.0,
           randseed=8760):
-
-    import os
-    import sys
-    import random
-
-    import numpy as np
-    import pandas as pd
-    import pickle
-
-    # These custom functions load and clean recorded data.
-    # For now, we are only concerned with ncdc and nsrdb.
-    import get_weather as gw
-
-    # Custom functions to calculate error metrics.
-    # import losses.
-    # from losses import rmseloss
-    # from losses import maeloss
-
-    # import learn and sample functions from gp_funcs.
-    from gp_funcs import learngp
-    from gp_funcs import samplegp
 
     # ------------------
     # Some initialisation house work.
@@ -114,12 +113,12 @@ def indra(train, stcode='gla', n_sample=10,
     #        citytab = None
     #        print("I could not find CityData.csv, continuing without...")
 
-    # See accompanying script "gw".
+    # See accompanying script "wfileio".
     try:
-        ts_in, locdata = gw.get_weather(stcode, fpath_in, ftype,
+        ts_in, locdata = wf.get_weather(stcode, fpath_in, ftype,
                                         outpath=outpath)
 
-        temp = gw.day_of_year(ts_in[:, 0], ts_in[:, 1])
+        temp = wf.day_of_year(ts_in[:, 0], ts_in[:, 1])
         ts_in[:, 1] = temp
         del temp
 
@@ -172,15 +171,14 @@ def indra(train, stcode='gla', n_sample=10,
     picklepath = os.path.join(
             outpath, 'syn_{0}_{1}.p'.format(stcode, randseed))
 
-    xout_un, column_names = samplegp(
-            gp_list, l_start, l_end, l_step, histlim, n_sample,
-            ts_in, month_tracker)
+    xout = samplegp(gp_list, l_start, l_end, l_step, histlim, n_sample,
+                    ts_in, month_tracker)
 
     # Save the outputs as a pickle.
-    pd.to_pickle(xout_un, picklepath)
+    pd.to_pickle(xout, picklepath)
 
 
     # Save synthetic time series.
-    gw.
+    wf.give_weather(xout, locdata, outpath=outpath)
 
     # The generation part ends here - the rest is just plotting various things.

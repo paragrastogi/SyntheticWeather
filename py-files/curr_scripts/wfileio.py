@@ -5,8 +5,11 @@ import csv
 from scipy import interpolate
 
 """
-This file contains functions to load weather data from 'typical' and
-'actual' (recorded) weather data files.
+This file contains functions to:
+    1. load weather data from 'typical' and 'actual' (recorded) weather
+       data files.
+    2. Write out synthetic weather data to EPW or ESPr weather file formats.
+    3. Associated helper functions.
 """
 
 __author__ = 'Parag Rastogi'
@@ -27,8 +30,30 @@ wformats = ('epw', 'espr', 'csv')
 # List of values that could be NaNs.
 nanlist = ('9900', '-9900', '9999', '99', '-99', '9999.9', '999.9', ' ', '-')
 
+# Names of the columns in EPW files.
+epw_colnames = ['Year', 'Month', 'Day', 'Hour', 'Minute', 'QualFlags',
+                'TDB', 'TDP', 'RH', 'ATMPR', 'ETRH', 'ETRN', 'HIR',
+                'GHI', 'DNI', 'DHI', 'GHE', 'DNE', 'DHE', 'ZL',
+                'WDR', 'WSPD', 'TSKY', 'OSKY', 'VIS', 'CHGT',
+                'PWO', 'PWC', 'PWT', 'AOPT', 'SDPT',
+                'SLAST', 'UnknownVar1', 'UnknownVar2', 'UnknownVar3']
+
+espr_header = """*CLIMATE
+# ascii weather file from {0},
+# defined in: {1}
+# col 1: Diffuse solar on the horizontal (W/m**2)
+# col 2: External dry bulb temperature   (Tenths DEG.C)
+# col 3: Direct normal solar intensity   (W/m**2)
+# col 4: Prevailing wind speed           (Tenths m/s)
+# col 5: Wind direction     (clockwise deg from north)
+# col 6: Relative humidity               (Percent)
+{2}               # site name
+ {3},{4},{5},{6}   # year, latitude, long diff, direct normal rad flag
+ {7},{8}    # period (julian days)"""
 
 # %%
+
+
 def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
 
     # This function calls the relevant reader based on the ftype.
@@ -215,19 +240,11 @@ def day_of_month(day):
 
 def read_epw(fpath='./gen_iwec.epw'):
 
-    # Names of the columns in EPW files.
-    tmy_colnames = ['Year', 'Month', 'Day', 'Hour', 'Minute', 'QualFlags',
-                    'TDB', 'TDP', 'RH', 'ATMPR', 'ETRH', 'ETRN', 'HIR',
-                    'GHI', 'DNI', 'DHI', 'GHE', 'DNE', 'DHE', 'ZL',
-                    'WDR', 'WSPD', 'TSKY', 'OSKY', 'VIS', 'CHGT',
-                    'PWO', 'PWC', 'PWT', 'AOPT', 'SDPT',
-                    'SLAST', 'UnknownVar1', 'UnknownVar2', 'UnknownVar3']
-
     # Uniform date index for all tmy weather data tables.
     dates = pd.date_range('1/1/2017', periods=8760, freq='H')
 
     # Convert the names to lowercase.
-    tmy_colnames = [x.lower() for x in tmy_colnames]
+    epw_colnames = [x.lower() for x in epw_colnames]
 
     # List of EPW files.
     tmy_filelist = []
@@ -276,7 +293,7 @@ def read_epw(fpath='./gen_iwec.epw'):
 
         # Read table, ignoring header lines.
         wdata_typ = pd.read_csv(f, delimiter=',', skiprows=8, header=None,
-                                names=tmy_colnames)
+                                names=epw_colnames)
         wdata_typ.index = dates
 
         if len(wdata_typ.columns) == 35:
@@ -723,10 +740,17 @@ def nsrdb_solar_clean(wdata_nsrdb):
 
     return wdata_copy
 
-# END nsrdb_solar_clean function.
+# ----------- END nsrdb_solar_clean function. -----------
 
 
-def give_weather(ts_out, locdata):
+def give_weather(ts_out, locdata, outpath='.'):
+
+    n_sample, rem = divmod(ts_out.shape[0], 8760)
+
+    if rem != 0:
+        print('Number of rows of output table given to give_weather ' +
+              'is not a multiple of 8760. You might want to see why ' +
+              'that is the case.')
 
     for n in range(0, n_sample):
         filepath = os.path.join(
@@ -736,109 +760,4 @@ def give_weather(ts_out, locdata):
                    delimiter=',', header=','.join(column_names))
 
 
-def wstats(data, key, stat):
-
-    a = data.groupby(key)
-
-    if stat is 'mean':
-        b = a.mean()
-    elif stat is 'sum':
-        b = a.sum()
-    elif stat is 'max':
-        b = a.max()
-    elif stat is 'min':
-        b = a.min()
-    elif stat is 'std':
-        b = a.std()
-    elif stat is 'q1':
-        b = a.quantile(0.25)
-    elif stat is 'q3':
-        b = a.quantile(0.75)
-    elif stat is 'med':
-        b = a.median()
-
-    return b
-
-
-def tdb2tdp(tdb, rh):
-
-    # Change relative humidity to fraction.
-    phi = rh/100
-
-    # Remove weird values.
-    phi[phi > 1] = 1
-    phi[phi < 0] = 0
-
-    # Convert tdb to Kelvin.
-    tdb_k = tdb + 273.15
-
-    # Equations for calculating the saturation pressure
-    # of water vapour, taken from ASHRAE Fundamentals 2009.
-    # (Eq. 5 and 6, Psychrometrics)
-
-    # Constants for Eq. 5, Temperature -200°C to 0°C.
-    c1 = -5.6745359*10**3
-    c2 = 6.3925247
-    c3 = -9.6778430*10**-3
-    c4 = 6.2215701*10**-7
-    c5 = 2.0747825*10**-9
-    c6 = -9.4840240*10**-13
-    c7 = 4.1635019
-
-    # Constants for Eq. 6, Temperature 0°C to 200°C.
-    c8 = -5.8002206*10**3
-    c9 = +1.3914993
-    c10 = -4.8640239*10**-2
-    c11 = +4.1764768*10**-5
-    c12 = -1.4452093*10**-8
-    c13 = +6.5459673
-
-    # This is to distinguish between the two versions of equation 5.
-    ice = tdb_k <= 273.15
-
-    lnp_ws = np.zeros(tdb_k.shape)
-
-    # Eq. 5, pg 1.2
-    lnp_ws[ice] = c1/tdb_k[ice] + c2 + c3*tdb_k[ice] + c4*tdb_k[ice]**2 + \
-        c5*tdb_k[ice]**3 + c6*tdb_k[ice]**4 + c7*np.log(tdb_k[ice])
-
-    # Eq. 6, pg 1.2
-    lnp_ws[np.logical_not(ice)] = c8/tdb_k[np.logical_not(ice)] + c9 + \
-        c10*tdb_k[np.logical_not(ice)] + \
-        c11*tdb_k[np.logical_not(ice)]**2 + \
-        (c12*tdb_k[np.logical_not(ice)])**3 + \
-        c13*np.log(tdb_k[np.logical_not(ice)])
-
-    # Temperature in the above formulae must be absolute,
-    # i.e. in Kelvin
-
-    # Continuing from eqs. 5 and 6
-    p_ws = np.e**(lnp_ws)  # [Pa]
-
-    # Eq. 24, pg 1.8
-    p_w = (phi * p_ws) / 1000  # [kPa]
-
-    # Constants for Eq. 39
-    c14 = 6.54
-    c15 = 14.526
-    c16 = 0.7389
-    c17 = 0.09486
-    c18 = 0.4569
-
-    alpha = np.log(p_w)
-    idx = np.arange(0, alpha.size)
-    duds = np.logical_or(np.isinf(alpha), np.isnan(alpha))
-    int_func = interpolate.interp1d(
-            idx[np.logical_not(duds)], alpha[np.logical_not(duds)],
-            kind='nearest', fill_value='extrapolate')
-    alpha[duds] = int_func(idx[duds])
-
-    # Eq. 39
-    tdp = c14 + c15*alpha + c16*(alpha**2) + c17*(alpha**3) + \
-        c18*(p_w**0.1984)
-
-    # Eq. 40, TDP less than 0°C and greater than 93°C
-    tdp_ice = np.logical_or(tdp < 0, np.isnan(tdp), np.isinf(tdp))
-    tdp[tdp_ice] = 6.09 + 12.608*alpha[tdp_ice] + 0.4959*(alpha[tdp_ice]**2)
-
-    return tdp
+# ----------- End give_weather function. -----------
