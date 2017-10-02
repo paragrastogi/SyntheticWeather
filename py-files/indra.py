@@ -61,8 +61,8 @@ from gp_funcs import learngp
 from gp_funcs import samplegp
 
 
-def indra(train, stcode='gla', n_sample=10,
-          fpath_in='/usr/esru/esp-r/climate/che_gen_iwec.a',
+def indra(train, stcode='gen', n_sample=10,
+          fpath_in='./che_gen_iwec.a',
           ftype='espr',
           outpath='.',
           l_start=int(0), l_end=int(31*24),
@@ -130,13 +130,8 @@ def indra(train, stcode='gla', n_sample=10,
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print(exc_type, fname, exc_tb.tb_lineno)
         print('I could not read the incoming weather file. ' +
-              'Terminating this run.')
+              'Terminating this run.\r\n')
         return 0
-
-    # Extract the relevant data from the loaded 'starter' data.
-    # This step won't be needed if only the relevant variables are
-    # in the input matrix. Conversely, the user might have
-    # to identify the relevant time series.
 
     if train:
 
@@ -182,7 +177,14 @@ def indra(train, stcode='gla', n_sample=10,
     # Save the outputs as a pickle.
     pd.to_pickle(xout, picklepath)
 
+    # In this MC framework, the 'year' of weather data is meaningless.
+    # When the climate change models will be added, these years will
+    # mean something. For now, just add '2017' to every file.
+
+    year_dum = 2017*np.ones(8760)
+
     # Save synthetic time series.
-    wf.give_weather(xout, locdata, stcode, header, ftype, outpath=outpath)
+    wf.give_weather(xout, locdata, stcode, header, ftype,
+                    year=year_dum, s_shift=0, outpath=outpath)
 
     # The generation part ends here - the rest is just plotting various things.

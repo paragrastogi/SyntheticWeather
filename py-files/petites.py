@@ -6,7 +6,7 @@ Created on Fri Sep 29 15:30:34 2017
 @author: parag rastogi
 """
 
-import np
+import numpy as np
 from scipy import interpolate
 
 
