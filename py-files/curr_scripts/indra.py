@@ -115,8 +115,8 @@ def indra(train, stcode='gla', n_sample=10,
 
     # See accompanying script "wfileio".
     try:
-        ts_in, locdata = wf.get_weather(stcode, fpath_in, ftype,
-                                        outpath=outpath)
+        ts_in, locdata, header = wf.get_weather(
+                stcode, fpath_in, ftype, outpath=outpath)
 
         temp = wf.day_of_year(ts_in[:, 0], ts_in[:, 1])
         ts_in[:, 1] = temp
@@ -168,17 +168,21 @@ def indra(train, stcode='gla', n_sample=10,
 
     # %%
 
+    # Call the sampling function.
+
     picklepath = os.path.join(
             outpath, 'syn_{0}_{1}.p'.format(stcode, randseed))
 
+    # The output, xout, is a numpy nd-array with the standard
+    # columns ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
+    # 'ghi', 'dni', 'dhi', 'wspd', 'wdr')
     xout = samplegp(gp_list, l_start, l_end, l_step, histlim, n_sample,
                     ts_in, month_tracker)
 
     # Save the outputs as a pickle.
     pd.to_pickle(xout, picklepath)
 
-
     # Save synthetic time series.
-    wf.give_weather(xout, locdata, outpath=outpath)
+    wf.give_weather(xout, locdata, stcode, header, ftype, outpath=outpath)
 
     # The generation part ends here - the rest is just plotting various things.

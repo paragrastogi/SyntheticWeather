@@ -4,6 +4,8 @@ import pandas as pd
 import csv
 from scipy import interpolate
 
+import petites
+
 """
 This file contains functions to:
     1. load weather data from 'typical' and 'actual' (recorded) weather
@@ -19,37 +21,6 @@ __author__ = 'Parag Rastogi'
 # add leading zero (e.g., Geneva)
 # 2. Implement something to convert GHI to DNI and DHI.
 # Maybe use Erbs model like before.
-
-# List of keywords that identify TMY and AMY files.
-keywords = dict(tmy=('nrel', 'iwec', 'ishrae', 'cwec',
-                     'igdg', 'tmy3', 'meteonorm'),
-                amy=('ncdc', 'nsrdb', 'nrel_indiasolar',
-                     'ms', 'WY2', 'nasa_saudi'))
-wformats = ('epw', 'espr', 'csv')
-
-# List of values that could be NaNs.
-nanlist = ('9900', '-9900', '9999', '99', '-99', '9999.9', '999.9', ' ', '-')
-
-# Names of the columns in EPW files.
-epw_colnames = ['Year', 'Month', 'Day', 'Hour', 'Minute', 'QualFlags',
-                'TDB', 'TDP', 'RH', 'ATMPR', 'ETRH', 'ETRN', 'HIR',
-                'GHI', 'DNI', 'DHI', 'GHE', 'DNE', 'DHE', 'ZL',
-                'WDR', 'WSPD', 'TSKY', 'OSKY', 'VIS', 'CHGT',
-                'PWO', 'PWC', 'PWT', 'AOPT', 'SDPT',
-                'SLAST', 'UnknownVar1', 'UnknownVar2', 'UnknownVar3']
-
-espr_header = """*CLIMATE
-# ascii weather file from {0},
-# defined in: {1}
-# col 1: Diffuse solar on the horizontal (W/m**2)
-# col 2: External dry bulb temperature   (Tenths DEG.C)
-# col 3: Direct normal solar intensity   (W/m**2)
-# col 4: Prevailing wind speed           (Tenths m/s)
-# col 5: Wind direction     (clockwise deg from north)
-# col 6: Relative humidity               (Percent)
-{2}               # site name
- {3},{4},{5},{6}   # year, latitude, long diff, direct normal rad flag
- {7},{8}    # period (julian days)"""
 
 # %%
 
@@ -86,7 +57,7 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
     elif ftype == 'epw':
 
         try:
-            wdata, locdata, _ = read_epw(fpath)
+            wdata, locdata, header = read_epw(fpath)
         except Exception as err:
             print('Error: ' + str(err))
             wdata = None
@@ -94,7 +65,7 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
     elif ftype == 'espr':
 
         try:
-            wdata, locdata, _ = read_espr(fpath)
+            wdata, locdata, header = read_espr(fpath)
         except Exception as err:
             print('Error: ' + str(err))
             wdata = None
@@ -107,8 +78,18 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
                              'ghi', 'dni', 'dhi', 'wspd', 'wdr']
             # Location data is nonsensical, except for station code,
             # which will be reassigned later in this function.
-            locdata = dict(loc='xxx', lat='00', long='00',
-                       tz='00', alt='00', wmo='000000')
+            locdata = dict(loc=stcode, lat='00', long='00',
+                           tz='00', alt='00', wmo='000000')
+            header = '# Unknown incoming file format ' + \
+                     '(not epw or espr)\r\n' + \
+                     '# Dummy location data: ' + \
+                     'loc: {0}'.format(locdata['loc']) + \
+                     'lat: {0}'.format(locdata['lat']) + \
+                     'long: {0}'.format(locdata['long']) + \
+                     'tz: {0}'.format(locdata['tz']) + \
+                     'alt: {0}'.format(locdata['alt']) + \
+                     'wmo: {0}'.format(locdata['wmo']) + \
+                     '\r\n'
 
         except Exception as err:
             print('Error: ' + str(err))
@@ -127,13 +108,13 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
         for fmt in wformats:
             if fmt == 'epw':
                 try:
-                    wdata, locdata, _ = read_epw(fpath)
+                    wdata, locdata, header = read_epw(fpath)
                 except Exception as err:
                     print('Error: ' + str(err))
                     wdata = None
             elif fmt == 'espr':
                 try:
-                    wdata, locdata = read_espr(fpath)
+                    wdata, locdata, header = read_espr(fpath)
                 except Exception as err:
                     print('Error: ' + str(err))
                     wdata = None
@@ -144,6 +125,16 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
                                      'rh', 'ghi', 'dni', 'dhi', 'wspd', 'wdr']
                     locdata = dict(loc='xxx', lat='00', long='00',
                                    tz='00', alt='00', wmo='000000')
+                    header = '# Unknown incoming file format ' + \
+                     '(not epw or espr)\r\n' + \
+                     '# Dummy location data: ' + \
+                     'loc: {0}'.format(locdata['loc']) + \
+                     'lat: {0}'.format(locdata['lat']) + \
+                     'long: {0}'.format(locdata['long']) + \
+                     'tz: {0}'.format(locdata['tz']) + \
+                     'alt: {0}'.format(locdata['alt']) + \
+                     'wmo: {0}'.format(locdata['wmo']) + \
+                     '\r\n'
 
                 except Exception as err:
                     print('Error: ' + str(err))
@@ -173,7 +164,7 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
         # Note that the second column is day_of_month here but in the main
         # indra script it will be converted to day_of_year.
 
-        return ts_in, locdata
+        return ts_in, locdata, header
 
     # Ignore this bit of code for now.
 
@@ -266,30 +257,10 @@ def read_epw(fpath='./gen_iwec.epw'):
     else:
         tmy_filelist = [filepaths]
 
-    #    # If this particular station has already been processed, then there
-    #    # might be a pickle file with the data. Load that, unless forced.
-    #    if os.path.isfile(picklepath) and not force:
-    #        print('Pickle file exists.\r\n')
-    #        typdata = pd.read_pickle(picklepath)
-    #        return typdata, tmy_filelist
-    #    elif os.path.isfile(csvpath) and not force:
-    #        typdata = pd.read_csv(csvpath)
-    #        return typdata, tmy_filelist
-
     didx = 0
     typdata = pd.DataFrame()
 
     for f in tmy_filelist:
-
-        # All stations were NOT requested.
-        # If they were, then this conditional will not activate.
-        #        if stcode is not 'all':
-        #            if stcode in f.lower():
-        #                # File comes from requested station code.
-        #                print('Reading tmy file for station {0}.'.format(stcode))
-        #            else:
-        #                # Current file is not from station code requested.
-        #                continue
 
         # Read table, ignoring header lines.
         wdata_typ = pd.read_csv(f, delimiter=',', skiprows=8, header=None,
@@ -328,7 +299,7 @@ def read_epw(fpath='./gen_iwec.epw'):
         print('Could not locate a file with given station name.' +
               ' Returning empty table.\r\n')
 
-    return typdata, locdata, tmy_filelist
+    return typdata, locdata, header
 
 # ----------- END read_epw function -----------
 
@@ -336,6 +307,9 @@ def read_epw(fpath='./gen_iwec.epw'):
 def read_espr(fpath='./che_geneva.iwec.a'):
 
     # Missing functionality - reject call if path points to binary file.
+    
+    # Uniform date index for all tmy weather data tables.
+    dates = pd.date_range('1/1/2017', periods=8760, freq='H')
 
     fpath_fldr, fpath_name = os.path.split(fpath)
     sitename = fpath_name.split(sep='.')
@@ -356,6 +330,7 @@ def read_espr(fpath='./che_geneva.iwec.a'):
     # ESP-r files do not contain timezone, altitude, or WMO number.
 
     body = content[12:]
+
     del content
 
     # Find the lines with day tags.
@@ -414,7 +389,7 @@ def read_espr(fpath='./che_geneva.iwec.a'):
         dcount += 24
 
     # tdp, calculated from tdb and rh.
-    dataout[:, 4] = tdb2tdp(dataout[:, 3], dataout[:, 5])
+    dataout[:, 4] = petites.tdb2tdp(dataout[:, 3], dataout[:, 5])
 
     # wspd can have bogus values (999)
     dataout[dataout[:, 10] >= 999., 10] = np.nan
@@ -425,12 +400,12 @@ def read_espr(fpath='./che_geneva.iwec.a'):
             kind='nearest', fill_value='extrapolate')
     dataout[duds, 10] = int_func(idx[duds])
 
-    clmdata = pd.DataFrame(data=dataout,
+    clmdata = pd.DataFrame(data=dataout, index=dates,
                            columns=['month', 'day', 'hour',
                                     'tdb', 'tdp', 'rh',
                                     'ghi', 'dni', 'dhi', 'wspd', 'wdr'])
 
-    return clmdata, locdata
+    return clmdata, locdata, header
 
 # ----------- END read_espr function -----------
 
@@ -743,7 +718,10 @@ def nsrdb_solar_clean(wdata_nsrdb):
 # ----------- END nsrdb_solar_clean function. -----------
 
 
-def give_weather(ts_out, locdata, outpath='.'):
+def give_weather(ts, locdata, stcode, header, ftype, outpath='.'):
+    
+    print(header)
+    print(ts)
 
     n_sample, rem = divmod(ts_out.shape[0], 8760)
 
@@ -752,12 +730,113 @@ def give_weather(ts_out, locdata, outpath='.'):
               'is not a multiple of 8760. You might want to see why ' +
               'that is the case.')
 
-    for n in range(0, n_sample):
-        filepath = os.path.join(
-                outpath, 'syn_{0}_{1}.csv'.format(stcode, n))
+        if ftype == 'espr':
+            for n in range(0, n_sample):
+                filepath = os.path.join(
+                        outpath, 'syn_{0}_{1}.a'.format(stcode, n))
 
-        np.savetxt(filepath, np.squeeze(xout_un[:, :, n]), '%6.2f',
-                   delimiter=',', header=','.join(column_names))
+                np.savetxt(filepath, np.squeeze(ts[:, :, n]), '%6.2f',
+                   delimiter=',', header=header, comments='')
 
+                if os.path.isfile(filepath):
+                    success = True
+                else:
+                    success = False
+
+        elif ftype == 'epw':
+
+            for n in range(0, n_sample):
+                filepath = os.path.join(
+                        outpath, 'syn_{0}_{1}.epw'.format(stcode, n))
+
+                np.savetxt(filepath, np.squeeze(ts[:, :, n]), '%6.2f',
+                   delimiter=',',
+                   header=header )
+    
+                if os.path.isfile(filepath):
+                    success = True
+                else:
+                    success = False            
+            
+        else:
+
+            for n in range(0, n_sample):
+                filepath = os.path.join(
+                        outpath, 'syn_{0}_{1}.csv'.format(stcode, n))
+
+                np.savetxt(filepath, np.squeeze(ts[:, :, n]), '%6.2f',
+                   delimiter=',',
+                   header=header + ','.join(std_cols))
+    
+                if os.path.isfile(filepath):
+                    success = True
+                else:
+                    success = False
+
+    return n_files
 
 # ----------- End give_weather function. -----------
+
+
+#def write_epw(ts, header):
+#
+#    np.sav
+#    
+## ----------- End write_csv function. -----------
+#
+#
+#def write_csv(ts, header):
+#
+#    np.savetxt(filepath, np.squeeze(ts[:, :, n]), '%6.2f',
+#               delimiter=',',
+#               header=header + ','.join(std_cols))
+#
+#    if os.path.isfile(filepath):
+#        success = True
+#    else:
+#        success = False
+#
+#    return success
+
+# ----------- End write_csv function. -----------
+
+
+# Useful strings and constants.
+
+# List of keywords that identify TMY and AMY files.
+keywords = dict(tmy=('nrel', 'iwec', 'ishrae', 'cwec',
+                     'igdg', 'tmy3', 'meteonorm'),
+                amy=('ncdc', 'nsrdb', 'nrel_indiasolar',
+                     'ms', 'WY2', 'nasa_saudi'))
+wformats = ('epw', 'espr', 'csv')
+
+# List of values that could be NaNs.
+nanlist = ('9900', '-9900', '9999', '99', '-99', '9999.9', '999.9', ' ', '-')
+
+# Names of the columns in EPW files. Usually ignore the last
+# three columns.
+epw_colnames = ['Year', 'Month', 'Day', 'Hour', 'Minute', 'QualFlags',
+                'TDB', 'TDP', 'RH', 'ATMPR', 'ETRH', 'ETRN', 'HIR',
+                'GHI', 'DNI', 'DHI', 'GHE', 'DNE', 'DHE', 'ZL',
+                'WDR', 'WSPD', 'TSKY', 'OSKY', 'VIS', 'CHGT',
+                'PWO', 'PWC', 'PWT', 'AOPT', 'SDPT',
+                'SLAST', 'UnknownVar1', 'UnknownVar2', 'UnknownVar3']
+
+# A generic ESPR header that can be used in a print or str
+# command with format specifiers.
+espr_generic_header = """*CLIMATE
+# ascii weather file from {0},
+# defined in: {1}
+# col 1: Diffuse solar on the horizontal (W/m**2)
+# col 2: External dry bulb temperature   (Tenths DEG.C)
+# col 3: Direct normal solar intensity   (W/m**2)
+# col 4: Prevailing wind speed           (Tenths m/s)
+# col 5: Wind direction     (clockwise deg from north)
+# col 6: Relative humidity               (Percent)
+{2}               # site name
+ {3},{4},{5},{6}   # year, latitude, long diff, direct normal rad flag
+ {7},{8}    # period (julian days)"""
+
+# The standard columns used by indra.
+std_cols = ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
+            'ghi', 'dni', 'dhi', 'wspd', 'wdr')
