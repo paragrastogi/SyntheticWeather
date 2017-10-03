@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
-import csv
+# import csv
 from scipy import interpolate
 
 import petites
@@ -64,8 +64,8 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
 
     # Initialise as a non-object.
     wdata = None
-
     locdata = None
+    header = None
 
     if os.path.isfile(fpath):
         print('Running weather file reader for station ' +
@@ -73,7 +73,7 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
     else:
         print('I cannot find file {0}.'.format(fpath) +
               ' Returning empty dataframe.\r\n')
-        return wdata, locdata
+        return wdata, locdata, header
 
     # Load data for given station.
 
@@ -191,13 +191,19 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
 
     else:
 
+        if len(np.unique(wdata.year.values)) > 1:
+            # Incoming file is probably a TMY or TRY file,
+            # so insert a dummy year.
+            wdata['year'] = 2017
+
         wdata_array = (np.vstack([
-                wdata.month.values,
+                wdata.year.values, wdata.month.values,
                 wdata.day.values, wdata.hour.values,
                 wdata.tdb.values, wdata.tdp.values,
                 wdata.rh.values, wdata.ghi.values,
                 wdata.dni.values, wdata.dhi.values,
-                wdata.wspd.values, wdata.wdr.values])).T
+                wdata.wspd.values, wdata.wdr.values
+                ])).T
         # Note that the second column is day_of_month here but in the main
         # indra script it will be converted to day_of_year.
 
@@ -263,19 +269,21 @@ def day_of_month(day):
     return month, dom
 
 # End function day_of_month
+
+
 # %%
-
-
-def read_epw(fpath='./gen_iwec.epw'):
-
-    # Names of the columns in EPW files. Usually ignore the last
-    # three columns.
-    epw_colnames = ['Year', 'Month', 'Day', 'Hour', 'Minute', 'QualFlags',
+epw_colnames = ['Year', 'Month', 'Day', 'Hour', 'Minute', 'QualFlags',
                     'TDB', 'TDP', 'RH', 'ATMPR', 'ETRH', 'ETRN', 'HIR',
                     'GHI', 'DNI', 'DHI', 'GHE', 'DNE', 'DHE', 'ZL',
                     'WDR', 'WSPD', 'TSKY', 'OSKY', 'VIS', 'CHGT',
                     'PWO', 'PWC', 'PWT', 'AOPT', 'SDPT',
                     'SLAST', 'UnknownVar1', 'UnknownVar2', 'UnknownVar3']
+
+
+def read_epw(fpath, epw_colnames=epw_colnames):
+
+    # Names of the columns in EPW files. Usually ignore the last
+    # three columns.
 
     # Number of header lines expected.
     hlines = 8
@@ -312,8 +320,9 @@ def read_epw(fpath='./gen_iwec.epw'):
     for f in tmy_filelist:
 
         # Read table, ignoring header lines.
-        wdata_typ = pd.read_csv(f, delimiter=',', skiprows=hlines, header=None,
-                                names=epw_colnames)
+        wdata_typ = pd.read_csv(f, delimiter=',', skiprows=hlines,
+                                header=None, names=epw_colnames)
+
         wdata_typ.index = dates
 
         if len(wdata_typ.columns) == 35:
@@ -356,7 +365,7 @@ def read_epw(fpath='./gen_iwec.epw'):
 # ----------- END read_epw function -----------
 
 
-def read_espr(fpath='./che_geneva.iwec.a'):
+def read_espr(fpath):
 
     # Missing functionality - reject call if path points to binary file.
 
@@ -370,10 +379,12 @@ def read_espr(fpath='./che_geneva.iwec.a'):
     with open(fpath) as f:
         content = f.readlines()
 
-    content = [x.strip() for x in content]
+#    content = [x.strip() for x in content]
+    
+    hlines = 12
 
     # Split the contents into a header and body.
-    header = content[0:13]
+    header = content[0:hlines]
 
     locline = [line for line in header if ('latitude' in line)][0].split()
     siteline = [line for line in header if ('site name' in line)][0].split()
@@ -381,7 +392,7 @@ def read_espr(fpath='./che_geneva.iwec.a'):
                    tz='00', alt='0000', wmo='000000')
     # ESP-r files do not contain timezone, altitude, or WMO number.
 
-    body = content[12:]
+    body = content[hlines:]
 
     del content
 
@@ -427,10 +438,13 @@ def read_espr(fpath='./che_geneva.iwec.a'):
         dataout[dayslice, 5] = daydata[:, 5]
 
         # ghi, in W/m2.
-        dataout[dayslice, 7] = daydata[:, 0]
+        dataout[dayslice, 6] = daydata[:, 0] + daydata[:, 2]
 
         # dni, in W/m2.
-        dataout[dayslice, 8] = daydata[:, 2]
+        dataout[dayslice, 7] = daydata[:, 2]
+
+        # dhi, in W/m2.
+        dataout[dayslice, 8] = daydata[:, 0]
 
         # wdr, input is in deci-m/s.
         dataout[dayslice, 9] = daydata[:, 3]/10
@@ -770,28 +784,63 @@ def nsrdb_solar_clean(wdata_nsrdb):
 # ----------- END nsrdb_solar_clean function. -----------
 
 
-def give_weather(ts, locdata, stcode, header, ftype='espr',
-                 year=2017, s_shift=0, outpath='.'):
+def give_weather(ts, locdata, stcode, header,
+                 masterfile='./che_geneva.iwec.a', ftype='espr',
+                 s_shift=0, outpath='.', std_cols=std_cols):
 
     n_sample = ts.shape[-1]
 
     success = np.zeros(n_sample, dtype='bool')
 
-    uy = np.unique(year)
-
+    uy = np.asarray(np.unique(ts[:, 0, 0]), dtype=int)
+# %%
     for n in range(0, n_sample):
 
-        for y in uy:
+        for y, year in enumerate(uy):
 
             filepath = os.path.join(
-                    outpath, 'syn_{0}_{1}_{2}'.format(stcode, y, n))
+                    outpath, 'syn_{0}_{1}_{2}'.format(
+                            stcode, year, n + s_shift))
+            ts_curr = ts[ts[:, 0, n] == year, :, n]
 
             if ftype == 'espr':
 
                 filepath = filepath + '.a'
+                
+                esp_master, locdata, header = read_espr(masterfile)
 
-                np.savetxt(filepath, np.squeeze(ts[:, :, n]), '%5.2f',
-                           delimiter=',', header=header, comments='')
+                # Replace the year in the header.
+                yline = [line for line in header if 'year' in line]
+                yval = yline[0].split()
+                yline[0] = yline[0].replace(yval[0], str(year))
+                header = [yline[0] if 'year' in line else line
+                          for line in header]
+                # Cut out the last new-line character since numpy savetxt
+                # puts in a newline character after the header anyway.
+                header[-1] = header[-1][:-1]
+
+                esp_master.loc[:, 'tdb'] = np.squeeze(
+                        ts_curr[:, [c for c, name in enumerate(std_cols)
+                                if name == 'tdb']])*10  # deci-Degrees.
+                esp_master.loc[:, 'rh'] = np.squeeze(
+                        ts_curr[:, [c for c, name in enumerate(std_cols)
+                                if name == 'rh']])
+                esp_master.loc[:, 'dhi'] = np.squeeze(
+                        ts_curr[:, [c for c,  name in enumerate(std_cols)
+                                if name == 'dhi']])
+                esp_master.loc[:, 'dni'] = np.squeeze(
+                        ts_curr[:, [c for c,  name in enumerate(std_cols)
+                                if name == 'dni']])
+                esp_master.loc[:, 'wspd'] = np.squeeze(
+                        ts_curr[:, [c for c,  name in enumerate(std_cols)
+                                if name == 'wspd']])*10  # deci-m/s.
+
+                esp_master = esp_master.drop(
+                        ['month', 'day', 'hour', 'ghi'], axis=1)
+                
+
+                np.savetxt(filepath, esp_master.values, '%5.2f',
+                           delimiter=',', header=''.join(header), comments='')
 
                 if os.path.isfile(filepath):
                     success[n] = True
@@ -801,9 +850,42 @@ def give_weather(ts, locdata, stcode, header, ftype='espr',
             elif ftype == 'epw':
 
                 filepath = filepath + '.epw'
+                
+                epw_fmt = ['%4u', '%2u', '%2u', '%2u', '%2u', '%44s'] + \
+                    ((np.repeat('%5.2f', len(epw_colnames)-(6+3))).tolist())
 
-                np.savetxt(filepath, np.squeeze(ts[:, :, n]), #'%5.2f',
-                           delimiter=',', header=' '.join(header),
+                epw_master, locdata, header = read_epw(masterfile)
+                # Cut out the last new-line character since numpy savetxt
+                # puts in a newline character after the header anyway.
+                header[-1] = header[-1][:-1]
+
+                epw_master.loc[:, 'tdb'] = np.squeeze(
+                        ts_curr[:, [c for c, name in enumerate(std_cols)
+                                if name == 'tdb']])
+                epw_master.loc[:, 'tdp'] = np.squeeze(
+                        ts_curr[:, [c for c, name in enumerate(std_cols)
+                                if name == 'tdp']])
+                epw_master.loc[:, 'rh'] = np.squeeze(
+                        ts_curr[:, [c for c, name in enumerate(std_cols)
+                                if name == 'rh']])
+                epw_master.loc[:, 'ghi'] = np.squeeze(
+                        ts_curr[:, [c for c, name in enumerate(std_cols)
+                                if name == 'ghi']])
+                epw_master.loc[:, 'dni'] = np.squeeze(
+                        ts_curr[:, [c for c, name in enumerate(std_cols)
+                                if name == 'dni']])
+                epw_master.loc[:, 'dhi'] = np.squeeze(
+                        ts_curr[:, [c for c,  name in enumerate(std_cols)
+                                if name == 'dhi']])
+                epw_master.loc[:, 'wspd'] = np.squeeze(
+                        ts_curr[:, [c for c,  name in enumerate(std_cols)
+                                if name == 'wspd']])
+                epw_master.loc[:, 'wdr'] = np.squeeze(
+                        ts_curr[:, [c for c,  name in enumerate(std_cols)
+                                if name == 'wdr']])
+
+                np.savetxt(filepath, epw_master.values, fmt=epw_fmt,
+                           delimiter=',', header=''.join(header),
                            comments='')
 
                 if os.path.isfile(filepath):
@@ -815,7 +897,7 @@ def give_weather(ts, locdata, stcode, header, ftype='espr',
 
                 filepath = filepath + '.csv'
 
-                np.savetxt(filepath, np.squeeze(ts[:, :, n]), '%6.2f',
+                np.savetxt(filepath, np.squeeze(ts_curr), '%5.2f',
                            delimiter=',', header=header + ' '.join(std_cols),
                            comments='#')
 
@@ -827,7 +909,7 @@ def give_weather(ts, locdata, stcode, header, ftype='espr',
     print("You asked for {0} files to be written out. ".format(n_sample) +
           "I was able to write out {0} files successfully.".format(
                   np.sum(success)))
-    return 1
+#    return 1
 
 # ----------- End give_weather function. -----------
 

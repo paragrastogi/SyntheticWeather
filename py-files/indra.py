@@ -88,10 +88,12 @@ def indra(train, stcode='gen', n_sample=10,
     # These will be the files where the outputs will be stored.
     path_file_list = os.path.join(
             outpath, 'model_{0}_{1}.p'.format(stcode, randseed))
-    path_other_file = os.path.join(
+    path_month_track = os.path.join(
             outpath, 'm_tracker_{0}_{1}.p'.format(stcode, randseed))
     path_seed_data = os.path.join(
             outpath, 'seed_data_{0}_{1}.p'.format(stcode, randseed))
+    path_scaler = os.path.join(
+            outpath, 'scaler_{0}_{1}.p'.format(stcode, randseed))
 
     # Oth
 #    if not os.path.isdir(os.path.join(outpath, 'pickled_data')):
@@ -114,52 +116,50 @@ def indra(train, stcode='gen', n_sample=10,
     #        print("I could not find CityData.csv, continuing without...")
 
     # See accompanying script "wfileio".
-    try:
-        ts_in, locdata, header = wf.get_weather(
-                stcode, fpath_in, ftype, outpath=outpath)
+#    try:
+    xy_train, locdata, header = wf.get_weather(
+            stcode, fpath_in, ftype, outpath=outpath)
 
-        temp = wf.day_of_year(ts_in[:, 0], ts_in[:, 1])
-        ts_in[:, 1] = temp
-        del temp
+    temp = wf.day_of_year(xy_train[:, 1], xy_train[:, 2])
+    xy_train[:, 2] = temp
+    del temp
 
-        print('Successfully retrieved weather data.\r\n')
-
-    except Exception as err:
-        print('Error: ' + str(err))
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print(exc_type, fname, exc_tb.tb_lineno)
-        print('I could not read the incoming weather file. ' +
-              'Terminating this run.\r\n')
-        return 0
+#        print('Successfully retrieved weather data.\r\n')
+#
+#    except Exception as err:
+#        print('Error: ' + str(err))
+#        exc_type, exc_obj, exc_tb = sys.exc_info()
+#        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+#        print(exc_type, fname, exc_tb.tb_lineno)
+#        print('I could not read the incoming weather file. ' +
+#              'Terminating this run.\r\n')
+#        return 0
 
     if train:
 
         # Train the models and store them on drive.
 
-        gp_list, month_tracker = learngp(l_start, l_end, l_step,
-                                         histlim, ts_in)
+        gp_list, mtrack, scaler = learngp(l_start, l_end, l_step,
+                                          histlim, xy_train)
 
         # Save gp_list and month_tracker to pickle file.
+        gp_save = dict(gp_list=gp_list, mtrack=mtrack,
+                       scaler=scaler, xy_train=xy_train)
+
         with open(path_file_list, 'wb') as fp:
-            pickle.dump(gp_list, fp)
-
-        with open(path_other_file, 'wb') as fp:
-            pickle.dump(month_tracker, fp)
-
-        with open(path_seed_data, 'wb') as fp:
-            pickle.dump(ts_in, fp)
+            pickle.dump(gp_save, fp)
 
     else:
 
         # Load models from file.
 
         with open(path_file_list, 'rb') as fp:
-            gp_list = pickle.load(fp)
-        with open(path_other_file, 'rb') as fp:
-            month_tracker = pickle.load(fp)
-        with open(path_seed_data, 'rb') as fp:
-            ts_in = pickle.load(fp)
+            gp_save = pickle.load(fp)
+
+        gp_list = gp_save['gp_list']
+        mtrack = gp_save['mtrack']
+        scaler = gp_save['scaler']
+        xy_train = gp_save['xy_train']
 
     # %%
 
@@ -172,7 +172,7 @@ def indra(train, stcode='gen', n_sample=10,
     # columns ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
     # 'ghi', 'dni', 'dhi', 'wspd', 'wdr')
     xout = samplegp(gp_list, l_start, l_end, l_step, histlim, n_sample,
-                    ts_in, month_tracker)
+                    xy_train, mtrack, scaler)
 
     # Save the outputs as a pickle.
     pd.to_pickle(xout, picklepath)
@@ -181,10 +181,8 @@ def indra(train, stcode='gen', n_sample=10,
     # When the climate change models will be added, these years will
     # mean something. For now, just add '2017' to every file.
 
-    year_dum = 2017*np.ones(8760)
-
     # Save synthetic time series.
-    wf.give_weather(xout, locdata, stcode, header, ftype,
-                    year=year_dum, s_shift=0, outpath=outpath)
+    wf.give_weather(xout, locdata, stcode, header, ftype=ftype,
+                    s_shift=0, outpath=outpath, masterfile=fpath_in)
 
     # The generation part ends here - the rest is just plotting various things.
