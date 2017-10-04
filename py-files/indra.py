@@ -168,6 +168,12 @@ def indra(train, stcode='gen', n_sample=10,
     # When the climate change models will be added, these years will
     # mean something. For now, just add '2017' to every file.
 
+    for n in range(0, xout.shape[-1]):
+
+        temp1, temp2 = wf.day_of_month(xout[:, 2, n])
+        xout[:, 2, n] = temp2
+        del [temp1, temp2]
+
     # Save / write-out synthetic time series.
     wf.give_weather(xout, locdata, stcode, header, ftype=ftype,
                     s_shift=0, outpath=outpath, masterfile=fpath_in)

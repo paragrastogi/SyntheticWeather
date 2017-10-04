@@ -62,7 +62,7 @@ parser.add_argument('--l_step', type=int, default=4*24,
                     help='Step size for learning ' +
                     'or sampling loop. Please use a multiple of 24, ' +
                     'e.g., 24 or 48. Default is 4*24.')
-parser.add_argument('--histlim', type=int, default=14*24,
+parser.add_argument('--histlim', type=int, default=7*24,
                     help="Maximum 'history' to consider when training " +
                     "the models. The bigger this number, i.e., the " +
                     "longer history you want me to consider, the " +

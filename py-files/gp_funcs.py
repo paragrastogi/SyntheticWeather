@@ -137,12 +137,16 @@ def learngp(l_start, l_end, l_step, histlim,
 
         # Train initial model on the first day.
         # Take the last $histlim$ hours into account.
-        slicer = np.arange(l_start, h)
+        xslice = np.arange(l_start, h)
 
-        if len(slicer) > histlim:
-            b = int(len(slicer) - histlim)
-            slicer = slicer[b:h+1]
+        if len(xslice) > histlim:
+            b = int(len(xslice) - histlim)
+            xslice = xslice[b:h+1]
             del b
+
+        # The time slice from which the function will pick up the
+        # 'y' it needs to 'predict'.
+        yslice = np.arange(h, h+xslice.shape[0])
 
         # This bit of code is dormant right now but should be revived when
         # the function is updated to learn from more than one year of data.
@@ -151,11 +155,11 @@ def learngp(l_start, l_end, l_step, histlim,
         #        date_slice = [(mslice, dslice, hslice)
         #                      for (mslice, dslice, hslice) in
         #                      zip(ts_in[:, 0], ts_in[:, 1], hh)
-        #                      if hslice in slicer]
+        #                      if hslice in xslice]
 
-        # If tomorrow's slice is beyond the 31st of December,
+        # If the train or predict slice is beyond the 31st of December,
         # then break this loop.
-        if (h+l_step) > ts_norm.shape[0]:
+        if (h+xslice.shape[0]) > ts_norm.shape[0]:
             break
 
         # Output the current month and day.
@@ -169,26 +173,27 @@ def learngp(l_start, l_end, l_step, histlim,
 
         # Concatenate the daily means with the hourly values, leaving
         # out the day variable from the daily means array (first column).
-        train_slice = ts_norm[slicer, :]
-        # USE dateslice here instead of slicer.
+        train_slice = ts_norm[xslice, :]
+        train_y = ts_norm[yslice, :]
+        # USE dateslice here instead of xslice.
 
-        # Cycle through all columns.
-        for c, colname in enumerate(column_names):
-
-            if colname in date_cols:
-                continue
-            else:
-                # Find current output column.
-                find_y = yfinder(colname)
-
-                # Separate the training data (history) into x & y,
-                # and reshape them to be 2D.
-                x_train = train_slice[:, np.logical_not(find_y)]
-                y_train = train_slice[:, find_y]
-
-                # No test values.
-
-            # End of columns loop.
+#        # Cycle through all columns.
+#        for c, colname in enumerate(column_names):
+#
+#            if colname in date_cols:
+#                continue
+#            else:
+#                # Find current output column.
+#                find_y = yfinder(colname)
+#
+#                # Separate the training data (history) into x & y,
+#                # and reshape them to be 2D.
+#                x_train = train_slice[:, np.logical_not(find_y)]
+#                y_train = train_y[:, find_y]
+#
+#                # No test values.
+#
+#            # End of columns loop.
 
         for c, colname in enumerate(column_names):
 
@@ -204,9 +209,12 @@ def learngp(l_start, l_end, l_step, histlim,
 
                 # Separate the training data (history) into x & y.
                 x_train = train_slice[:, np.logical_not(find_y)]
-                y_train = train_slice[:, find_y]
+                y_train = train_y[:, find_y]
 
-                # Call
+                # Remove year from training data (first column).
+                x_train = x_train[:, 1:]
+
+                # Call the fitgp function.
                 gp_temp, _, _ = fitgp(colname, x_train, y_train)
                 # The second and third outputs are dummies,
                 # though calling them stupid would be mean.
@@ -252,14 +260,14 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
 
         # Train initial model on the first day.
         # Take the last $histlim$ hours into account.
-        slicer = range(l_start, h)
+        xslice = range(l_start, h)
 
-        if len(slicer) > histlim:
-            b = int(len(slicer) - histlim)
-            slicer = slicer[b:h+1]
+        if len(xslice) > histlim:
+            b = int(len(xslice) - histlim)
+            xslice = xslice[b:h+1]
             del b
 
-        train_slice = ts_norm[slicer, :]
+        train_slice = ts_norm[xslice, :]
 
         # Index for the next day's data.
         tomorrows_slice = range(h, h+l_step)
@@ -289,23 +297,27 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
                 # Separate the training data (history) into x & y.
                 x_train = train_slice[:, np.logical_not(find_y)]
                 y_train = train_slice[:, find_y]
+                
+                # Remove year from training data (first column).
+                x_train = x_train[:, 1:]
 
                 # The model will be 'queried' at these points.
                 # The query points do not include the variable
                 # which is the current output.
                 x_query = x_train[-l_step:, :]
 
-                x_pred = np.zeros([l_step, n_samples])
+                # Pre-allocate the array that will contain predicted/sampled y.
+                y_pred = np.zeros([l_step, n_samples])
 
                 month_gps = [gp_list[c][a] for a, b in
                              enumerate(mtrack[d] ==
                                        mtrack) if b]
-                for s in range(0, x_pred.shape[1]):
+                for s in range(0, y_pred.shape[1]):
                     # Select a random gp model from this month's models.
                     gp_sel = random.choice(month_gps)
 
                     # Take a sample from that model.
-                    x_pred[:, s] = np.squeeze(gp_sel.sample_y(
+                    y_pred[:, s] = np.squeeze(gp_sel.sample_y(
                                 x_query, n_samples=1))
 
                     # Use the GP of each day to predict that day,
@@ -314,7 +326,7 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
 
                 # Store the values for 'tomorrow' for this variable.
 
-                tomorrows_vals[:, c, :] = x_pred
+                tomorrows_vals[:, c, :] = y_pred
 
         xout_norm[tomorrows_slice, :, :] = tomorrows_vals
 

@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
-# import csv
+import csv
 from scipy import interpolate
 
 import petites
@@ -52,7 +52,7 @@ espr_generic_header = """*CLIMATE
  {7},{8}    # period (julian days)"""
 
 # The standard columns used by indra.
-std_cols = ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
+std_cols = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
             'ghi', 'dni', 'dhi', 'wspd', 'wdr')
 
 # %%
@@ -437,11 +437,12 @@ def read_espr(fpath):
         # tdb, input is in deci-degrees, convert to degrees.
         dataout[dayslice, 3] = daydata[:, 1]/10
 
+        # tdp is calculated after this loop.
+
         # rh, in percent.
         dataout[dayslice, 5] = daydata[:, 5]
 
-        # ghi, in W/m2.
-        dataout[dayslice, 6] = daydata[:, 0] + daydata[:, 2]
+        # ghi is calculated after this loop.
 
         # dni, in W/m2.
         dataout[dayslice, 7] = daydata[:, 2]
@@ -449,16 +450,19 @@ def read_espr(fpath):
         # dhi, in W/m2.
         dataout[dayslice, 8] = daydata[:, 0]
 
-        # wdr, input is in deci-m/s.
+        # wspd, input is in deci-m/s.
         dataout[dayslice, 9] = daydata[:, 3]/10
 
-        # wspd, clockwise deg from north.
+        # wdr, clockwise deg from north.
         dataout[dayslice, 10] = daydata[:, 4]
 
         dcount += 24
 
     # tdp, calculated from tdb and rh.
     dataout[:, 4] = petites.tdb2tdp(dataout[:, 3], dataout[:, 5])
+
+    # ghi, in W/m2.
+    dataout[:, 6] = dataout[:, 7] + dataout[:, 8]
 
     # wspd can have bogus values (999)
     dataout[dataout[:, 10] >= 999., 10] = np.nan
@@ -799,6 +803,7 @@ def give_weather(ts, locdata, stcode, header,
     success = np.zeros(n_sample, dtype='bool')
 
     uy = np.asarray(np.unique(ts[:, 0, 0]), dtype=int)
+
 # %%
     for n in range(0, n_sample):
 
@@ -812,7 +817,7 @@ def give_weather(ts, locdata, stcode, header,
             if ftype == 'espr':
 
                 filepath = filepath + '.a'
-                
+
                 esp_master, locdata, header = read_espr(masterfile)
 
                 # Replace the year in the header.
@@ -825,6 +830,7 @@ def give_weather(ts, locdata, stcode, header,
                 # puts in a newline character after the header anyway.
                 header[-1] = header[-1][:-1]
 
+                # Replace the relevant columns with 'new' data.
                 esp_master.loc[:, 'tdb'] = np.squeeze(
                         ts_curr[:, [c for c, name in enumerate(std_cols)
                                 if name == 'tdb']])*10  # deci-Degrees.
@@ -841,16 +847,40 @@ def give_weather(ts, locdata, stcode, header,
                         ts_curr[:, [c for c,  name in enumerate(std_cols)
                                 if name == 'wspd']])*10  # deci-m/s.
 
-                esp_master = esp_master.drop(
-                        ['year', 'month', 'day', 'hour', 'ghi'], axis=1)
-                
-                master_aslist = esp_master.tolist()
-                print(len(master_aslist))
-                print(len(master_aslist[0]))
-                print(master_aslist[0])
+                # Save month and day to write out to file as separate rows.
+                monthday = (esp_master.loc[:, ['day', 'month']]).astype(int)
 
-                np.savetxt(filepath, esp_master.values, '%5.2f',
-                           delimiter=',', header=''.join(header), comments='')
+                # Drop those columns that will not be written out.
+                esp_master = esp_master.drop(
+                        ['year', 'month', 'day', 'hour', 'ghi', 'tdp'],
+                        axis=1)
+                # Re-arrange the columns into the espr clm file order.
+                esp_master = esp_master[['dhi', 'tdb', 'dni', 'wspd',
+                                         'wdr', 'rh']]
+                # Convert all data to int.
+                esp_master = esp_master.astype(int)
+
+                master_aslist = esp_master.values.tolist()
+
+                for md in range(0, monthday.shape[0], 24):
+                    md_list = [str('* day  {0} month  {1}'.format(
+                            monthday['day'][md], monthday['month'][md]))]
+                    master_aslist.insert(md, md_list)
+
+                # Write the header to file - though the delimiter is
+                # mostly meaningless in this case.
+                with open(filepath, 'w') as f:
+                    spamwriter = csv.writer(f, delimiter=',', quotechar=' ',
+                                            lineterminator='\n')
+                    spamwriter.writerow([''.join(header)])
+
+                # Now append the actual data.
+                with open(filepath, 'a') as f:
+                    spamwriter = csv.writer(f, delimiter=',', quotechar=' ',
+                                            quoting=csv.QUOTE_MINIMAL,
+                                            lineterminator='\n')
+                    for line in master_aslist:
+                        spamwriter.writerow(line)
 
                 if os.path.isfile(filepath):
                     success[n] = True
@@ -862,7 +892,7 @@ def give_weather(ts, locdata, stcode, header,
             elif ftype == 'epw':
 
                 filepath = filepath + '.epw'
-                
+
                 epw_fmt = ['%4u', '%2u', '%2u', '%2u', '%2u', '%44s'] + \
                     ((np.repeat('%5.2f', len(epw_colnames)-(6+3))).tolist())
 
