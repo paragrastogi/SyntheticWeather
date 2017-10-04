@@ -88,19 +88,6 @@ def indra(train, stcode='gen', n_sample=10,
     # These will be the files where the outputs will be stored.
     path_file_list = os.path.join(
             outpath, 'model_{0}_{1}.p'.format(stcode, randseed))
-    path_month_track = os.path.join(
-            outpath, 'm_tracker_{0}_{1}.p'.format(stcode, randseed))
-    path_seed_data = os.path.join(
-            outpath, 'seed_data_{0}_{1}.p'.format(stcode, randseed))
-    path_scaler = os.path.join(
-            outpath, 'scaler_{0}_{1}.p'.format(stcode, randseed))
-
-    # Oth
-#    if not os.path.isdir(os.path.join(outpath, 'pickled_data')):
-#        os.makedirs(os.path.join(outpath, 'pickled_data'))
-#    if not os.path.isdir(os.path.join(
-#            outpath, 'csv_data')):
-#        os.makedirs(os.path.join(outpath, 'csv_data'))
 
     print('Storing everything in folder {0}\r\n'.format(outpath))
 
@@ -181,8 +168,6 @@ def indra(train, stcode='gen', n_sample=10,
     # When the climate change models will be added, these years will
     # mean something. For now, just add '2017' to every file.
 
-    # Save synthetic time series.
+    # Save / write-out synthetic time series.
     wf.give_weather(xout, locdata, stcode, header, ftype=ftype,
                     s_shift=0, outpath=outpath, masterfile=fpath_in)
-
-    # The generation part ends here - the rest is just plotting various things.

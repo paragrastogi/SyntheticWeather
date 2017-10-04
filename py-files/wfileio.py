@@ -97,11 +97,11 @@ def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
 
     elif ftype == 'espr':
 
-        try:
+#        try:
             wdata, locdata, header = read_espr(fpath)
-        except Exception as err:
-            print('Error: ' + str(err))
-            wdata = None
+#        except Exception as err:
+#            print('Error: ' + str(err))
+#            wdata = None
 
     elif ftype == 'csv':
 
@@ -379,12 +379,15 @@ def read_espr(fpath):
     with open(fpath) as f:
         content = f.readlines()
 
-#    content = [x.strip() for x in content]
-    
     hlines = 12
 
     # Split the contents into a header and body.
     header = content[0:hlines]
+
+    # Find the year of the current file.
+    yline = [line for line in header if 'year' in line]
+    yline_split = yline[0].split()
+    year = yline_split[0]
 
     locline = [line for line in header if ('latitude' in line)][0].split()
     siteline = [line for line in header if ('site name' in line)][0].split()
@@ -466,8 +469,11 @@ def read_espr(fpath):
             kind='nearest', fill_value='extrapolate')
     dataout[duds, 10] = int_func(idx[duds])
 
+    dataout = np.concatenate((np.reshape(np.repeat(int(year), 8760),
+                                         [-1, 1]), dataout), axis=1)
+
     clmdata = pd.DataFrame(data=dataout, index=dates,
-                           columns=['month', 'day', 'hour',
+                           columns=['year', 'month', 'day', 'hour',
                                     'tdb', 'tdp', 'rh',
                                     'ghi', 'dni', 'dhi', 'wspd', 'wdr'])
 
@@ -836,8 +842,12 @@ def give_weather(ts, locdata, stcode, header,
                                 if name == 'wspd']])*10  # deci-m/s.
 
                 esp_master = esp_master.drop(
-                        ['month', 'day', 'hour', 'ghi'], axis=1)
+                        ['year', 'month', 'day', 'hour', 'ghi'], axis=1)
                 
+                master_aslist = esp_master.tolist()
+                print(len(master_aslist))
+                print(len(master_aslist[0]))
+                print(master_aslist[0])
 
                 np.savetxt(filepath, esp_master.values, '%5.2f',
                            delimiter=',', header=''.join(header), comments='')
@@ -846,6 +856,8 @@ def give_weather(ts, locdata, stcode, header,
                     success[n] = True
                 else:
                     success[n] = False
+
+                # End espr writer.
 
             elif ftype == 'epw':
 
@@ -892,6 +904,8 @@ def give_weather(ts, locdata, stcode, header,
                     success[n] = True
                 else:
                     success[n] = False
+
+                # End EPW writer.
 
             else:
 
