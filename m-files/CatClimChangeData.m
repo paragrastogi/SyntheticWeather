@@ -22,8 +22,7 @@ FutureYearLen = p.Results.FutureYearLen;
 
 ModelFolders = dir(CCdataFolderPath);
 ModelFolders = ModelFolders ([ModelFolders.isdir]);
-ModelFolders = {ModelFolders(cellfun(@isempty, ...
-    strfind({ModelFolders.name},'.'))).name};
+ModelFolders = {ModelFolders(~contains({ModelFolders.name}, '.')).name};
 
 % Number of models available
 NumModels = length(ModelFolders);
@@ -50,6 +49,9 @@ CCdata.Parameter = cell(length(ModelFolders)*length(NumFilesTotal),1);
 CCdata.Data = cell(length(ModelFolders)*length(NumFilesTotal),1);
 counter = 1;
 
+scenarios = {'rcp45', 'rcp85'};
+
+
 for m = 1:NumModels
     
     % Get all the csv files
@@ -61,7 +63,7 @@ for m = 1:NumModels
         SplitFileName = strsplit(FilesList{f}, {'_', '.'});
         
         % This is the current parameter being read in
-        Param = SplitFileName{2};
+        Param = SplitFileName{1};
         if strcmp(Param, 'tas')
             Param = 'TDBdmean';
         elseif strcmp(Param, 'tasmin')
@@ -79,22 +81,26 @@ for m = 1:NumModels
         end
         
         % Period
-        SubModel = SplitFileName{3};
+        SubModel = SplitFileName{2};
         
-        ReadData = csvread(fullfile(CCdataFolderPath, ModelFolders{m}, ...
-            FilesList{f}));
+        try
+            ReadData = csvread(fullfile(CCdataFolderPath, ModelFolders{m}, ...
+                FilesList{f}));
+        catch err
+            fprintf('Could not read file, probably empty\r\n')
+            continue
+        end
         
         % Convert specific humidity to humidity ratio
         if strcmp(Param,'Wdmean')
-            Wd = -ReadData./(ReadData - 1);
-			ReadData = Wd;
+            ReadData(:, end) = -ReadData(:, end)./(ReadData(:, end) - 1);
         end
         
-        if strcmp(SubModel,'historical')
-            ReadData = [(1951:2005)', ReadData];
-        else
-            ReadData = [(2006:2100)', ReadData];
-        end
+        %         if strcmp(SubModel,'historical')
+        %             ReadData = [(1951:2005)', ReadData];
+        %         else
+        %             ReadData = [(2006:2100)', ReadData];
+        %         end
         
         
         CCdata.Model(counter) = ModelFolders(m);
@@ -111,76 +117,121 @@ save(fullfile(CCdataFolderPath,'CollClim.mat'),'CCdata')
 
 UniqueParams = unique(CCdata.Parameter);
 
-temp.rcp85 = NaN(FutureYearLen,365,NumModels);
 
-for p = 1:length(UniqueParams)
-	
-	% Find the future data for the current parameter
-	Tempidx.rcp45 = ( strcmpi(CCdata.Parameter, ...
-		UniqueParams{p}) & ...
-		strcmpi(CCdata.SubModel,'rcp45') );	
-	Tempidx.rcp85 = ( strcmpi(CCdata.Parameter, ...
-		UniqueParams{p}) & ...
-		strcmpi(CCdata.SubModel,'rcp85') );
-	
-	% Collect all the future temperature data
-	temp.rcp85 = [CCdata.Data{Tempidx.rcp85}];
-	temp.rcp45 = [CCdata.Data{Tempidx.rcp45}];
-	
-	FutureWeather.(UniqueParams{p}).rcp85 = ...
-		NaN(FutureYearLen,8760,NumModels); 
-	FutureWeather.(UniqueParams{p}).rcp45 = ...
-		NaN(FutureYearLen,8760,NumModels);
-	
-	for r = 1:NumModels
-		tempR = temp.rcp85(:,((r-1)*366)+1:(r*366));
-		tempR = repmat(tempR(:,2:end),1,1,24);
-		tempR2 = reshape(permute(tempR, [1 3 2]), ...
-			FutureYearLen,8760); 
-		FutureWeather.(UniqueParams{p}).rcp85(:,:,r) = ...
-			tempR2;
-		
-		tempR = temp.rcp45(:,((r-1)*366)+1:(r*366));
-		tempR = repmat(tempR(:,2:end),1,1,24); 
-		tempR2 = reshape(permute(tempR, [1 3 2]), ...
-			FutureYearLen,8760); 
-		FutureWeather.(UniqueParams{p}).rcp45(:,:,r) = ...
-			tempR2;
-	end
-		
-	% The rows represent years (2006-2100), the columns
-	% represent hours (1-8760), and the third dimension
-	% represents each model-submodel combination. The daily
-	% values are repeated 24 times to create hourly values.
-	
-	clear temp tempR tempR2
+for c = 1:length(scenarios)
+    
+    temp.(scenarios{c}) = NaN(FutureYearLen,365,NumModels);
+    
+    for p = 1:length(UniqueParams)
+        
+        % Find the future data for the current parameter
+        Tempidx.rcp45 = ( strcmpi(CCdata.Parameter, ...
+            UniqueParams{p}) & ...
+            strcmpi(CCdata.SubModel,'rcp45') );
+        Tempidx.rcp85 = ( strcmpi(CCdata.Parameter, ...
+            UniqueParams{p}) & ...
+            strcmpi(CCdata.SubModel,'rcp85') );
+        
+        % Collect all the future temperature data
+        temp.(scenarios{c}) = CCdata.Data{Tempidx.rcp85};
+        % 	temp.rcp45 = CCdata.Data{Tempidx.rcp45};
+        
+        FutureWeather.(UniqueParams{p}).(scenarios{c}) = ...
+            NaN(FutureYearLen,8760,NumModels);
+        %         FutureWeather.(UniqueParams{p}).rcp45 = ...
+        %             NaN(FutureYearLen,8760,NumModels);
+        
+        for r = 1:NumModels
+            
+            % Find this year of data, for this parameter, submodel,
+            % scenario, and model.
+            findyear = strcmpi(CCdata.Parameter, UniqueParams{p}) & ...
+                strcmpi(CCdata.SubModel, scenarios{c}) & ...
+                strcmpi(CCdata.Model, ModelFolders{r});
+            temp = CCdata.Data(findyear);
+            if isempty(temp)
+                % This combination of variables does not exist.
+                continue
+            end
+            temp = temp{1};
+            
+            % Future years can vary a bit, so if they're 96, the sizes of
+            % most variables will increase.
+            FutureYears = unique(temp(:,1));
+            
+            if length(FutureYears)>FutureYearLen
+                FutureYearLen = length(FutureYears);
+            end
+            
+            for y = 1:length(FutureYears)
+                % For each year.
+                
+                % Reshape that year's data into the the required shape of
+                % y x H x m (year, hours, model).
+                temp2 = ...
+                    reshape(permute(repmat(temp(temp(:,1)== ...
+                    FutureYears(y),:), 1, 1, 24), [1 3 2]), [], 4);
+                % 'Standard' hours in this year (all 8760 hours).
+                stdhours = datetime(temp2(1,1), 1, 1, 0, 0, 0): ...
+                    hours(1):datetime(temp2(1,1), 12, 31, 23, 0, 0);
+                stdhours = stdhours(:);
+                
+                % Sort the vector by month and then day.
+                temp2 = sortrows(temp2, [2,3]);
+                
+                % Actual number of hours that exist for this year.
+                acthours = datetime(temp2(:,1), temp2(:,2), ...
+                    temp2(:,3), reshape(repmat(0:23, 1, length(unique(temp2(:,2:3), 'rows'))), [], 1), ...
+                    zeros(size(temp2,1), 1), zeros(size(temp2,1), 1)) ;
+                
+                % Eliminate leap years - sorry!
+                if any(month(stdhours)==2 & day(stdhours)==29)
+                    stdhours(month(stdhours)==2 & day(stdhours)==29) = [];
+                end
+                
+                % Logical index of actual hours that overlap with the
+                % expected 'standard' hours.
+                hourcommon = ismember(stdhours, acthours);
+                
+                FutureWeather.(UniqueParams{p}).(scenarios{c})(y,hourcommon,r) = (temp2(:,end))';
+            end
+        end
+        
+        % The rows represent years (2006-2100), the columns
+        % represent hours (1-8760), and the third dimension
+        % represents each model-submodel combination. The daily
+        % values are repeated 24 times to create hourly values.
+        
+        clear temp tempR tempR2
+    end
+    
+    
+    
+    % % Create an year-long datetime vector
+    TimeSyn = (datetime(FutureYears(1),1,1,0,0,0) : hours(1) : ...
+        datetime(FutureYears(1),12,31,23,0,0))';
+    % The increment is one hour.
+    
+    FutureTime = [reshape((repmat(FutureYears, ...
+        length(TimeSyn),1)),[],1), ...
+        repmat(month(TimeSyn),FutureYearLen,1), ...
+        repmat(day(TimeSyn),FutureYearLen,1), ...
+        repmat(hour(TimeSyn),FutureYearLen,1)];
+    
+    % % Keep only those years that are the future from now, 2015.
+    % YearCut = FutureYears>2015;
+    
+    % FutureTime = FutureTime(FutureTime(:,1)>2015,:);
+    
+    % for p = 1:length(UniqueParams)
+    % FutureWeather.(UniqueParams{p}) = structfun(@(x) (x(YearCut,:,:)), ...
+    % 	FutureWeather.(UniqueParams{p}), 'UniformOutput',0);
+    % end
+    
+    % Save the results
+    OutFilePath = fullfile(CCdataFolderPath,'HourlyFutureData.mat');
+    save(OutFilePath, 'FutureWeather','FutureTime')
+    
 end
-
-FutureYears = 2006:2100;
-
-% % Create an year-long datetime vector
-TimeSyn = (datetime(FutureYears(1),1,1,1,0,0) : hours(1) : ...
-	datetime(FutureYears(1),12,31,24,0,0))';
-% The increment is one hour.
-
-FutureTime = [reshape((repmat(FutureYears, ...
-	length(TimeSyn),1)),[],1), ...
-	repmat(month(TimeSyn),FutureYearLen,1), ...
-	repmat(day(TimeSyn),FutureYearLen,1), ...
-	repmat(hour(TimeSyn),FutureYearLen,1)];
-
-% Keep only those years that are the future from now, 2015.
-YearCut = FutureYears>2015;
-
-FutureTime = FutureTime(FutureTime(:,1)>2015,:);
-
-for p = 1:length(UniqueParams)
-FutureWeather.(UniqueParams{p}) = structfun(@(x) (x(YearCut,:,:)), ...
-	FutureWeather.(UniqueParams{p}), 'UniformOutput',0);
-end
-
-% Save the results
-OutFilePath = fullfile(CCdataFolderPath,'HourlyFutureData.mat');
-save(OutFilePath, 'FutureWeather','FutureTime')
 
 end
