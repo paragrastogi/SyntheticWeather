@@ -177,24 +177,6 @@ def learngp(l_start, l_end, l_step, histlim,
         train_y = ts_norm[yslice, :]
         # USE dateslice here instead of xslice.
 
-#        # Cycle through all columns.
-#        for c, colname in enumerate(column_names):
-#
-#            if colname in date_cols:
-#                continue
-#            else:
-#                # Find current output column.
-#                find_y = yfinder(colname)
-#
-#                # Separate the training data (history) into x & y,
-#                # and reshape them to be 2D.
-#                x_train = train_slice[:, np.logical_not(find_y)]
-#                y_train = train_y[:, find_y]
-#
-#                # No test values.
-#
-#            # End of columns loop.
-
         for c, colname in enumerate(column_names):
 
             if colname in date_cols:
@@ -208,7 +190,7 @@ def learngp(l_start, l_end, l_step, histlim,
                 find_y = yfinder(colname)
 
                 # Separate the training data (history) into x & y.
-                x_train = train_slice[:, np.logical_not(find_y)]
+                x_train = train_slice
                 y_train = train_y[:, find_y]
 
                 # Remove year from training data (first column).
@@ -246,7 +228,6 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
     # Array to store the day-ahead 'predictions'.
     xout_norm = np.zeros([ts_norm.shape[0],
                           ts_norm.shape[1], n_samples])
-    # pred_stds = np.zeros_like(ts_norm)
 
     # Simply copy the input for the first l_start+l_step hours.
     xout_norm[0:l_start+l_step, :, :] = np.tile(np.atleast_3d(
@@ -267,10 +248,13 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
             xslice = xslice[b:h+1]
             del b
 
-        train_slice = ts_norm[xslice, :]
+        pred_slice = ts_norm[xslice, :]
+        
+        if (h+pred_slice.shape[0]) > ts_norm.shape[0]:
+            break
 
         # Index for the next day's data.
-        tomorrows_slice = range(h, h+l_step)
+        tomorrows_slice = range(h, h+pred_slice.shape[0])
 
         # Find the current month and date.
         # mtrack[m] = np.squeeze(currentdata.month.values[h == hh])
@@ -278,8 +262,10 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
         print("Sampling for month %d, day %d" % (mtrack[d], int(h/24)))
 
         # The 'predicted' next day's values (size = l_step).
-        tomorrows_vals = np.zeros((l_step, ts_norm.shape[1],
+        tomorrows_vals = np.zeros((pred_slice.shape[0], ts_norm.shape[1],
                                    n_samples))
+        
+        print(tomorrows_vals.shape)
 
         for c, colname in enumerate(column_names):
 
@@ -295,16 +281,15 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
                 find_y = yfinder(colname)
 
                 # Separate the training data (history) into x & y.
-                x_train = train_slice[:, np.logical_not(find_y)]
-                y_train = train_slice[:, find_y]
+                # x_train = pred_slice
                 
                 # Remove year from training data (first column).
-                x_train = x_train[:, 1:]
+                x_query = pred_slice[:, 1:]
 
                 # The model will be 'queried' at these points.
                 # The query points do not include the variable
                 # which is the current output.
-                x_query = x_train[-l_step:, :]
+                # x_query = x_train[-l_step:, :]
 
                 # Pre-allocate the array that will contain predicted/sampled y.
                 y_pred = np.zeros([l_step, n_samples])
