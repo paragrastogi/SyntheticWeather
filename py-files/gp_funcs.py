@@ -38,10 +38,7 @@ scaler = StandardScaler()
 # with a WhiteKernel.
 
 
-def fitgp(series, xtrain, ytrain, xtest=np.empty(0), *args):
-
-    if len(args) > 0:
-        gp_in = args[0]
+def fitgp(series, xtrain, ytrain, xtest=np.empty(0), gp_in=None):
 
     # Initial values for hyperparameters.
     hypguess = np.random.random(xtrain.shape[1])
@@ -62,7 +59,7 @@ def fitgp(series, xtrain, ytrain, xtest=np.empty(0), *args):
         kd = RBF(length_scale=hypguess) + \
             WhiteKernel(noise_level=0.1, noise_level_bounds=[1e-2, 0.1])
 
-    if len(args) == 0:
+    if gp_in is None:
         # No incoming regressor object, so learn hyper-parameters.
         gp_out = GaussianProcessRegressor(kernel=kd, alpha=0,
                                           n_restarts_optimizer=n_restarts,
@@ -93,7 +90,7 @@ def fitgp(series, xtrain, ytrain, xtest=np.empty(0), *args):
 
     return gp_out, y_pred, y_std
 
-    # %%
+# ----------- END fitgp function. -----------
 
 
 def learngp(l_start, l_end, l_step, histlim,
@@ -214,9 +211,11 @@ def learngp(l_start, l_end, l_step, histlim,
 
     return gp_list, mtrack, s_c
 
+# ----------- END learngp function. -----------
+
 
 def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
-             ts_in, mtrack, s_c):
+             ts_in, mtrack, s_c, picklepath="./xxx.p"):
 
     start_time = time.monotonic()
 
@@ -276,7 +275,7 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
             else:
 
                 # Find the current column in the overall array.
-                find_y = yfinder(colname)
+                # find_y = yfinder(colname)
 
                 # Separate the training data (history) into x & y.
                 # x_train = pred_slice
@@ -319,10 +318,10 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
 
     # Un-scale the series.
     # Create a ndarray like xout_norm.
-    xout_un = np.zeros_like(xout_norm)
+    xout = np.zeros_like(xout_norm)
     # Inverse transform all columns together, for each sample.
     for n in range(0, n_samples):
-        xout_un[:, :, n] = s_c.inverse_transform(xout_norm[:, :, n])
+        xout[:, :, n] = s_c.inverse_transform(xout_norm[:, :, n])
 
     # Synthetic solar data requires post-processing.
     for c, colname in enumerate(column_names):
@@ -334,18 +333,18 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
                 # should be sunlight at a given hour. If not,
                 # then set corresponding synthetic value to zero.
 
-                temp = xout_un[:, c, n]
+                temp = xout[:, c, n]
                 temp[ts_in[:, c] == 0] = 0
-                xout_un[:, c, n] = temp
+                xout[:, c, n] = temp
 
                 # If there is a negative value (usually at sunrise
                 # or sunset), interpolate.
-                temp = xout_un[:, c, n]
+                temp = xout[:, c, n]
                 temp[temp < 0] = np.nan
                 nans = np.isnan(temp)
-                temp[nans] = np.interp(ts_in[nans, 1],
-                    ts_in[~nans, 1], temp[~nans])
-                xout_un[:, c, n] = temp
+                temp[nans] = np.interp(ts_in[nans, 1], ts_in[~nans, 1],
+                                       temp[~nans])
+                xout[:, c, n] = temp
 
             # End loop over samples.
 
@@ -358,7 +357,12 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
     print("Time taken to sample models was %6.2f seconds."
           % (end_time - start_time))
 
-    return xout_un
+    # Save the outputs as a pickle.
+    np.save(xout, picklepath, allow_pickle=True)
+
+    return xout
+
+# ----------- END samplegp function. -----------
 
 
 def yfinder(colname):
@@ -377,3 +381,5 @@ def yfinder(colname):
     # That is, they are NEVER selected as outputs.
 
     return findy
+
+# ----------- END yfinder function. -----------

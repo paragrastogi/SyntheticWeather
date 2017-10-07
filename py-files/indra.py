@@ -42,10 +42,8 @@ Features to be implemented:
 import os
 import sys
 import pickle
-import random
 
-import numpy as np
-import pandas as pd
+# import pandas as pd
 
 # These custom functions load and clean recorded data.
 # For now, we are only concerned with ncdc and nsrdb.
@@ -59,6 +57,7 @@ import wfileio as wf
 # import learn and sample functions from gp_funcs.
 from gp_funcs import learngp
 from gp_funcs import samplegp
+from gp_funcs import setseed
 
 
 def indra(train, stcode='gen', n_sample=10,
@@ -73,9 +72,12 @@ def indra(train, stcode='gen', n_sample=10,
     # ------------------
     # Some initialisation house work.
 
-    # Seed random number generators.
-    np.random.seed(randseed)
-    random.seed = randseed
+    # The learning/sampling functions rely on random sampling. For one run,
+    # the random seed is constant/immutable; changing it during a run
+    # would not make sense. This makes the runs repeatable -- keep track of
+    # the seed and you can reproduce exactly the same random number draws
+    # as before.
+    setseed(randseed)
 
     # Convert incoming stcode to lowercase.
     stcode = stcode.lower()
@@ -103,24 +105,24 @@ def indra(train, stcode='gen', n_sample=10,
     #        print("I could not find CityData.csv, continuing without...")
 
     # See accompanying script "wfileio".
-#    try:
-    xy_train, locdata, header = wf.get_weather(
-            stcode, fpath_in, ftype, outpath=outpath)
+    try:
+        xy_train, locdata, header = wf.get_weather(
+                stcode, fpath_in, ftype, outpath=outpath)
 
-    temp = wf.day_of_year(xy_train[:, 1], xy_train[:, 2])
-    xy_train[:, 2] = temp
-    del temp
+        temp = wf.day_of_year(xy_train[:, 1], xy_train[:, 2])
+        xy_train[:, 2] = temp
+        del temp
 
-#        print('Successfully retrieved weather data.\r\n')
-#
-#    except Exception as err:
-#        print('Error: ' + str(err))
-#        exc_type, exc_obj, exc_tb = sys.exc_info()
-#        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-#        print(exc_type, fname, exc_tb.tb_lineno)
-#        print('I could not read the incoming weather file. ' +
-#              'Terminating this run.\r\n')
-#        return 0
+        print('Successfully retrieved weather data.\r\n')
+
+    except Exception as err:
+        print('Error: ' + str(err))
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print(exc_type, fname, exc_tb.tb_lineno)
+        print('I could not read the incoming weather file. ' +
+              'Terminating this run.\r\n')
+        return 0
 
     if train:
 
@@ -159,10 +161,7 @@ def indra(train, stcode='gen', n_sample=10,
     # columns ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
     # 'ghi', 'dni', 'dhi', 'wspd', 'wdr')
     xout = samplegp(gp_list, l_start, l_end, l_step, histlim, n_sample,
-                    xy_train, mtrack, scaler)
-
-    # Save the outputs as a pickle.
-    pd.to_pickle(xout, picklepath)
+                    xy_train, mtrack, scaler, picklepath=picklepath)
 
     # In this MC framework, the 'year' of weather data is meaningless.
     # When the climate change models will be added, these years will

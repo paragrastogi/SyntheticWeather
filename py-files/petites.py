@@ -6,8 +6,19 @@ Created on Fri Sep 29 15:30:34 2017
 @author: parag rastogi
 """
 
+import random
+
 import numpy as np
 from scipy import interpolate
+
+
+# Seed random number generators. Called as a function in main indra
+# script once and only once.
+def setseed(randseed):
+    np.random.seed(randseed)
+    random.seed = randseed
+
+# ----------- END setseed function. -----------
 
 
 def wstats(data, key, stat):
