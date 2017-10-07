@@ -249,7 +249,7 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
             del b
 
         pred_slice = ts_norm[xslice, :]
-        
+
         if (h+pred_slice.shape[0]) > ts_norm.shape[0]:
             break
 
@@ -264,8 +264,6 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
         # The 'predicted' next day's values (size = l_step).
         tomorrows_vals = np.zeros((pred_slice.shape[0], ts_norm.shape[1],
                                    n_samples))
-        
-        print(tomorrows_vals.shape)
 
         for c, colname in enumerate(column_names):
 
@@ -282,7 +280,7 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
 
                 # Separate the training data (history) into x & y.
                 # x_train = pred_slice
-                
+
                 # Remove year from training data (first column).
                 x_query = pred_slice[:, 1:]
 
@@ -292,7 +290,7 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
                 # x_query = x_train[-l_step:, :]
 
                 # Pre-allocate the array that will contain predicted/sampled y.
-                y_pred = np.zeros([l_step, n_samples])
+                y_pred = np.zeros([x_query.shape[0], n_samples])
 
                 month_gps = [gp_list[c][a] for a, b in
                              enumerate(mtrack[d] ==
