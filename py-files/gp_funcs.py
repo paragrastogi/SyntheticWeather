@@ -358,7 +358,7 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
           % (end_time - start_time))
 
     # Save the outputs as a pickle.
-    np.save(xout, picklepath, allow_pickle=True)
+    np.save(picklepath, xout, allow_pickle=True)
 
     return xout
 

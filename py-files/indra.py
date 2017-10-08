@@ -60,7 +60,7 @@ from gp_funcs import samplegp
 from gp_funcs import setseed
 
 
-def indra(train, stcode='gen', n_sample=10,
+def indra(train, stcode='gen', n_sample=10, method='arma', 
           fpath_in='./che_gen_iwec.a',
           ftype='espr',
           outpath='.',
@@ -88,10 +88,14 @@ def indra(train, stcode='gen', n_sample=10,
         os.makedirs(outpath)
 
     # These will be the files where the outputs will be stored.
-    path_file_list = os.path.join(
+    path_model_save = os.path.join(
             outpath, 'model_{0}_{1}.p'.format(stcode, randseed))
 
     print('Storing everything in folder {0}\r\n'.format(outpath))
+
+    # Save output time series.
+    picklepath = os.path.join(
+            outpath, 'syn_{0}_{1}.p'.format(stcode, randseed))
 
     # ----------------
 
@@ -109,9 +113,11 @@ def indra(train, stcode='gen', n_sample=10,
         xy_train, locdata, header = wf.get_weather(
                 stcode, fpath_in, ftype, outpath=outpath)
 
-        temp = wf.day_of_year(xy_train[:, 1], xy_train[:, 2])
-        xy_train[:, 2] = temp
-        del temp
+        # The GP method needs day of year rather than day of month.
+        if method == 'gp':
+            temp = wf.day_of_year(xy_train[:, 1], xy_train[:, 2])
+            xy_train[:, 2] = temp
+            del temp
 
         print('Successfully retrieved weather data.\r\n')
 
@@ -126,52 +132,79 @@ def indra(train, stcode='gen', n_sample=10,
 
     if train:
 
-        # Train the models and store them on drive.
+        # Train the models.
 
-        gp_list, mtrack, scaler = learngp(l_start, l_end, l_step,
-                                          histlim, xy_train)
+        if method == 'gp':
 
-        # Save gp_list and month_tracker to pickle file.
-        gp_save = dict(gp_list=gp_list, mtrack=mtrack,
-                       scaler=scaler, xy_train=xy_train)
+            gp_list, mtrack, scaler = learngp(
+                    l_start, l_end, l_step, histlim, xy_train)
 
-        with open(path_file_list, 'wb') as fp:
-            pickle.dump(gp_save, fp)
+            # Save gp_list and month_tracker to pickle file.
+            gp_save = dict(gp_list=gp_list, mtrack=mtrack,
+                           scaler=scaler, xy_train=xy_train)
+
+            with open(path_model_save, 'wb') as fp:
+                pickle.dump(gp_save, fp)
+
+        elif method == 'arma':
+            ffit, selmdl, _ = resampling(
+                    stcode, xy_train, train=True,
+                    sample=False, path_model_save)
+
+            arma_save = dict(selmdl=slmdl, ffit=ffit)
+
+            with open(path_model_save, 'wb') as fp:
+                pickle.dump(arma_save, fp)
 
     else:
 
         # Load models from file.
 
-        with open(path_file_list, 'rb') as fp:
-            gp_save = pickle.load(fp)
+        if method == 'gp':
 
-        gp_list = gp_save['gp_list']
-        mtrack = gp_save['mtrack']
-        scaler = gp_save['scaler']
-        xy_train = gp_save['xy_train']
+            with open(path_model_save, 'rb') as fp:
+                gp_save = pickle.load(fp)
+
+            gp_list = gp_save['gp_list']
+            mtrack = gp_save['mtrack']
+            scaler = gp_save['scaler']
+            xy_train = gp_save['xy_train']
+
+        elif method == 'arma':
+            with open(path_model_save, 'rb') as fp:
+                arma_save = pickle.load(fp)
+
+            ffit = arma_save.ffit
+            selmdl = arma_save.selmdl
 
     # %%
 
     # Call the sampling function.
 
-    picklepath = os.path.join(
-            outpath, 'syn_{0}_{1}.p'.format(stcode, randseed))
-
     # The output, xout, is a numpy nd-array with the standard
     # columns ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
     # 'ghi', 'dni', 'dhi', 'wspd', 'wdr')
+
     xout = samplegp(gp_list, l_start, l_end, l_step, histlim, n_sample,
                     xy_train, mtrack, scaler, picklepath=picklepath)
+    
+    ffit, selmdl, _ = resampling(
+                    stcode, xy_train, selmdl, ffit, train=False,
+                    sample=True, path_model_save)
 
     # In this MC framework, the 'year' of weather data is meaningless.
     # When the climate change models will be added, these years will
     # mean something. For now, just add '2017' to every file.
 
-    for n in range(0, xout.shape[-1]):
+    if method == 'gp':
 
-        temp1, temp2 = wf.day_of_month(xout[:, 2, n])
-        xout[:, 2, n] = temp2
-        del [temp1, temp2]
+        for n in range(0, xout.shape[-1]):
+
+            temp1, temp2 = wf.day_of_month(xout[:, 2, n])
+            xout[:, 2, n] = temp2
+            del [temp1, temp2]
+
+    # End of if method statement.
 
     # Save / write-out synthetic time series.
     wf.give_weather(xout, locdata, stcode, header, ftype=ftype,

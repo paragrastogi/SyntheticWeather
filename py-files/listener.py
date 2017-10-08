@@ -31,6 +31,12 @@ parser.add_argument('--stcode', type=str, default='xxx',
                     ' of the saved model.')
 parser.add_argument('--n_sample', type=int, default=10,
                     help='How many samples do you want out?')
+parser.add_argument('--method', type=str, default='arma',
+                    help='Which method do you want to use: '
+                    'Auto-Regressive Moving Average Models '
+                    '(with Fourier pre-processing) [arma], '
+                    'or (Experimental) Gaussian Process '
+                    'Regression [gp]?')
 parser.add_argument('--fpath_in', type=str, help='Path to a folder' +
                     'containing the seed file or the seed file itself.' +
                     ' If you pass a path to a file, I will only use ' +
@@ -97,6 +103,7 @@ stlat = args.lat
 stlong = args.long
 stalt = args.alt
 randseed = args.randseed
+method = args.method
 
 print('Invoking Indra for {0}.\r\n'.format(stcode))
 
@@ -110,6 +117,7 @@ else:
 if __name__ == '__main__':
     indra(train, stcode=stcode,
           n_sample=n_sample,
+          method=method,
           fpath_in=fpath_in,
           ftype=ftype,
           outpath=outpath,
