@@ -22,22 +22,17 @@ Description of algorithm:
 Features to be implemented:
     1. Load climate change model information and add that to the model.
        The outputs of climate models are usually in the form of mean changes.
-       I've added them to my models in the past - need to figure out best way
+       I"ve added them to my models in the past - need to figure out best way
        to do this now.
     2. Ability to get recorded or typical data automatically from some web
        service if the user provides coordinates or WMO station number.
-    3. Ability to download climate data the same way.
+    3. Ability to download climate change data the same way.
     4. Ability to learn a transfer function between urban and rural stations
        for quick-and-not-too-dirty estimates of urban heat island effects.
        So long as time series of a year-ish are available from the locations
        of interest, the transfer _should_ be able to proceed without requiring
        too much information about the local urban canopy.
 """
-
-# These are the sources of measured data I am familiar with. So far, the
-# get_weather script can only read the following:
-# 1. NCDC, 2. NSRDB, 3. MS (MeteoSuisse)
-# sources = ('ncdc', 'nsrdb', 'nrel_indiasolar', 'ms', 'WY2', 'nasa_saudi')
 
 import os
 import sys
@@ -62,12 +57,13 @@ from petites import setseed
 from resampling import resampling
 
 from statsmodels.tsa.arima_model import ARIMAResults
+from statsmodels.tsa.statespace.sarimax import SARIMAXResults
 
 
-def indra(train, stcode='gen', n_sample=10, method='arma',
-          fpath_in='./che_gen_iwec.a',
-          ftype='espr',
-          outpath='.',
+def indra(train=False, stcode="gen", n_sample=10, method="arma",
+          fpath_in="./che_gen_iwec.a",
+          ftype="espr", outpath=".",
+          cc=False, ccpath=".",
           l_start=int(0), l_end=int(31*24),
           l_step=int(4*24), histlim=int(14*24),
           stlat=0.0, stlong=0.0, stalt=0.0,
@@ -93,22 +89,22 @@ def indra(train, stcode='gen', n_sample=10, method='arma',
 
     # These will be the files where the outputs will be stored.
     path_model_save = os.path.join(
-            outpath, 'model_{0}_{1}.p'.format(stcode, randseed))
+            outpath, "model_{0}_{1}.p".format(stcode, randseed))
     path_ffit_save = os.path.join(
-            outpath, 'ffit_{0}_{1}.p'.format(stcode, randseed))
+            outpath, "ffit_{0}_{1}.p".format(stcode, randseed))
 
-    print('Storing everything in folder {0}\r\n'.format(outpath))
+    print("Storing everything in folder {0}\r\n".format(outpath))
 
     # Save output time series.
     picklepath = os.path.join(
-            outpath, 'syn_{0}_{1}.npy'.format(stcode, randseed))
+            outpath, "syn_{0}_{1}.npy".format(stcode, randseed))
 
     # ----------------
 
-    # Load data about the cities. This isn't usually necessary, so it
-    # doesn't matter if this file isn't present.
+    # Load data about the cities. This isn"t usually necessary, so it
+    # doesn"t matter if this file isn"t present.
     #    try:
-    #        citytab = pd.read_csv(os.path.join('CityData.csv'),
+    #        citytab = pd.read_csv(os.path.join("CityData.csv"),
     #                              dtype=dict(WMO=str, StCode=str))
     #    except:
     #        citytab = None
@@ -120,27 +116,27 @@ def indra(train, stcode='gen', n_sample=10, method='arma',
                 stcode, fpath_in, ftype, outpath=outpath)
 
         # The GP method needs day of year rather than day of month.
-        if method == 'gp':
+        if method == "gp":
             temp = wf.day_of_year(xy_train[:, 1], xy_train[:, 2])
             xy_train[:, 2] = temp
             del temp
 
-        print('Successfully retrieved weather data.\r\n')
+        print("Successfully retrieved weather data.\r\n")
 
     except Exception as err:
-        print('Error: ' + str(err))
+        print("Error: " + str(err))
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print(exc_type, fname, exc_tb.tb_lineno)
-        print('I could not read the incoming weather file. ' +
-              'Terminating this run.\r\n')
+        print("I could not read the incoming weather file. " +
+              "Terminating this run.\r\n")
         return 0
 
     if train:
 
         # Train the models.
 
-        if method == 'gp':
+        if method == "gp":
 
             gp_list, mtrack, scaler = learngp(
                     l_start, l_end, l_step, histlim, xy_train)
@@ -149,40 +145,47 @@ def indra(train, stcode='gen', n_sample=10, method='arma',
             gp_save = dict(gp_list=gp_list, mtrack=mtrack,
                            scaler=scaler, xy_train=xy_train)
 
-            with open(path_model_save, 'wb') as fp:
+            with open(path_model_save, "wb") as fp:
                 pickle.dump(gp_save, fp)
 
-        elif method == 'arma':
+        elif method == "arma":
 
             # Call resampling with null selmdl and ffit, since those
-            # haven't been trained yet.
+            # haven"t been trained yet.
             ffit, selmdl, _ = resampling(
-                    stcode, xy_train, selmdl=None, ffit=None,
+                    xy_train, selmdl=None, ffit=None,
                     train=True, sample=False, n_sample=n_sample,
                     picklepath=picklepath)
 
-            selmdl.save(path_model_save)
+            for (idx, mdl) in enumerate(selmdl):
+                if idx == 0:
+                    savepath = path_model_save.replace("model", "model_tdb")
+                elif idx == 1:
+                    savepath = path_model_save.replace("model", "model_rh")
+                # filter_results = FilterResults(mdl)
+                # mdlres = SARIMAXResults(mdl.model, mdl.params, mdl.filter_results)
+                mdl.save(savepath[:-2])
 
-            with open(path_ffit_save, 'wb') as fp:
+            with open(path_ffit_save, "wb") as fp:
                 pickle.dump(ffit, fp)
 
     else:
 
         # Load models from file.
 
-        if method == 'gp':
+        if method == "gp":
 
-            with open(path_model_save, 'rb') as fp:
+            with open(path_model_save, "rb") as fp:
                 gp_save = pickle.load(fp)
 
-            gp_list = gp_save['gp_list']
-            mtrack = gp_save['mtrack']
-            scaler = gp_save['scaler']
-            xy_train = gp_save['xy_train']
+            gp_list = gp_save["gp_list"]
+            mtrack = gp_save["mtrack"]
+            scaler = gp_save["scaler"]
+            xy_train = gp_save["xy_train"]
 
-        elif method == 'arma':
+        elif method == "arma":
 
-            with open(path_ffit_save, 'rb') as fp:
+            with open(path_ffit_save, "rb") as fp:
                 ffit = pickle.load(fp)
 
             selmdl = ARIMAResults.load(path_model_save)
@@ -192,20 +195,20 @@ def indra(train, stcode='gen', n_sample=10, method='arma',
     # Call the sampling function.
 
     # The output, xout, is a numpy nd-array with the standard
-    # columns ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
-    # 'ghi', 'dni', 'dhi', 'wspd', 'wdr')
+    # columns ("month", "day", "hour", "tdb", "tdp", "rh",
+    # "ghi", "dni", "dhi", "wspd", "wdr")
 
-    # In this MC framework, the 'year' of weather data is meaningless.
+    # In this MC framework, the "year" of weather data is meaningless.
     # When the climate change models will be added, these years will
-    # mean something. For now, just add '2017' to every file.
+    # mean something. For now, just add "2017" to every file.
 
-    if method == 'arma':
+    if method == "arma":
 
         ffit, selmdl, _ = resampling(
                 stcode, xy_train, selmdl, ffit, train=False,
                 sample=True, picklepath=picklepath)
 
-    elif method == 'gp':
+    elif method == "gp":
 
         xout = samplegp(gp_list, l_start, l_end, l_step, histlim,
                         n_sample, xy_train, mtrack, scaler,

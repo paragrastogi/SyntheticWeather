@@ -23,11 +23,12 @@ from scipy.optimize import curve_fit
 # get_ipython().run_line_magic('matplotlib', 'inline')
 
 import fourier
-#from wfileio import get_weather
+# from wfileio import get_weather
 from ts_models import select_models
+from petites import solarcleaner
 
 
-def resampling(xy_train, selmdl, ffit, train=True,
+def resampling(xy_train, selmdl=None, ffit=None, train=True,
                sample=True, n_sample=10,
                picklepath='./xxx.npy'):
 
@@ -43,17 +44,17 @@ def resampling(xy_train, selmdl, ffit, train=True,
     #    np.random.seed(randseed)
     #    random.seed = randseed
 
-    # This is the master tuple of column names, which should 
-    # not be modified.
-    column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
-                    'ghi', 'dni', 'dhi', 'wspd', 'wdr')
-    
-    # This is the master tuple of time variable names,
-    # which should also not be modified.
-    date_cols = ('year', 'month', 'day', 'hour')
-    dc = len(date_cols)
-    midx = 1  # Month is in the second column - will be needed later.
-    
+    #    # This is the master tuple of column names, which should
+    #    # not be modified.
+    #    column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
+    #                    'ghi', 'dni', 'dhi', 'wspd', 'wdr')
+    #
+    #    # This is the master tuple of time variable names,
+    #    # which should also not be modified.
+    #    date_cols = ('year', 'month', 'day', 'hour')
+    #    dc = len(date_cols)
+    #    midx = 1  # Month is in the second column - will be needed later.
+
     # # Make a scaler - either standard (with \mu = 0 and
     # # \sigma = 1) or robust (with median and iqr).
     # scaler = StandardScaler()
@@ -99,8 +100,8 @@ def resampling(xy_train, selmdl, ffit, train=True,
         # Each range is one more than what we are
         # interested in because range cuts off at end-1.
 
-        arp = range(0, 5)
-        maq = range(0, 5)
+        arp = range(0, 2)
+        maq = range(0, 2)
         sarp = range(0, 2)
         smaq = range(0, 2)
         s = 24
@@ -148,6 +149,10 @@ def resampling(xy_train, selmdl, ffit, train=True,
         for v in range(0, numvars):
             ts_syn[:, v, :] = resampled[:, v, :] + \
                 np.resize(ffit[v], resampled[:, v, :].shape)
+
+        ###
+        # Add solarcleaner here. ###
+        ###
 
         # Save the outputs as a pickle.
         np.save(picklepath, ts_syn, allow_pickle=True)

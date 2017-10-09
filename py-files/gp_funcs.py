@@ -15,7 +15,8 @@ import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from sklearn.preprocessing import StandardScaler
-# import pandas as pd
+
+from petites import solarcleaner
 
 # This is the master tuple of column names, which should not be modified.
 column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
@@ -93,14 +94,14 @@ def fitgp(series, xtrain, ytrain, xtest=np.empty(0), gp_in=None):
 
 
 def learngp(l_start, l_end, l_step, histlim,
-            ts_in, path_fldr_pickle=os.getcwd()):
+            masterdata, path_fldr_pickle=os.getcwd()):
 
     start_time = time.monotonic()
 
     # Re-scale the hourly values (Normalize).
-    s_c = scaler.fit(ts_in)
+    s_c = scaler.fit(masterdata)
     # s_h = scaler.fit(ts_hist_in)
-    ts_norm = s_c.transform(ts_in)
+    ts_norm = s_c.transform(masterdata)
 
     # Number of variables being considered =
     # number of columns minus time variables.
@@ -122,7 +123,7 @@ def learngp(l_start, l_end, l_step, histlim,
 
     # Hours of the year - calculated from hours of the day and
     # day of the year.
-    hh = ts_in[:, 3] + (ts_in[:, 2] - 1)*24
+    hh = masterdata[:, 3] + (masterdata[:, 2] - 1)*24
 
     d = 0
 
@@ -150,7 +151,7 @@ def learngp(l_start, l_end, l_step, histlim,
         # with the same timestamps used from each year.
         #        date_slice = [(mslice, dslice, hslice)
         #                      for (mslice, dslice, hslice) in
-        #                      zip(ts_in[:, 0], ts_in[:, 1], hh)
+        #                      zip(masterdata[:, 0], masterdata[:, 1], hh)
         #                      if hslice in xslice]
 
         # If the train or predict slice is beyond the 31st of December,
@@ -160,7 +161,7 @@ def learngp(l_start, l_end, l_step, histlim,
 
         # Output the current month and day.
         mtrack[d] = int(np.unique(np.squeeze(
-                ts_in[h == hh, midx])))
+                masterdata[h == hh, midx])))
         # Change the unique function here to accomodate
         # multi-year records.
 
@@ -214,14 +215,14 @@ def learngp(l_start, l_end, l_step, histlim,
 
 
 def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
-             ts_in, mtrack, s_c, picklepath="./xxx.npy"):
+             masterdata, mtrack, s_c, picklepath="./xxx.npy"):
 
     start_time = time.monotonic()
 
     # Re-scale the hourly values (Normalize).
-    # s_c = scaler.fit(ts_in)
+    # s_c = scaler.fit(masterdata)
     # s_h = scaler.fit(ts_hist_in)
-    ts_norm = s_c.transform(ts_in)
+    ts_norm = s_c.transform(masterdata)
 
     # Array to store the day-ahead 'predictions'.
     xout_norm = np.zeros([ts_norm.shape[0],
@@ -328,29 +329,15 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
         if colname in ['ghi', 'dni', 'dhi']:
 
             for n in range(0, n_samples):
-                # Using the source data - check to see if there
-                # should be sunlight at a given hour. If not,
-                # then set corresponding synthetic value to zero.
-
-                temp = xout[:, c, n]
-                temp[ts_in[:, c] == 0] = 0
-                xout[:, c, n] = temp
-
-                # If there is a negative value (usually at sunrise
-                # or sunset), interpolate.
-                temp = xout[:, c, n]
-                temp[temp < 0] = np.nan
-                nans = np.isnan(temp)
-                temp[nans] = np.interp(ts_in[nans, 1], ts_in[~nans, 1],
-                                       temp[~nans])
-                xout[:, c, n] = temp
+                xout[:, c, n] = solarcleaner(
+                        xout[:, c, n], masterdata[:, c], masterdata[:, 3])
 
             # End loop over samples.
 
         # End colname if statement.
 
-    # A potential improvement would be to calculate sunrise and sunset
-    # independently since that is an almost deterministic calculation.
+    # End colname for loop.
+
 
     end_time = time.monotonic()
     print("Time taken to sample models was %6.2f seconds."

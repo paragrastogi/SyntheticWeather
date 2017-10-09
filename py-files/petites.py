@@ -21,6 +21,29 @@ def setseed(randseed):
 # ----------- END setseed function. -----------
 
 
+def solarcleaner(datain, master, idx):
+
+    # Using the source data - check to see if there
+    # should be sunlight at a given hour. If not,
+    # then set corresponding synthetic value to zero.
+
+    datain[master == 0] = 0
+
+    # If there is a negative value (usually at sunrise
+    # or sunset), interpolate.
+    temp = datain
+    temp[temp < 0] = np.nan
+    nans = np.isnan(temp)
+    temp[nans] = np.interp(idx[nans], idx[~nans], temp[~nans])
+
+    return temp
+
+    # A potential improvement would be to calculate sunrise and sunset
+    # independently since that is an almost deterministic calculation.
+
+# ----------- END solarcleaner function. -----------
+
+
 def wstats(data, key, stat):
 
     a = data.groupby(key)
