@@ -197,7 +197,7 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
 #                    savepath = path_model_save.replace("model", "model_rh")
 #                mdl.save(savepath[:-2])
 
-            with open(path_ffit_save, "wb") as fp:
+            with open(path_model_save, "wb") as fp:
                 pickle.dump(arma_save, fp)
 
     else:
@@ -216,10 +216,10 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
 
         elif method == "arma":
 
-            with open(path_ffit_save, "rb") as fp:
-                ffit = pickle.load(fp)
+            with open(path_model_save, "rb") as fp:
+                arma_save = pickle.load(fp)
 
-            selmdl = ARIMAResults.load(path_model_save)
+            # selmdl = ARIMAResults.load(path_model_save)
 
     # %%
 
