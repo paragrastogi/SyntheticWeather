@@ -69,6 +69,19 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
           stlat=0.0, stlong=0.0, stalt=0.0,
           randseed=8760):
 
+# Uncomment when debugging this script to avoid having to call the
+# whole function.
+# train=False
+# stcode="gen"
+# n_sample=10
+# method="arma",
+# fpath_in="./gen_iwec.epw"
+# ftype="epw"
+# outpath="."
+# cc=False
+# ccpath="."
+# randseed=8760
+
     # ------------------
     # Some initialisation house work.
 
@@ -157,17 +170,35 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
                     train=True, sample=False, n_sample=n_sample,
                     picklepath=picklepath)
 
-            for (idx, mdl) in enumerate(selmdl):
-                if idx == 0:
-                    savepath = path_model_save.replace("model", "model_tdb")
-                elif idx == 1:
-                    savepath = path_model_save.replace("model", "model_rh")
-                # filter_results = FilterResults(mdl)
-                # mdlres = SARIMAXResults(mdl.model, mdl.params, mdl.filter_results)
-                mdl.save(savepath[:-2])
+            # The non-seasonal order of the model. This exists in both
+            # ARIMA and SARIMAX models, so it has to exist in the output
+            # of resampling.
+            order = [(p.model.k_ar, 0, p.model.k_ma) for p in selmdl]
+
+            try:
+                # Try to find the seasonal order. If it exists, save the
+                # sarimax model.
+                seasonal_order = [(p.model.k_seasonal_ar,
+                                   0, p.model.k_seasonal_ma) for p in selmdl]
+                seasonal_periods = [p.model.seasonal_periods for p in selmdl]
+                arma_save = dict(order=order,
+                                 seasonal_order=seasonal_order,
+                                 seasonal_periods=seasonal_periods,
+                                 ffit=ffit)
+            except AttributeError:
+                # Otherwise, ask for forgiveness and save the ARIMA model.
+                arma_save = dict(order=order,
+                                 ffit=ffit)
+
+#            for (idx, mdl) in enumerate(selmdl):
+#                if idx == 0:
+#                    savepath = path_model_save.replace("model", "model_tdb")
+#                elif idx == 1:
+#                    savepath = path_model_save.replace("model", "model_rh")
+#                mdl.save(savepath[:-2])
 
             with open(path_ffit_save, "wb") as fp:
-                pickle.dump(ffit, fp)
+                pickle.dump(arma_save, fp)
 
     else:
 

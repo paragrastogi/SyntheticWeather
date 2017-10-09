@@ -8,12 +8,13 @@ Hello!
 
 Thank you for downloading **indra**, a synthetic weather generator created by Parag Rastogi.
 
-**indra** is a collection of python scripts. It is written for python 3.5+ and not backwards with older versions of python for now (October 2017)<sup>[1]</sup>. To begin, you need the following modules installed:
+**indra** is a collection of python scripts. It is written for python 3.5+ and not backwards with older versions of python for now (October 2017)<sup>(1)</sup>. To begin, you need the following modules installed:
 
 1. `numpy`
 2. `scipy`
 3. `sklearn`
 4. `pandas`
+5. `statsmodels`
 
 The following modules are also used but should be part of your standard python distro:
 
@@ -86,6 +87,8 @@ Like Linux, if you add the folder containing the executable and its associate fi
 
 ### Footnotes
 
-[1] For now, I cannot guarantee compatibility with Python 2.x. On most Linux machines, Python 2.x is installed by default and the command python points to that version. To install and run this program, therefore, please use python3 and pip3. For example:
-	$ python3 call_indra.py -h
-	$ pip3 install pandas
+(1) For now, I cannot guarantee compatibility with Python 2.x. On most Linux machines, Python 2.x is installed by default and the command python points to that version. To install and run this program, therefore, please use python3 and pip3. For example:
+
+    $ python3 call_indra.py -h
+
+    $ pip3 install pandas

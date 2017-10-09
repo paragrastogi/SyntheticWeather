@@ -6,11 +6,11 @@ While the MATLAB/R scripts are well documented (in two conference papers and my 
 
 I intend to make this tool fully compatible with [ESP-r](https://github.com/ESP-rCommunity "ESP-r") and [Dragonfly](https://github.com/chriswmackey/Dragonfly "Dragonfly"). However, it exists on its own as a command-line tool.
 
-The Python scripts in the repository can be called with two methods: `arma` and `gp`. The method `arma` is an almost-completely-faithful translation of the MATLAB scripts<sup>(1)</sup>. The method `gp` is new and experimental - which means that it has not been published or tested extensively yet. This consitutes a significant change in the algorithm - I would not recommend using them just yet (true as of October 2017). 
+The Python scripts in the repository can be called with two methods: `arma` and `gp`. The method `arma` is an almost-completely-faithful translation of the MATLAB scripts<sup>(1)</sup>. The method `gp` is new and experimental - which means that it has not been published or tested extensively yet. This consitutes a significant change in the algorithm - I would not recommend using this method just yet (October 2017). 
 
 Like the older work, the newer work will also, most likely, be released with a BSD-3 license. Using the older scripts requires only a valid MATLAB license and R (R is free to download and reuse). While you are free to use the scripts as you please, I am not liable for anything that happens as a result of using my scripts. Like if you accidentally release nuclear missiles in the USA, ruin the ski season in Switzerland, or cause a drought in Scotland.
 
-This work is linked to Parag Rastogi's PhD thesis at the Ecole Polytechnique Federale de Lausanne, EPFL. You can find the full text of the thesis on [EPFL's scientific repository](https://infoscience.epfl.ch/record/220971?ln=en) or [my website] (paragrastogi.com) in Lausanne, Switzerland. 
+This work is linked to Parag Rastogi's PhD thesis at the Ecole Polytechnique Federale de Lausanne, EPFL. You can find the full text of the thesis on [EPFL's scientific repository](https://infoscience.epfl.ch/record/220971?ln=en) or [my website] (https://paragrastogi.com) in Lausanne, Switzerland. 
 
 If you have questions or concerns, or notice errors, please contact me at `contact[at]paragrastogi.com`.
 

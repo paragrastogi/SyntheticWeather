@@ -32,16 +32,17 @@ def select_models(arp, maq, sarp, smaq, s, ts_in):
                         model_type.append(None)
                         continue
 
-                    if pp == 0 and qq == 0:
-                        print('fitting arima.')
-                        model = ARIMA(ts_in, order=(p, 0, q))
-                        model_type.append('a')
-                    else:
-                        print('fitting sarima.')
-                        model = SARIMAX(
-                                ts_in, order=(p, 0, q),
-                                seasonal_order=(pp, 0, qq, s))
-                        model_type.append('s')
+#                    if pp == 0 and qq == 0:
+#                        print('fitting arima.')
+#                        model = ARIMA(ts_in, order=(p, 0, q), trend=None)
+#                        model_type.append('a')
+#                    else:
+                    print('fitting sarima.')
+                    model = SARIMAX(
+                            ts_in, order=(p, 0, q),
+                            seasonal_order=(pp, 0, qq, s),
+                            trend=None)
+                    model_type.append('s')
 
                     try:
                         mod_temp = model.fit(disp=0)
