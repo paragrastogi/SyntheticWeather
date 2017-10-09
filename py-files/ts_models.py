@@ -42,30 +42,30 @@ def select_models(arp, maq, sarp, smaq, s, ts_in):
                                 ts_in, order=(p, 0, q),
                                 seasonal_order=(pp, 0, qq, s))
                         model_type.append('s')
-    
+
                     try:
-                        mod_temp = model.fit()
+                        mod_temp = model.fit(disp=0)
                         aic[counter] = mod_temp.aic
-    
+
                     except Exception as err:
                         print('fit threw an error')
                         mod_temp = None
                         aic[counter] = None
-    
+
                     model_fit.append(mod_temp)
-    
+
                     counter += 1
-    
+
     aicfilter = aic == np.nanmin(aic)
     selmdl = [model for (model, idx) in zip(model_fit, aicfilter)
               if idx]
     selmdl_type = [mod_type for (mod_type, idx) in
                    zip(model_type, aicfilter) if idx]
-    
+
     if isinstance(selmdl, (list, tuple)):
         selmdl = selmdl[0]
         selmdl_type = selmdl_type[0]
-    
+
     resid = selmdl.resid
-    
+
     return selmdl, selmdl_type, resid

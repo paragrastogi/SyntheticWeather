@@ -61,10 +61,9 @@ def fitgp(series, xtrain, ytrain, xtest=np.empty(0), gp_in=None):
 
     if gp_in is None:
         # No incoming regressor object, so learn hyper-parameters.
-        gp_out = GaussianProcessRegressor(kernel=kd, alpha=0,
-                                          n_restarts_optimizer=n_restarts,
-                                          optimizer='fmin_l_bfgs_b',
-                                          normalize_y=False)
+        gp_out = GaussianProcessRegressor(
+                kernel=kd, alpha=0, n_restarts_optimizer=n_restarts,
+                optimizer='fmin_l_bfgs_b', normalize_y=False)
 
         gp_out.fit(xtrain, ytrain)
     else:
@@ -215,7 +214,7 @@ def learngp(l_start, l_end, l_step, histlim,
 
 
 def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
-             ts_in, mtrack, s_c, picklepath="./xxx.p"):
+             ts_in, mtrack, s_c, picklepath="./xxx.npy"):
 
     start_time = time.monotonic()
 

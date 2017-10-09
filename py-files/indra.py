@@ -57,10 +57,14 @@ import wfileio as wf
 # import learn and sample functions from gp_funcs.
 from gp_funcs import learngp
 from gp_funcs import samplegp
-from gp_funcs import setseed
+
+from petites import setseed
+from resampling import resampling
+
+from statsmodels.tsa.arima_model import ARIMAResults
 
 
-def indra(train, stcode='gen', n_sample=10, method='arma', 
+def indra(train, stcode='gen', n_sample=10, method='arma',
           fpath_in='./che_gen_iwec.a',
           ftype='espr',
           outpath='.',
@@ -90,12 +94,14 @@ def indra(train, stcode='gen', n_sample=10, method='arma',
     # These will be the files where the outputs will be stored.
     path_model_save = os.path.join(
             outpath, 'model_{0}_{1}.p'.format(stcode, randseed))
+    path_ffit_save = os.path.join(
+            outpath, 'ffit_{0}_{1}.p'.format(stcode, randseed))
 
     print('Storing everything in folder {0}\r\n'.format(outpath))
 
     # Save output time series.
     picklepath = os.path.join(
-            outpath, 'syn_{0}_{1}.p'.format(stcode, randseed))
+            outpath, 'syn_{0}_{1}.npy'.format(stcode, randseed))
 
     # ----------------
 
@@ -147,14 +153,18 @@ def indra(train, stcode='gen', n_sample=10, method='arma',
                 pickle.dump(gp_save, fp)
 
         elif method == 'arma':
+
+            # Call resampling with null selmdl and ffit, since those
+            # haven't been trained yet.
             ffit, selmdl, _ = resampling(
-                    stcode, xy_train, train=True,
-                    sample=False, path_model_save)
+                    stcode, xy_train, selmdl=None, ffit=None,
+                    train=True, sample=False, n_sample=n_sample,
+                    picklepath=picklepath)
 
-            arma_save = dict(selmdl=slmdl, ffit=ffit)
+            selmdl.save(path_model_save)
 
-            with open(path_model_save, 'wb') as fp:
-                pickle.dump(arma_save, fp)
+            with open(path_ffit_save, 'wb') as fp:
+                pickle.dump(ffit, fp)
 
     else:
 
@@ -171,11 +181,11 @@ def indra(train, stcode='gen', n_sample=10, method='arma',
             xy_train = gp_save['xy_train']
 
         elif method == 'arma':
-            with open(path_model_save, 'rb') as fp:
-                arma_save = pickle.load(fp)
 
-            ffit = arma_save.ffit
-            selmdl = arma_save.selmdl
+            with open(path_ffit_save, 'rb') as fp:
+                ffit = pickle.load(fp)
+
+            selmdl = ARIMAResults.load(path_model_save)
 
     # %%
 
@@ -185,18 +195,21 @@ def indra(train, stcode='gen', n_sample=10, method='arma',
     # columns ('month', 'day', 'hour', 'tdb', 'tdp', 'rh',
     # 'ghi', 'dni', 'dhi', 'wspd', 'wdr')
 
-    xout = samplegp(gp_list, l_start, l_end, l_step, histlim, n_sample,
-                    xy_train, mtrack, scaler, picklepath=picklepath)
-    
-    ffit, selmdl, _ = resampling(
-                    stcode, xy_train, selmdl, ffit, train=False,
-                    sample=True, path_model_save)
-
     # In this MC framework, the 'year' of weather data is meaningless.
     # When the climate change models will be added, these years will
     # mean something. For now, just add '2017' to every file.
 
-    if method == 'gp':
+    if method == 'arma':
+
+        ffit, selmdl, _ = resampling(
+                stcode, xy_train, selmdl, ffit, train=False,
+                sample=True, picklepath=picklepath)
+
+    elif method == 'gp':
+
+        xout = samplegp(gp_list, l_start, l_end, l_step, histlim,
+                        n_sample, xy_train, mtrack, scaler,
+                        picklepath=picklepath)
 
         for n in range(0, xout.shape[-1]):
 
