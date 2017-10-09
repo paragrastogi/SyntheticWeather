@@ -54,6 +54,12 @@ parser.add_argument('--ftype', type=str, help='What kind of file ' +
 parser.add_argument('--outpath', type=str, default='.',
                     help='Path to the folder where all outputs will go.' +
                     ' Default is the present working directory.')
+parser.add_argument('--cc', type=int, choices=[0, 1], default=0,
+                    help='Enter 0 for no climate change, ' +
+                    'and 1 if you are passing model outputs.')
+parser.add_argument('--ccpath', type=str, default='.',
+                    help='Path to the folder where CSV files with climate' +
+                    ' change model forecasts are stored.')
 parser.add_argument('--l_start', type=int, default=0,
                     help='Starting hour for learning or sampling loop.' +
                     ' Please key in a multiple of 24, e.g., to start ' +
@@ -92,9 +98,12 @@ args = parser.parse_args()
 train = bool(args.train)
 stcode = args.stcode.lower()
 n_sample = args.n_sample
+method = args.method
 fpath_in = args.fpath_in
 ftype = args.ftype
 outpath = args.outpath
+cc = bool(args.cc)
+ccpath = args.ccpath
 l_start = args.l_start
 l_end = args.l_end
 l_step = args.l_step
@@ -103,14 +112,13 @@ stlat = args.lat
 stlong = args.long
 stalt = args.alt
 randseed = args.randseed
-method = args.method
 
 print('Invoking Indra for {0}.\r\n'.format(stcode))
 
-if train:
-    print('You have asked to train new models. This might take a while.\r\n')
-else:
-    print('You have asked for samples only. This should be quick.\r\n')
+# if train:
+#    print('You have asked to train new models. This might take a while.\r\n')
+# else:
+#    print('You have asked for samples only. This should be quick.\r\n')
 
 # This command allows this script to be called from the command line.
 # Call indra.
@@ -121,6 +129,7 @@ if __name__ == '__main__':
           fpath_in=fpath_in,
           ftype=ftype,
           outpath=outpath,
+          cc=cc, ccpath=ccpath,
           l_start=l_start, l_end=l_end,
           l_step=l_step, histlim=histlim,
           stlat=stlat, stlong=stlong, stalt=stalt,
