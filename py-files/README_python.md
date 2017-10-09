@@ -8,7 +8,7 @@ Hello!
 
 Thank you for downloading **indra**, a synthetic weather generator created by Parag Rastogi.
 
-**indra** is a collection of python scripts. It is written for python 3.5+ and not backwards with older versions of python at all. To begin, you need the following modules installed:
+**indra** is a collection of python scripts. It is written for python 3.5+ and not backwards with older versions of python for now (October 2017)<sup>[1]</sup>. To begin, you need the following modules installed:
 
 1. `numpy`
 2. `scipy`
@@ -28,11 +28,25 @@ If these are not installed for some reason, please do install them.
 
 Sometimes, there are issues with the mkl-optimised versions of numpy, scipy, and sklearn distributed by Anaconda. In that case, install the package `nomkl` and these modules will be 'downgraded' to their `*_nomkl` versions. That shouldn't affect the functioning of these packages at all.
 
-In general, if you are in the directory where all the scripts for **indra** are, i.e., the directory where this file is, then you do not need to write the full path to any of the files in the commands described below.
+In general, if you are in the directory where all the scripts for **indra** are, i.e., the directory where this file is, then you do not need to write the full path to any of the files in the commands described below. __NB:__ When using this tool as from python, you use `call_indra.py`, whereas if you compile it to a command-line program, then you use `indra.exe` or `./indra`. If you look at the script `call_indra.py`, you will understand why this is the case.
 
 --------------------
 
-## Running and compiling indra as a command line executable.
+## Run with python
+
+If you just want to work in python, then get started with the script listener.py by typing the following into your command line:
+
+### Linux/Ubuntu
+
+    $ python <PATH_TO_LISTENER>\call_indra.py -h
+
+### Windows
+
+    > python <PATH_TO_LISTENER>/call_indra.py -h
+
+--------------------
+
+## Compile and Run as a command-line executable.
 
 If you want to compile **indra** into an executable, use something like cx_freeze. An executable compiled on Windows will work on windows only, and vice-versa. I tried nuitka but couldn't quite get it to work on Linux.
 
@@ -68,20 +82,10 @@ Like Linux, if you add the folder containing the executable and its associate fi
 
     > <PATH_TO_INDRA>/indra.exe -h
 
-
-
 --------------------
 
-## Running indra with python
+### Footnotes
 
-If you just want to work in python, then get started with the script listener.py by typing the following into your command line:
-
-### Linux/Ubuntu
-
-    $ python <PATH_TO_LISTENER>\listener.py -h
-
-### Windows
-
-    > python <PATH_TO_LISTENER>/listener.py -h
-
-
+[1] For now, I cannot guarantee compatibility with Python 2.x. On most Linux machines, Python 2.x is installed by default and the command python points to that version. To install and run this program, therefore, please use python3 and pip3. For example:
+	$ python3 call_indra.py -h
+	$ pip3 install pandas
