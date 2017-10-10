@@ -41,7 +41,7 @@ base = 'Console'
 
 # Compile file listener.py to work in console with name indra.
 executables = [
-    Executable('listener.py', base=base, targetName='indra')
+    Executable('call_indra.py', base=base, targetName='indra')
 ]
 
 # Call cxfreeze.

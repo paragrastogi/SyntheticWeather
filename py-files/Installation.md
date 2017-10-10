@@ -2,6 +2,8 @@
 % Parag Rastogi
 % 29 September, 2017
 
+# Install and Run Indra
+
 [This readme was originally written in markdown.]
 
 Hello!
@@ -39,11 +41,11 @@ If you just want to work in python, then get started with the script listener.py
 
 ### Linux/Ubuntu
 
-    $ python <PATH_TO_LISTENER>\call_indra.py -h
+    $ python <PATH_TO_LISTENER>/call_indra.py -h
 
 ### Windows
 
-    > python <PATH_TO_LISTENER>/call_indra.py -h
+    > python <PATH_TO_LISTENER>\call_indra.py -h
 
 --------------------
 
@@ -65,7 +67,7 @@ To install using the `setup_linux.py` or `setup_windows.py` script in this folde
 
 Upon compilation you should end up with a bunch of files inside a folder call `build/<something>`. The name of the subfolder `<something>` depends on the platform you are on. In this folder, there will be an executable called **indra** (on Linux) or **indra**.exe (on Windows). Don't delete any of these apparently 'extra' files - these are all the python libraries compiled in C code!
 
-Congratulations, you now have an executable (program) called `indra` on your hands! Chang directory (`cd`) into `build\<something>` to start running **indra**. Or just rearrange things so you don't have horribly long paths. Just do it, you're smart.
+Congratulations, you now have an executable (program) called `indra` on your hands! Run **indra** in some folder where you have read/write access (I suggest a folder named for your location, e.g., `gen` for Geneva). You could change directory (`cd`) into `build\<something>` to start running **indra**. I do not recommend that, since indra reads in and writes out files. Sometimes lots and lots of files. It's probably better to arrange things so you don't have horribly long paths (you can rename `build` and `<something>` without any problems. Just do it, you're smart.
 
 ### Linux/Ubuntu
 
@@ -75,13 +77,13 @@ You could run the command
 
 and make the file executable or just use the `.\indra` syntax. If you add the folder containing the executable and its associate files to your `PATH` variable, you don't need to type the full path at the command line.
 
-    $ <PATH_TO_INDRA>\indra -h
+    $ <PATH_TO_INDRA>/indra -h
 
 ### Windows
 
 Like Linux, if you add the folder containing the executable and its associate files to your `PATH` variable, you don't need to type the full path at the command line.
 
-    > <PATH_TO_INDRA>/indra.exe -h
+    > <PATH_TO_INDRA>\indra.exe -h
 
 --------------------
 

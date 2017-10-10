@@ -43,7 +43,7 @@ parser.add_argument("--fpath_in", type=str, help="Path to a folder" +
                     " If you pass a path to a file, I will only use " +
                     " that file. If you pass a folder path, I will " +
                     "look for files whose names contain the station code.",
-                    default="/usr/esru/esp-r/climate/CHE_Geneva_IWEC")
+                    default="./wf_in.a")
 parser.add_argument("--ftype", type=str, help="What kind of file " +
                     "are you giving me? Default is the ESP-r ascii " +
                     "format [espr]. For now, I can read EPW [epw] and " +

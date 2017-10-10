@@ -58,7 +58,7 @@ std_cols = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
 # %%
 
 
-def get_weather(stcode, fpath, ftype='espr', outpath='xxx'):
+def get_weather(stcode, fpath, ftype='espr', outpath='.'):
 
     # This function calls the relevant reader based on the ftype.
 
@@ -488,7 +488,7 @@ def read_espr(fpath):
 
 def give_weather(ts, locdata, stcode, header,
                  masterfile='./che_geneva.iwec.a', ftype='espr',
-                 s_shift=0, outpath='.', std_cols=std_cols):
+                 s_shift=0, fpath_out='.', std_cols=std_cols):
 
     n_sample = ts.shape[-1]
 
@@ -500,14 +500,21 @@ def give_weather(ts, locdata, stcode, header,
 
         for y, year in enumerate(uy):
 
-            filepath = os.path.join(
-                    outpath, 'syn_{0}_{1}_{2}'.format(
-                            stcode, year, n + s_shift))
+            if fpath_out == ".":
+                # Make a standardised name for output file.
+                filepath = os.path.join(
+                        fpath_out, 'syn_{0}_{1}_{2}'.format(
+                                stcode, year, n + s_shift))
+            else:
+                # Use the name that's come in.
+                filepath = fpath_out
+
             ts_curr = ts[ts[:, 0, n] == year, :, n]
 
             if ftype == 'espr':
 
-                filepath = filepath + '.a'
+                if filepath[-2:] != '.a':
+                    filepath = filepath + '.a'
 
                 esp_master, locdata, header = read_espr(masterfile)
 

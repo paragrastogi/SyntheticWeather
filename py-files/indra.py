@@ -73,7 +73,7 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
 #    train=False
 #    stcode="gen"
 #    n_sample=1
-#    method="arma",
+#    method="arma"
 #    fpath_in="./gen_iwec.epw"
 #    ftype="epw"
 #    outpath="."
@@ -105,7 +105,6 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
     stcode = stcode.lower()
 
     # Store everything in a folder named <stcode>.
-    outpath = '.'
     if not os.path.isdir(outpath):
         os.makedirs(outpath)
 
@@ -145,9 +144,8 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
         print(exc_type, fname, exc_tb.tb_lineno)
         print("I could not read the incoming weather file. " +
               "Terminating this run.\r\n")
-        return 0
-    
-    print(method)
+        # return 0
+# %%
 
     if train:
 
@@ -172,7 +170,7 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
             ffit, selmdl, _ = resampling(
                     xy_train, selmdl=None, ffit=None,
                     train=True, sample=False, n_sample=n_sample,
-                    picklepath=picklepath)
+                    picklepath=picklepath, randseed=randseed)
 
             # The non-seasonal order of the model. This exists in both
             # ARIMA and SARIMAX models, so it has to exist in the output
@@ -186,9 +184,11 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
             try:
                 # Try to find the seasonal order. If it exists, save the
                 # sarimax model. This should almost always be the case.
-                seasonal_order = [(p.model.k_seasonal_ar, 0,
-                                   p.model.k_seasonal_ma,
-                                   p.model.seasonal_periods) for p in selmdl]
+                seasonal_order = [
+                        (int(p.model.k_seasonal_ar/p.model.seasonal_periods),
+                         0,
+                         int(p.model.k_seasonal_ma/p.model.seasonal_periods),
+                         p.model.seasonal_periods) for p in selmdl]
 
                 arma_save = dict(order=order, params=params,
                                  seasonal_order=seasonal_order,
@@ -231,7 +231,12 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
                 mod_temp = SARIMAX(e, order=o, params=p,
                                    seasonal_order=so,
                                    trend=None)
-                selmdl.append(mod_temp)
+                selmdl.append(mod_temp.fit(disp=0))
+
+            ffit = list()
+
+            for f in arma_save["ffit"]:
+                ffit.append(f)
 
     # %%
 
@@ -248,10 +253,8 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
     if method == "arma":
 
         _, _, xout = resampling(
-                xy_train, selmdl, ffit, train=False,
-                sample=True, n_sample=n_sample, picklepath=picklepath)
-        
-        print(xout.shape)
+                xy_train, selmdl, ffit, train=False, sample=True,
+                n_sample=n_sample, picklepath=picklepath, randseed=randseed)
 
     elif method == "gp":
 
@@ -267,6 +270,13 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
 
     # End of if method statement.
 
+    if ftype == "espr":
+        fpath_out = os.path.join(outpath, "wf_out.a")
+    elif ftype == "epw":
+        fpath_out = os.path.join(outpath, "wf_out.epw")
+    else:
+        fpath_out = os.path.join(outpath, "wf_out.csv")
+
     # Save / write-out synthetic time series.
     wf.give_weather(xout, locdata, stcode, header, ftype=ftype,
-                    s_shift=0, outpath=outpath, masterfile=fpath_in)
+                    s_shift=0, fpath_out=fpath_out, masterfile=fpath_in)

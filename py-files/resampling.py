@@ -23,16 +23,14 @@ from scipy.optimize import curve_fit
 # get_ipython().run_line_magic('matplotlib', 'inline')
 
 import fourier
-# from wfileio import get_weather
 from ts_models import select_models
+# from petites import setseed
 from petites import solarcleaner
 
 
 def resampling(xy_train, selmdl=None, ffit=None, train=True,
                sample=True, n_sample=1,
-               picklepath='./xxx.npy'):
-    
-    print(np.random.seed())
+               picklepath='./xxx.npy', randseed=None):
 
     # Temporarily here - to be eventually fed in from main script.
     # stcode = 'gen'
@@ -42,9 +40,13 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
     #    picklepath = './syn_gen_8760_res'
     ###
 
-    #    # Seed random number generators.
-    #    np.random.seed(randseed)
-    #    random.seed = randseed
+    # Check to see if random number generation is reproducible.
+
+    # Seed random number generators.
+    #    if randseed is None:
+    #        import time
+    #        randseed = int(time.time())
+    #    setseed(randseed)
 
     #    # This is the master tuple of column names, which should
     #    # not be modified.
@@ -67,14 +69,15 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
 
     # Fit fourier functions to the tdb and rh series.
 
-    numvars = 2  # For now, only considering two variables.
+    varidx = [4, 6]  # For now, only considering two variables.
+    othervars = (np.arange(0, xy_train.shape[1])).tolist()
 
     if train:
 
         # The curve_fit function outputs two things:
         params = [
-                curve_fit(fourier.fit_tdb, fit_idx, xy_train[:, 4]),
-                curve_fit(fourier.fit_rh, fit_idx, xy_train[:, 6])
+                curve_fit(fourier.fit_tdb, fit_idx, xy_train[:, varidx[0]]),
+                curve_fit(fourier.fit_rh, fit_idx, xy_train[:, varidx[1]])
                 ]
         # tdb, rh, tdb_low, tdb_high, rh_low
 
@@ -88,7 +91,8 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
         # (whichever is applicable) from the raw values to get the
         # 'de-meaned' values (values from which the mean has
         # been removed).
-        demeaned = [xy_train[:, 4] - ffit[0], xy_train[:, 6] - ffit[1]]
+        demeaned = [xy_train[:, varidx[0]] - ffit[0],
+                    xy_train[:, varidx[1]] - ffit[1]]
 
         # %%
 
@@ -107,7 +111,7 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
 
         selmdl = list()
         selmdl_type = list()
-        resid = np.zeros([demeaned[0].shape[0], numvars])
+        resid = np.zeros([demeaned[0].shape[0], len(varidx)])
 
         for idx, ser in enumerate(demeaned):
             mdl_temp, type_temp, resid[:, idx] = select_models(
@@ -128,9 +132,9 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
 
     if sample:
 
-        resampled = np.zeros([8760, numvars, n_sample])
+        resampled = np.zeros([8760, len(varidx), n_sample])
 
-        for v in range(0, numvars):
+        for v in range(0, len(varidx)):
             for n in range(0, n_sample):
                 resampled[:, v, n] = selmdl[v].simulate(
                         nsimulations=8760)
@@ -138,11 +142,20 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
         # %%
 
         # Add the resampled time series back to the fourier series.
-        ts_syn = np.zeros_like(resampled)
+        ts_syn = np.zeros([resampled.shape[0], xy_train.shape[1],
+                          resampled.shape[-1]])
 
-        for v in range(0, numvars):
-            ts_syn[:, v, :] = resampled[:, v, :] + \
-                np.resize(ffit[v], resampled[:, v, :].shape)
+        v = 0
+        vv = 0
+        for idx in range(0, xy_train.shape[1]):
+            if idx in varidx:
+                ts_syn[:, idx, :] = resampled[:, v, :] + \
+                    np.resize(ffit[v], resampled[:, v, :].shape)
+                v += 1
+            elif idx in othervars:
+                ts_syn[:, idx, :] = np.resize(
+                        xy_train[:, idx], ts_syn[:, idx, :].shape)
+                vv += 1
 
         ###
         ### Add solarcleaner here. ###

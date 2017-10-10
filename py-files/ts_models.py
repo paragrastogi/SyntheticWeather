@@ -37,7 +37,7 @@ def select_models(arp, maq, sarp, smaq, s, ts_in):
 #                        model = ARIMA(ts_in, order=(p, 0, q), trend=None)
 #                        model_type.append('a')
 #                    else:
-                    print('fitting sarima.')
+#                    print('fitting sarima.')
                     model = SARIMAX(
                             ts_in, order=(p, 0, q),
                             seasonal_order=(pp, 0, qq, s),
@@ -49,7 +49,7 @@ def select_models(arp, maq, sarp, smaq, s, ts_in):
                         aic[counter] = mod_temp.aic
 
                     except Exception as err:
-                        print('fit threw an error')
+#                        print('fit threw an error')
                         mod_temp = None
                         aic[counter] = None
 
