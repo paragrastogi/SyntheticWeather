@@ -25,12 +25,12 @@ parser.add_argument("--train", type=int, choices=[0, 1], default=0,
                     help="Enter 0 for no seed data (sampling mode), " +
                     "or 1 if you are passing seed data (training or " +
                     "initalisation mode).")
-parser.add_argument("--stcode", type=str, default="xxx",
+parser.add_argument("--stcode", type=str, default="abc",
                     help="Make up a station code. " +
                     "If you are not passing seed data, and want me to " +
                     "pick up a saved model, please use the station code" +
                     " of the saved model.")
-parser.add_argument("--n_sample", type=int, default=1,
+parser.add_argument("--n_sample", type=int, default=100,
                     help="How many samples do you want out?")
 parser.add_argument("--method", type=str, default="arma",
                     help="Which method do you want to use: "
@@ -38,12 +38,12 @@ parser.add_argument("--method", type=str, default="arma",
                     "(with Fourier pre-processing) [arma], "
                     "or (Experimental) Gaussian Process "
                     "Regression [gp]?")
-parser.add_argument("--fpath_in", type=str, help="Path to a folder" +
-                    "containing the seed file or the seed file itself." +
-                    " If you pass a path to a file, I will only use " +
-                    " that file. If you pass a folder path, I will " +
-                    "look for files whose names contain the station code.",
-                    default="./wf_in.a")
+parser.add_argument("--fpath_in", type=str, help="Path to a weather " +
+                    "file (seed file).", default="wf_in.a")
+parser.add_argument("--fpath_out", type=str, help="Path to where the " +
+                    "synthetic data will be written. If you ask for more " +
+                    "than one sample, I will append an integer to the name.",
+                    default="wf_out.a")
 parser.add_argument("--ftype", type=str, help="What kind of file " +
                     "are you giving me? Default is the ESP-r ascii " +
                     "format [espr]. For now, I can read EPW [epw] and " +
@@ -52,7 +52,7 @@ parser.add_argument("--ftype", type=str, help="What kind of file " +
                     "table with the requisite data in the correct order. " +
                     "See file data_in_spec.txt for the format.",
                     default="espr")
-parser.add_argument("--outpath", type=str, default=".",
+parser.add_argument("--storepath", type=str, default="SyntheticWeather",
                     help="Path to the folder where all outputs will go." +
                     " Default is the present working directory.")
 parser.add_argument('--cc', type=int, choices=[0, 1], default=0,
@@ -101,8 +101,9 @@ stcode = args.stcode.lower()
 n_sample = args.n_sample
 method = args.method
 fpath_in = args.fpath_in
+fpath_out = args.fpath_out
 ftype = args.ftype
-outpath = args.outpath
+storepath = args.storepath
 cc = bool(args.cc)
 ccpath = args.ccpath
 l_start = args.l_start
@@ -128,8 +129,9 @@ if __name__ == "__main__":
           n_sample=n_sample,
           method=method,
           fpath_in=fpath_in,
+          fpath_out=fpath_out,
           ftype=ftype,
-          outpath=outpath,
+          storepath=storepath,
           cc=cc, ccpath=ccpath,
           l_start=l_start, l_end=l_end,
           l_step=l_step, histlim=histlim,

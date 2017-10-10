@@ -29,7 +29,7 @@ from petites import solarcleaner
 
 
 def resampling(xy_train, selmdl=None, ffit=None, train=True,
-               sample=True, n_sample=1,
+               sample=True, n_sample=100,
                picklepath='./xxx.npy', randseed=None):
 
     # Temporarily here - to be eventually fed in from main script.
@@ -107,7 +107,7 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
         sarp = range(0, 2)
         smaq = range(0, 2)
         s = 24
-        n_sample = 50  # This should be an input to the function.
+        # n_sample = 50  # This should be an input to the function.
 
         selmdl = list()
         selmdl_type = list()
@@ -120,17 +120,7 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
             selmdl.append(mdl_temp)
             selmdl_type.append(type_temp)
 
-    else:
-
-        if selmdl is None:
-            print("You did not ask me to train a model but didn't " +
-                  "supply a valid model either. Terminating with " +
-                  "None outputs.")
-            return None, None, None
-
     # %%
-
-    if sample:
 
         resampled = np.zeros([8760, len(varidx), n_sample])
 
@@ -165,6 +155,12 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
         np.save(picklepath, ts_syn, allow_pickle=True)
 
     else:
-        ts_syn = None
+
+
+        if selmdl is None:
+            print("You did not ask me to train a model but didn't " +
+                  "supply a valid model either. Terminating with " +
+                  "None outputs.")
+            return None, None, None
 
     return ffit, selmdl, ts_syn

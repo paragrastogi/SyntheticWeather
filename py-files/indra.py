@@ -59,9 +59,9 @@ from resampling import resampling
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 
-def indra(train=False, stcode="gen", n_sample=10, method="arma",
-          fpath_in="./che_gen_iwec.a",
-          ftype="espr", outpath=".",
+def indra(train=False, stcode="abc", n_sample=100, method="arma",
+          fpath_in="wf_in.a", fpath_out="wf_out.a",
+          ftype="espr", storepath=".",
           cc=False, ccpath=".",
           l_start=int(0), l_end=int(31*24),
           l_step=int(4*24), histlim=int(14*24),
@@ -75,8 +75,9 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
 #    n_sample=1
 #    method="arma"
 #    fpath_in="./gen_iwec.epw"
+#    fpath_in="./gen_iwec_syn.epw"
 #    ftype="epw"
-#    outpath="."
+#    storepath="."
 #    cc=False
 #    ccpath="."
 #    randseed=None
@@ -104,14 +105,17 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
     # Convert incoming stcode to lowercase.
     stcode = stcode.lower()
 
+    if storepath == '.':
+        storepath = stcode
+
     # Store everything in a folder named <stcode>.
-    if not os.path.isdir(outpath):
-        os.makedirs(outpath)
+    if not os.path.isdir(storepath):
+        os.makedirs(storepath)
 
     # These will be the files where the outputs will be stored.
-    path_model_save = os.path.join(outpath, "model.p")
+    path_model_save = os.path.join(storepath, "model.p")
     # Save output time series.
-    picklepath = os.path.join(outpath, "syn.npy")
+    picklepath = os.path.join(storepath, "syn.npy")
 
     # ----------------
 
@@ -127,7 +131,7 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
     # See accompanying script "wfileio".
     try:
         xy_train, locdata, header = wf.get_weather(
-                stcode, fpath_in, ftype, outpath=outpath)
+                stcode, fpath_in, ftype)
 
         # The GP method needs day of year rather than day of month.
         if method == "gp":
@@ -269,13 +273,6 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
             del [temp1, temp2]
 
     # End of if method statement.
-
-    if ftype == "espr":
-        fpath_out = os.path.join(outpath, "wf_out.a")
-    elif ftype == "epw":
-        fpath_out = os.path.join(outpath, "wf_out.epw")
-    else:
-        fpath_out = os.path.join(outpath, "wf_out.csv")
 
     # Save / write-out synthetic time series.
     wf.give_weather(xout, locdata, stcode, header, ftype=ftype,

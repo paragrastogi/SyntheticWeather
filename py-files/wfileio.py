@@ -58,7 +58,7 @@ std_cols = ("year", "month", "day", "hour", "tdb", "tdp", "rh",
 # %%
 
 
-def get_weather(stcode, fpath, ftype="espr", outpath="."):
+def get_weather(stcode, fpath, ftype="espr"):
 
     # This function calls the relevant reader based on the ftype.
 
@@ -506,11 +506,19 @@ def give_weather(ts, locdata, stcode, header,
             if fpath_out == ".":
                 # Make a standardised name for output file.
                 filepath = os.path.join(
-                        fpath_out, "syn_{0}_{1}_{2}".format(
-                                stcode, year, n + s_shift))
+                        fpath_out, "wf_out_{0}_{1}".format(
+                                year, n + s_shift))
             else:
-                # Use the name that"s come in.
-                filepath = fpath_out
+                # Files need to be renamed so strip out the extension.
+                fpath_out = fpath_out.replace(".a", "").replace(
+                        ".epw", "").replace(".csv", "")
+
+                # Use the name that has come in.
+                if n_sample == 1:
+                    filepath = fpath_out
+                else:
+                    filepath = fpath_out + "_{0}_{1}".format(
+                                year, n + s_shift)
 
             ts_curr = ts[ts[:, 0, n] == year, :, n]
 
@@ -592,7 +600,8 @@ def give_weather(ts, locdata, stcode, header,
 
             elif ftype == "epw":
 
-                filepath = filepath + ".epw"
+                if filepath[-4:] != ".epw":
+                    filepath = filepath + ".epw"
 
                 epw_fmt = ["%4u", "%2u", "%2u", "%2u", "%2u", "%44s"] + \
                     ((np.repeat("%5.2f", len(epw_colnames)-(6+3))).tolist())
@@ -640,7 +649,8 @@ def give_weather(ts, locdata, stcode, header,
 
             else:
 
-                filepath = filepath + ".csv"
+                if filepath[-4:] != ".csv":
+                    filepath = filepath + ".csv"
 
                 np.savetxt(filepath, np.squeeze(ts_curr), "%5.2f",
                            delimiter=",", header=header + " ".join(std_cols),
