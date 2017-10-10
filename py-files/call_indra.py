@@ -3,7 +3,7 @@
 """
 Created on Fri Sep 22 16:32:27 2017
 
-@author: rasto
+@author: Parag Rastogi
 
 This script is called from the command line. It only parses the arguments
 and invokes Indra.
@@ -22,14 +22,15 @@ parser = argparse.ArgumentParser(
         "data, i.e., some input weather data.\r\n")
 
 parser.add_argument("--train", type=int, choices=[0, 1], default=0,
-                    help="Enter 0 for no seed data, " +
-                    "and 1 if you are passing seed data.")
+                    help="Enter 0 for no seed data (sampling mode), " +
+                    "or 1 if you are passing seed data (training or " +
+                    "initalisation mode).")
 parser.add_argument("--stcode", type=str, default="xxx",
                     help="Make up a station code. " +
                     "If you are not passing seed data, and want me to " +
                     "pick up a saved model, please use the station code" +
                     " of the saved model.")
-parser.add_argument("--n_sample", type=int, default=10,
+parser.add_argument("--n_sample", type=int, default=1,
                     help="How many samples do you want out?")
 parser.add_argument("--method", type=str, default="arma",
                     help="Which method do you want to use: "
@@ -88,7 +89,7 @@ parser.add_argument("--long", type=int, default=0,
                     help="Station longitude.")
 parser.add_argument("--alt", type=int, default=0,
                     help="Station altitude.")
-parser.add_argument("--randseed", type=int, default=8760,
+parser.add_argument("--randseed", type=int, default=None,
                     help="Set the seed for this sampling " +
                     "run. If you don't know what this " +
                     "is, don't worry. The default is 8760.")

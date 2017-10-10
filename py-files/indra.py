@@ -37,8 +37,7 @@ Features to be implemented:
 import os
 import sys
 import pickle
-
-# import pandas as pd
+import time
 
 # These custom functions load and clean recorded data.
 # For now, we are only concerned with ncdc and nsrdb.
@@ -56,8 +55,8 @@ from gp_funcs import samplegp
 from petites import setseed
 from resampling import resampling
 
-from statsmodels.tsa.arima_model import ARIMAResults
-from statsmodels.tsa.statespace.sarimax import SARIMAXResults
+# from statsmodels.tsa.arima_model import ARIMAResults
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 
 def indra(train=False, stcode="gen", n_sample=10, method="arma",
@@ -67,20 +66,20 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
           l_start=int(0), l_end=int(31*24),
           l_step=int(4*24), histlim=int(14*24),
           stlat=0.0, stlong=0.0, stalt=0.0,
-          randseed=8760):
+          randseed=None):
 
-# Uncomment when debugging this script to avoid having to call the
-# whole function.
-# train=False
-# stcode="gen"
-# n_sample=10
-# method="arma",
-# fpath_in="./gen_iwec.epw"
-# ftype="epw"
-# outpath="."
-# cc=False
-# ccpath="."
-# randseed=8760
+    # Uncomment when debugging this script to avoid having to call the
+    # whole function.
+#    train=False
+#    stcode="gen"
+#    n_sample=1
+#    method="arma",
+#    fpath_in="./gen_iwec.epw"
+#    ftype="epw"
+#    outpath="."
+#    cc=False
+#    ccpath="."
+#    randseed=None
 
     # ------------------
     # Some initialisation house work.
@@ -90,27 +89,30 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
     # would not make sense. This makes the runs repeatable -- keep track of
     # the seed and you can reproduce exactly the same random number draws
     # as before.
+
+    # If the user did not specify a random seed, then the generator
+    # uses the current time, in seconds since an epoch, which differs
+    # between Unix and Windows. Anyhow, this is saved in the model
+    # output in case the results need to be reproduced.
+    if randseed is None:
+        randseed = int(time.time())
+
+    # Set the seed with either the input random seed or the one
+    # assigned just before.
     setseed(randseed)
 
     # Convert incoming stcode to lowercase.
     stcode = stcode.lower()
 
     # Store everything in a folder named <stcode>.
-    outpath = stcode
+    outpath = '.'
     if not os.path.isdir(outpath):
         os.makedirs(outpath)
 
     # These will be the files where the outputs will be stored.
-    path_model_save = os.path.join(
-            outpath, "model_{0}_{1}.p".format(stcode, randseed))
-    path_ffit_save = os.path.join(
-            outpath, "ffit_{0}_{1}.p".format(stcode, randseed))
-
-    print("Storing everything in folder {0}\r\n".format(outpath))
-
+    path_model_save = os.path.join(outpath, "model.p")
     # Save output time series.
-    picklepath = os.path.join(
-            outpath, "syn_{0}_{1}.npy".format(stcode, randseed))
+    picklepath = os.path.join(outpath, "syn.npy")
 
     # ----------------
 
@@ -144,6 +146,8 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
         print("I could not read the incoming weather file. " +
               "Terminating this run.\r\n")
         return 0
+    
+    print(method)
 
     if train:
 
@@ -174,28 +178,27 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
             # ARIMA and SARIMAX models, so it has to exist in the output
             # of resampling.
             order = [(p.model.k_ar, 0, p.model.k_ma) for p in selmdl]
+            # Also the endogenous variable.
+            endog = [p.model.endog for p in selmdl]
+
+            params = [p.params for p in selmdl]
 
             try:
                 # Try to find the seasonal order. If it exists, save the
-                # sarimax model.
-                seasonal_order = [(p.model.k_seasonal_ar,
-                                   0, p.model.k_seasonal_ma) for p in selmdl]
-                seasonal_periods = [p.model.seasonal_periods for p in selmdl]
-                arma_save = dict(order=order,
+                # sarimax model. This should almost always be the case.
+                seasonal_order = [(p.model.k_seasonal_ar, 0,
+                                   p.model.k_seasonal_ma,
+                                   p.model.seasonal_periods) for p in selmdl]
+
+                arma_save = dict(order=order, params=params,
                                  seasonal_order=seasonal_order,
-                                 seasonal_periods=seasonal_periods,
-                                 ffit=ffit)
+                                 ffit=ffit, endog=endog,
+                                 randseed=randseed)
+
             except AttributeError:
                 # Otherwise, ask for forgiveness and save the ARIMA model.
-                arma_save = dict(order=order,
-                                 ffit=ffit)
-
-#            for (idx, mdl) in enumerate(selmdl):
-#                if idx == 0:
-#                    savepath = path_model_save.replace("model", "model_tdb")
-#                elif idx == 1:
-#                    savepath = path_model_save.replace("model", "model_rh")
-#                mdl.save(savepath[:-2])
+                arma_save = dict(order=order, params=params, endog=endog,
+                                 ffit=ffit, randseed=randseed)
 
             with open(path_model_save, "wb") as fp:
                 pickle.dump(arma_save, fp)
@@ -219,7 +222,16 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
             with open(path_model_save, "rb") as fp:
                 arma_save = pickle.load(fp)
 
-            # selmdl = ARIMAResults.load(path_model_save)
+            selmdl = list()
+
+            for (o, so, e, p) in zip(arma_save["order"],
+                                     arma_save["seasonal_order"],
+                                     arma_save["endog"],
+                                     arma_save["params"]):
+                mod_temp = SARIMAX(e, order=o, params=p,
+                                   seasonal_order=so,
+                                   trend=None)
+                selmdl.append(mod_temp)
 
     # %%
 
@@ -235,9 +247,11 @@ def indra(train=False, stcode="gen", n_sample=10, method="arma",
 
     if method == "arma":
 
-        ffit, selmdl, _ = resampling(
-                stcode, xy_train, selmdl, ffit, train=False,
-                sample=True, picklepath=picklepath)
+        _, _, xout = resampling(
+                xy_train, selmdl, ffit, train=False,
+                sample=True, n_sample=n_sample, picklepath=picklepath)
+        
+        print(xout.shape)
 
     elif method == "gp":
 

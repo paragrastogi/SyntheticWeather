@@ -29,7 +29,7 @@ If these are not installed for some reason, please do install them.
 
 Sometimes, there are issues with the mkl-optimised versions of numpy, scipy, and sklearn distributed by Anaconda. In that case, install the package `nomkl` and these modules will be 'downgraded' to their `*_nomkl` versions. That shouldn't affect the functioning of these packages at all.
 
-In general, if you are in the directory where all the scripts for **indra** are, i.e., the directory where this file is, then you do not need to write the full path to any of the files in the commands described below. __NB:__ When using this tool as from python, you use `call_indra.py`, whereas if you compile it to a command-line program, then you use `indra.exe` or `./indra`. If you look at the script `call_indra.py`, you will understand why this is the case.
+In general, if you are in the directory where all the scripts for **indra** are, i.e., the directory where this file is, then you do not need to write the full path to any of the files in the commands described below. __NB:__ When using this tool from the python prompt or the Windows/Linux command line, you use `call_indra.py`. If you compile it to a command-line program, then you use `indra.exe` or `./indra`. If you look at the script `call_indra.py`, you will understand why this is the case.
 
 --------------------
 

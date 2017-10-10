@@ -29,8 +29,10 @@ from petites import solarcleaner
 
 
 def resampling(xy_train, selmdl=None, ffit=None, train=True,
-               sample=True, n_sample=10,
+               sample=True, n_sample=1,
                picklepath='./xxx.npy'):
+    
+    print(np.random.seed())
 
     # Temporarily here - to be eventually fed in from main script.
     # stcode = 'gen'
@@ -59,7 +61,7 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
     # # \sigma = 1) or robust (with median and iqr).
     # scaler = StandardScaler()
 
-    t = np.arange(0, xy_train.shape[0])
+    fit_idx = np.arange(0, xy_train.shape[0])
 
     # %%
 
@@ -70,21 +72,17 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
     if train:
 
         # The curve_fit function outputs two things:
-        params = [curve_fit(fourier.fit_tdb, t, xy_train[:, 4]),
-                  curve_fit(fourier.fit_rh, t, xy_train[:, 6]),
-                  curve_fit(fourier.fit_tdb_low, t, xy_train[:, 4]),
-                  curve_fit(fourier.fit_tdb_high, t, xy_train[:, 4]),
-                  curve_fit(fourier.fit_rh_low, t, xy_train[:, 6])]
+        params = [
+                curve_fit(fourier.fit_tdb, fit_idx, xy_train[:, 4]),
+                curve_fit(fourier.fit_rh, fit_idx, xy_train[:, 6])
+                ]
         # tdb, rh, tdb_low, tdb_high, rh_low
 
         # Call the fourier fit function with the calculated
         # parameters to get the
         # values of the fourier fit at each time step
-        ffit = [fourier.fit('tdb', t, *params[0][0]),
-                fourier.fit('rh', t, *params[1][0]),
-                fourier.fit('tdb_low', t, *params[2][0]),
-                fourier.fit('tdb_high', t, *params[3][0]),
-                fourier.fit('rh_low', t, *params[4][0])]
+        ffit = [fourier.fit('tdb', fit_idx, *params[0][0]),
+                fourier.fit('rh', fit_idx, *params[1][0])]
 
         # Now subtract the low- and high-frequency fourier fits
         # (whichever is applicable) from the raw values to get the
@@ -134,12 +132,8 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
 
         for v in range(0, numvars):
             for n in range(0, n_sample):
-                if selmdl_type == 'a':
-                    resampled[:, v, n] = selmdl.predict(
-                            dynamic=True)
-                elif selmdl_type == 's':
-                    resampled[:, v, n] = selmdl.simulate(
-                            nsimulations=8760)
+                resampled[:, v, n] = selmdl[v].simulate(
+                        nsimulations=8760)
 
         # %%
 
@@ -151,7 +145,7 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
                 np.resize(ffit[v], resampled[:, v, :].shape)
 
         ###
-        # Add solarcleaner here. ###
+        ### Add solarcleaner here. ###
         ###
 
         # Save the outputs as a pickle.

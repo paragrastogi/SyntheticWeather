@@ -6,7 +6,7 @@ Created on Sun Oct  8 20:29:16 2017
 """
 import numpy as np
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-from statsmodels.tsa.arima_model import ARIMA
+# from statsmodels.tsa.arima_model import ARIMA
 
 
 def select_models(arp, maq, sarp, smaq, s, ts_in):
