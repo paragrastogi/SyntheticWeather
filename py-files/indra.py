@@ -70,17 +70,17 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
 
     # Uncomment when debugging this script to avoid having to call the
     # whole function.
-    #    train=False
-    #    stcode="gen"
-    #    n_samples=1
-    #    method="arma"
-    #    storepath="SyntheticWeather-gen"
-    #    fpath_in= os.path.join(storepath, "che_geneva.iwec.a")
-    #    fpath_out= os.path.join(storepath, "che_geneva.iwec_syn.a")
-    #    ftype="espr"
-    #    cc=False
-    #    ccpath="."
-    #    randseed=None
+    #train=False
+    #stcode="lgw"
+    #n_samples=100
+    #method="arma"
+    #storepath="SyntheticWeather-lgw"
+    #fpath_in= os.path.join(storepath, "lgw/GBR_London_Gatwick.a")
+    #fpath_out= os.path.join(storepath, "lgw/GBR_London_Gatwick_syn.a")
+    #ftype="espr"
+    #cc=False
+    #ccpath="."
+    #randseed=None
 
     # ------------------
     # Some initialisation house work.
@@ -209,10 +209,12 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
             with open(path_model_save, "wb") as fp:
                 pickle.dump(arma_save, fp)
 
-            # Save counter.
-            counter = 0
-            with open(path_counter_save, "wb") as fp:
-                pickle.dump(counter, fp)
+        # End of if method statement.
+
+        # Save counter.
+        csave = dict(counter=0, n_samples=n_samples)
+        with open(path_counter_save, "wb") as fp:
+            pickle.dump(csave, fp)
 
         print("Saved model for station '{0}' in ".format(stcode) +
               "folder '{0}'. You can now ask me for ".format(storepath) +
@@ -222,13 +224,14 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
 
         # Load counter.
         with open(path_counter_save, "rb") as fp:
-            counter = pickle.load(fp)
+            csave = pickle.load(fp)
 
         if method == "arma":
 
             _, _, xout = resampling(
-                    xy_train, counter=counter, selmdl=None, ffit=None,
-                    train=False, sample=True, n_samples=n_samples,
+                    xy_train, counter=csave["counter"],
+                    selmdl=None, ffit=None,
+                    train=False, sample=True, n_samples=1,
                     picklepath=picklepath, randseed=randseed)
 
         elif method == "gp":
@@ -254,9 +257,11 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
 
         # This function has been asked to give a sample, so update
         # the counter.
-        counter += 1
+        csave["counter"] += 1
+        if csave["counter"] > csave["n_samples"]:
+            csave["counter"] = 0
         with open(path_counter_save, "wb") as fp:
-            pickle.dump(counter, fp)
+            pickle.dump(csave, fp)
 
 #        # Load models from file.
 #

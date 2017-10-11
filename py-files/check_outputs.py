@@ -9,6 +9,7 @@ Check outputs of the weather generator by plotting things.
 """
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pickle
 import os
 from statsmodels.graphics.tsaplots import plot_acf
@@ -21,9 +22,9 @@ from IPython import get_ipython
 get_ipython().run_line_magic('matplotlib', 'inline')
 
 l_start = 0
-l_end = 31*24
+l_end = 365*24
 n_samples = 10
-stcode = "gen"
+stcode = "lgw"
 figpath = stcode
 
 syn_path = r".\gen\syn_gen_8760_res.npy"
@@ -35,7 +36,7 @@ except Exception as err:
     ts = np.load(syn_path)
 
 xy_train, locdata, header = get_weather(
-        stcode, ".\gen_iwec.epw", "epw", outpath=stcode)
+        stcode, os.path.join("lgw", "GBR_London_Gatwick.a"), "espr")
 
 
 column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
@@ -51,12 +52,12 @@ p = 4
 ax = plt.figure(num=None, figsize=(8, 6), dpi=80,
                 facecolor='w', edgecolor='k').add_subplot(111)
 
-p1 = plt.plot(plotrange, xy_train[plotrange, p],
-              color=colours.orange, linewidth=1.5, zorder=1)
-p2 = plt.plot(plotrange, ts[plotrange, p, :], linewidth=0.5,
+p2 = plt.plot(plotrange, ts[plotrange, p, 0:9], linewidth=0.5,
               alpha=1)
+p1 = plt.plot(plotrange, xy_train[plotrange, p],
+              color=colours.blackest, linewidth=1.5)
 
-# ax.set_xticks(range(int(l_start), int(l_end)+l_step, l_step*4)) 
+# ax.set_xticks(range(int(l_start), int(l_end)+l_step, l_step*4))
 ax.grid()
 plt.xlim(plotrange[0], plotrange[-1])
 plt.xlabel('Hour')
@@ -71,7 +72,7 @@ plt.show()
 # %%
 
 n = 7
- 
+
 # ACF plot.
 ax = plt.figure(num=None, figsize=(8, 6), dpi=80,
                 facecolor='w', edgecolor='k').add_subplot(111)

@@ -27,6 +27,16 @@ from ts_models import select_models
 # from petites import setseed
 from petites import solarcleaner
 
+# This is the master tuple of column names, which should not be modified.
+column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
+                'ghi', 'dni', 'dhi', 'wspd', 'wdr')
+
+# This is the master tuple of time variable names,
+# which should also not be modified.
+date_cols = ('year', 'month', 'day', 'hour')
+dc = len(date_cols)
+midx = 1  # Month is in the second column - will be needed later.
+
 
 def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
                sample=True, n_samples=1,
@@ -132,27 +142,40 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
         # %%
 
         # Add the resampled time series back to the fourier series.
-        ts_syn = np.zeros([resampled.shape[0], xy_train.shape[1],
+        xout = np.zeros([resampled.shape[0], xy_train.shape[1],
                           resampled.shape[-1]])
 
         v = 0
         vv = 0
         for idx in range(0, xy_train.shape[1]):
             if idx in varidx:
-                ts_syn[:, idx, :] = resampled[:, v, :] + \
+                xout[:, idx, :] = resampled[:, v, :] + \
                     np.resize(ffit[v], resampled[:, v, :].shape)
                 v += 1
             elif idx in othervars:
-                ts_syn[:, idx, :] = np.resize(
-                        xy_train[:, idx], ts_syn[:, idx, :].shape)
+                xout[:, idx, :] = np.resize(
+                        xy_train[:, idx], xout[:, idx, :].shape)
                 vv += 1
 
-        ###
-        ### Add solarcleaner here. ###
-        ###
+        # Synthetic solar data requires post-processing.
+        for c, colname in enumerate(column_names):
+
+            if colname in ['ghi', 'dni', 'dhi']:
+
+                for n in range(0, n_samples):
+                    xout[:, c, n] = solarcleaner(
+                            xout[:, c, n], xy_train[:, c],
+                            xy_train[:, 3])
+
+                # End loop over samples.
+
+            # End colname if statement.
+
+        # End colname for loop.
+
 
         # Save the outputs as a pickle.
-        np.save(picklepath, ts_syn, allow_pickle=True)
+        np.save(picklepath, xout, allow_pickle=True)
 
         sample = None
 
@@ -160,9 +183,9 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
 
         try:
 
-            ts_syn = np.load(picklepath)
+            xout = np.load(picklepath)
 
-            sample = ts_syn[:, :, counter]
+            sample = xout[:, :, counter]
 
         except AttributeError:
             print("I could not open the pickle file with samples. " +
