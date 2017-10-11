@@ -27,7 +27,7 @@ n_samples = 10
 stcode = "lgw"
 figpath = stcode
 
-syn_path = r".\gen\syn_gen_8760_res.npy"
+syn_path = os.path.join("lgw", "syn.npy")
 
 try:
     with open(syn_path, "rb") as f:

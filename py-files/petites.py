@@ -44,6 +44,24 @@ def solarcleaner(datain, master, idx):
 # ----------- END solarcleaner function. -----------
 
 
+def rhcleaner(rh):
+
+    # RH values cannot be more than 100 or less than 0.
+
+    idx = np.arange(0, rh.shape[0])
+    nans = np.logical_or(rh > 100, rh < 0)
+    rh[nans] = np.NaN
+
+    rh[nans] = np.interp(idx[nans], idx[~nans], rh[~nans])
+
+    return rh
+
+    # A potential improvement would be to calculate sunrise and sunset
+    # independently since that is an almost deterministic calculation.
+
+# ----------- END solarcleaner function. -----------
+
+
 def wstats(data, key, stat):
 
     a = data.groupby(key)

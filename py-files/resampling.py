@@ -26,6 +26,7 @@ import fourier
 from ts_models import select_models
 # from petites import setseed
 from petites import solarcleaner
+from petites import rhcleaner
 
 # This is the master tuple of column names, which should not be modified.
 column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
@@ -38,8 +39,8 @@ dc = len(date_cols)
 midx = 1  # Month is in the second column - will be needed later.
 
 
-def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
-               sample=True, n_samples=1,
+def resampling(xy_train, counter=0, selmdl=None, ffit=None,
+               train=True, sample=True, n_samples=1,
                picklepath='./xxx.npy', randseed=None):
 
     # Temporarily here - to be eventually fed in from main script.
@@ -143,21 +144,24 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
 
         # Add the resampled time series back to the fourier series.
         xout = np.zeros([resampled.shape[0], xy_train.shape[1],
-                          resampled.shape[-1]])
+                         resampled.shape[-1]])
 
         v = 0
         vv = 0
         for idx in range(0, xy_train.shape[1]):
             if idx in varidx:
                 xout[:, idx, :] = resampled[:, v, :] + \
-                    np.resize(ffit[v], resampled[:, v, :].shape)
+                    np.repeat(np.reshape(ffit[0], [-1, 1]),
+                              resampled.shape[-1], axis=1)
                 v += 1
             elif idx in othervars:
-                xout[:, idx, :] = np.resize(
-                        xy_train[:, idx], xout[:, idx, :].shape)
+                xout[:, idx, :] = np.repeat(np.reshape(
+                        xy_train[:, idx], [-1, 1]),
+                        resampled.shape[-1], axis=1)
                 vv += 1
 
-        # Synthetic solar data requires post-processing.
+        # Synthetic solar and rh data require post-processing.
+
         for c, colname in enumerate(column_names):
 
             if colname in ['ghi', 'dni', 'dhi']:
@@ -167,12 +171,18 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
                             xout[:, c, n], xy_train[:, c],
                             xy_train[:, 3])
 
+            elif colname in ["rh"]:
+                # Interpolate the bad rh values.
+
+                for n in range(0, n_samples):
+                    rh = xout[:, c, n]
+                    xout[:, c, n] = rhcleaner(rh)
+
                 # End loop over samples.
 
             # End colname if statement.
 
         # End colname for loop.
-
 
         # Save the outputs as a pickle.
         np.save(picklepath, xout, allow_pickle=True)

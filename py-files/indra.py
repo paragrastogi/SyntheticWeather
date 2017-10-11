@@ -258,7 +258,7 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
         # This function has been asked to give a sample, so update
         # the counter.
         csave["counter"] += 1
-        if csave["counter"] > csave["n_samples"]:
+        if csave["counter"] >= (csave["n_samples"]-1):
             csave["counter"] = 0
         with open(path_counter_save, "wb") as fp:
             pickle.dump(csave, fp)

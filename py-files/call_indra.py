@@ -115,7 +115,7 @@ stlong = args.long
 stalt = args.alt
 randseed = args.randseed
 
-print("Invoking Indra for {0}.\r\n".format(stcode))
+print("\r\nInvoking indra for {0}.\r\n".format(stcode))
 
 if storepath == "SyntheticWeather":
     storepath = storepath + stcode
