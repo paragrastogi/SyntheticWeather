@@ -386,7 +386,8 @@ def read_espr(fpath):
 
     # Find the year of the current file.
     yline = [line for line in header if "year" in line]
-    if "," in yline:
+
+    if "," in yline[0]:
         yline_split = yline[0].split(",")
     else:
         yline_split = yline[0].split()
@@ -440,7 +441,11 @@ def read_espr(fpath):
         dayslice = range(dcount, dcount+24, 1)
 
         # This will split the day-month header line on the gaps.
-        splitday = day.split(" ")
+        if "," in day:
+            splitday = day.split(",")
+        else:
+            splitday = day.split(" ")
+
         # Remove blanks.
         splitday = [x for x in splitday if x != ""]
         splitday = [x for x in splitday if x != " "]
@@ -590,7 +595,7 @@ def give_weather(ts, locdata, stcode, header,
                 esp_master = esp_master.astype(int)
 
                 master_aslist = esp_master.values.tolist()
-                
+
                 for md in range(0, monthday.shape[0], 25):
                     md_list = [str("* day  {0} month  {1}".format(
                             monthday["day"][md], monthday["month"][md]))]
