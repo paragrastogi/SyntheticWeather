@@ -70,17 +70,17 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
 
     # Uncomment when debugging this script to avoid having to call the
     # whole function.
-    train=False
-    stcode="gen"
-    n_sample=1
-    method="arma"
-    storepath="SyntheticWeather-gen"
-    fpath_in= os.path.join(storepath, "che_geneva.iwec.a")
-    fpath_out= os.path.join(storepath, "che_geneva.iwec_syn.a")
-    ftype="espr"
-    cc=False
-    ccpath="."
-    randseed=None
+    #    train=False
+    #    stcode="gen"
+    #    n_sample=1
+    #    method="arma"
+    #    storepath="SyntheticWeather-gen"
+    #    fpath_in= os.path.join(storepath, "che_geneva.iwec.a")
+    #    fpath_out= os.path.join(storepath, "che_geneva.iwec_syn.a")
+    #    ftype="espr"
+    #    cc=False
+    #    ccpath="."
+    #    randseed=None
 
     # ------------------
     # Some initialisation house work.

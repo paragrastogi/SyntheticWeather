@@ -507,7 +507,7 @@ def read_espr(fpath):
 
 
 def give_weather(ts, locdata, stcode, header,
-                 masterfile="./che_geneva.iwec.a", ftype="espr",
+                 masterfile="che_geneva.iwec.a", ftype="espr",
                  s_shift=0, fpath_out=".", std_cols=std_cols):
 
     if len(ts.shape) == 2:
