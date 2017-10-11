@@ -518,13 +518,13 @@ def give_weather(ts, locdata, stcode, header,
     if len(ts.shape) == 2:
         ts = np.atleast_3d(ts)
 
-    n_sample = ts.shape[-1]
+    n_samples = ts.shape[-1]
 
-    success = np.zeros(n_sample, dtype="bool")
+    success = np.zeros(n_samples, dtype="bool")
 
     uy = np.asarray(np.unique(ts[:, 0, 0]), dtype=int)
 
-    for n in range(0, n_sample):
+    for n in range(0, n_samples):
 
         for y, year in enumerate(uy):
 
@@ -539,7 +539,7 @@ def give_weather(ts, locdata, stcode, header,
                         ".epw", "").replace(".csv", "")
 
                 # Use the name that has come in.
-                if n_sample == 1:
+                if n_samples == 1:
                     filepath = fpath_out
                 else:
                     filepath = fpath_out + "_{0}_{1}".format(
@@ -688,7 +688,7 @@ def give_weather(ts, locdata, stcode, header,
                 else:
                     success[n] = False
 
-    print("You asked for {0} files to be written out. ".format(n_sample) +
+    print("You asked for {0} files to be written out. ".format(n_samples) +
           "I was able to write out {0} files successfully.".format(
                   np.sum(success)))
 #    return 1

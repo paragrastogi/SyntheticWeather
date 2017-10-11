@@ -59,7 +59,7 @@ from resampling import resampling
 # from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 
-def indra(train=False, stcode="abc", n_sample=100, method="arma",
+def indra(train=False, stcode="abc", n_samples=1, method="arma",
           fpath_in="wf_in.a", fpath_out="wf_out.a",
           ftype="espr", storepath=".",
           cc=False, ccpath=".",
@@ -72,7 +72,7 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
     # whole function.
     #    train=False
     #    stcode="gen"
-    #    n_sample=1
+    #    n_samples=1
     #    method="arma"
     #    storepath="SyntheticWeather-gen"
     #    fpath_in= os.path.join(storepath, "che_geneva.iwec.a")
@@ -155,6 +155,7 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
     if train:
 
         # Train the models.
+        print("Training the model. Go get a coffee or something...\r\n")
 
         if method == "gp":
 
@@ -172,9 +173,9 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
 
             # Call resampling with null selmdl and ffit, since those
             # haven"t been trained yet.
-            ffit, selmdl, _, _ = resampling(
+            ffit, selmdl, _ = resampling(
                     xy_train, selmdl=None, ffit=None,
-                    train=True, sample=False, n_sample=n_sample,
+                    train=True, sample=False, n_samples=n_samples,
                     picklepath=picklepath, randseed=randseed)
 
             # The non-seasonal order of the model. This exists in both
@@ -213,18 +214,21 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
             with open(path_counter_save, "wb") as fp:
                 pickle.dump(counter, fp)
 
+        print("Saved model for station '{0}' in ".format(stcode) +
+              "folder '{0}'. You can now ask me for ".format(storepath) +
+              "samples from this model, saved in that folder.\r\n")
+
     else:
 
         # Load counter.
         with open(path_counter_save, "rb") as fp:
             counter = pickle.load(fp)
 
-
         if method == "arma":
 
             _, _, xout = resampling(
                     xy_train, counter=counter, selmdl=None, ffit=None,
-                    train=False, sample=True, n_sample=n_sample,
+                    train=False, sample=True, n_samples=n_samples,
                     picklepath=picklepath, randseed=randseed)
 
         elif method == "gp":
@@ -233,7 +237,7 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
                 gp_save = pickle.load(fp)
 
             xout = samplegp(gp_list, l_start, l_end, l_step, histlim,
-                            n_sample, xy_train, mtrack, scaler,
+                            n_samples, xy_train, mtrack, scaler,
                             picklepath=picklepath)
 
             for n in range(0, xout.shape[-1]):

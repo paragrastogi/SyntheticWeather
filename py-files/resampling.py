@@ -29,7 +29,7 @@ from petites import solarcleaner
 
 
 def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
-               sample=True, n_sample=100,
+               sample=True, n_samples=1,
                picklepath='./xxx.npy', randseed=None):
 
     # Temporarily here - to be eventually fed in from main script.
@@ -107,7 +107,7 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
         sarp = range(0, 2)
         smaq = range(0, 2)
         s = 24
-        # n_sample = 50  # This should be an input to the function.
+        # n_samples = 50  # This should be an input to the function.
 
         selmdl = list()
         selmdl_type = list()
@@ -122,10 +122,10 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
 
     # %%
 
-        resampled = np.zeros([8760, len(varidx), n_sample])
+        resampled = np.zeros([8760, len(varidx), n_samples])
 
         for v in range(0, len(varidx)):
-            for n in range(0, n_sample):
+            for n in range(0, n_samples):
                 resampled[:, v, n] = selmdl[v].simulate(
                         nsimulations=8760)
 

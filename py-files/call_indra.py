@@ -30,7 +30,7 @@ parser.add_argument("--stcode", type=str, default="abc",
                     "If you are not passing seed data, and want me to " +
                     "pick up a saved model, please use the station code" +
                     " of the saved model.")
-parser.add_argument("--n_sample", type=int, default=100,
+parser.add_argument("--n_samples", type=int, default=1,
                     help="How many samples do you want out?")
 parser.add_argument("--method", type=str, default="arma",
                     help="Which method do you want to use: "
@@ -98,7 +98,7 @@ args = parser.parse_args()
 
 train = bool(args.train)
 stcode = args.stcode.lower()
-n_sample = args.n_sample
+n_samples = args.n_samples
 method = args.method
 fpath_in = args.fpath_in
 fpath_out = args.fpath_out
@@ -122,7 +122,7 @@ if storepath == "SyntheticWeather":
 
 if __name__ == "__main__":
     indra(train, stcode=stcode,
-          n_sample=n_sample,
+          n_samples=n_samples,
           method=method,
           fpath_in=fpath_in,
           fpath_out=fpath_out,
