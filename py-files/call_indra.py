@@ -117,13 +117,9 @@ randseed = args.randseed
 
 print("Invoking Indra for {0}.\r\n".format(stcode))
 
-# if train:
-#    print('You have asked to train new models. This might take a while.\r\n')
-# else:
-#    print('You have asked for samples only. This should be quick.\r\n')
+if storepath == "SyntheticWeather":
+    storepath = storepath + stcode
 
-# This command allows this script to be called from the command line.
-# Call indra.
 if __name__ == "__main__":
     indra(train, stcode=stcode,
           n_sample=n_sample,

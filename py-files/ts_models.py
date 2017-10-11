@@ -49,7 +49,7 @@ def select_models(arp, maq, sarp, smaq, s, ts_in):
                         aic[counter] = mod_temp.aic
 
                     except Exception as err:
-#                        print('fit threw an error')
+                        # print('fit threw an error')
                         mod_temp = None
                         aic[counter] = None
 

@@ -56,7 +56,7 @@ from petites import setseed
 from resampling import resampling
 
 # from statsmodels.tsa.arima_model import ARIMAResults
-from statsmodels.tsa.statespace.sarimax import SARIMAX
+# from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 
 def indra(train=False, stcode="abc", n_sample=100, method="arma",
@@ -70,17 +70,17 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
 
     # Uncomment when debugging this script to avoid having to call the
     # whole function.
-#    train=False
-#    stcode="gen"
-#    n_sample=1
-#    method="arma"
-#    fpath_in="./gen_iwec.epw"
-#    fpath_in="./gen_iwec_syn.epw"
-#    ftype="epw"
-#    storepath="."
-#    cc=False
-#    ccpath="."
-#    randseed=None
+    train=False
+    stcode="gen"
+    n_sample=1
+    method="arma"
+    storepath="SyntheticWeather-gen"
+    fpath_in= os.path.join(storepath, "che_geneva.iwec.a")
+    fpath_out= os.path.join(storepath, "che_geneva.iwec_syn.a")
+    ftype="espr"
+    cc=False
+    ccpath="."
+    randseed=None
 
     # ------------------
     # Some initialisation house work.
@@ -116,6 +116,7 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
     path_model_save = os.path.join(storepath, "model.p")
     # Save output time series.
     picklepath = os.path.join(storepath, "syn.npy")
+    path_counter_save = os.path.join(storepath, "counter.p")
 
     # ----------------
 
@@ -171,7 +172,7 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
 
             # Call resampling with null selmdl and ffit, since those
             # haven"t been trained yet.
-            ffit, selmdl, _ = resampling(
+            ffit, selmdl, _, _ = resampling(
                     xy_train, selmdl=None, ffit=None,
                     train=True, sample=False, n_sample=n_sample,
                     picklepath=picklepath, randseed=randseed)
@@ -207,40 +208,84 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
             with open(path_model_save, "wb") as fp:
                 pickle.dump(arma_save, fp)
 
+            # Save counter.
+            counter = 0
+            with open(path_counter_save, "wb") as fp:
+                pickle.dump(counter, fp)
+
     else:
 
-        # Load models from file.
+        # Load counter.
+        with open(path_counter_save, "rb") as fp:
+            counter = pickle.load(fp)
 
-        if method == "gp":
+
+        if method == "arma":
+
+            _, _, xout = resampling(
+                    xy_train, counter=counter, selmdl=None, ffit=None,
+                    train=False, sample=True, n_sample=n_sample,
+                    picklepath=picklepath, randseed=randseed)
+
+        elif method == "gp":
 
             with open(path_model_save, "rb") as fp:
                 gp_save = pickle.load(fp)
 
-            gp_list = gp_save["gp_list"]
-            mtrack = gp_save["mtrack"]
-            scaler = gp_save["scaler"]
-            xy_train = gp_save["xy_train"]
+            xout = samplegp(gp_list, l_start, l_end, l_step, histlim,
+                            n_sample, xy_train, mtrack, scaler,
+                            picklepath=picklepath)
 
-        elif method == "arma":
+            for n in range(0, xout.shape[-1]):
 
-            with open(path_model_save, "rb") as fp:
-                arma_save = pickle.load(fp)
+                temp1, temp2 = wf.day_of_month(xout[:, 2, n])
+                xout[:, 2, n] = temp2
+                del [temp1, temp2]
 
-            selmdl = list()
+        # End of if method statement.
 
-            for (o, so, e, p) in zip(arma_save["order"],
-                                     arma_save["seasonal_order"],
-                                     arma_save["endog"],
-                                     arma_save["params"]):
-                mod_temp = SARIMAX(e, order=o, params=p,
-                                   seasonal_order=so,
-                                   trend=None)
-                selmdl.append(mod_temp.fit(disp=0))
+        # Save / write-out synthetic time series.
+        wf.give_weather(xout, locdata, stcode, header, ftype=ftype,
+                        s_shift=0, fpath_out=fpath_out, masterfile=fpath_in)
 
-            ffit = list()
+        # This function has been asked to give a sample, so update
+        # the counter.
+        counter += 1
+        with open(path_counter_save, "wb") as fp:
+            pickle.dump(counter, fp)
 
-            for f in arma_save["ffit"]:
-                ffit.append(f)
+#        # Load models from file.
+#
+#        if method == "gp":
+#
+#            with open(path_model_save, "rb") as fp:
+#                gp_save = pickle.load(fp)
+#
+#            gp_list = gp_save["gp_list"]
+#            mtrack = gp_save["mtrack"]
+#            scaler = gp_save["scaler"]
+#            xy_train = gp_save["xy_train"]
+#
+#        elif method == "arma":
+#
+#            with open(path_model_save, "rb") as fp:
+#                arma_save = pickle.load(fp)
+#
+#            selmdl = list()
+#
+#            for (o, so, e, p) in zip(arma_save["order"],
+#                                     arma_save["seasonal_order"],
+#                                     arma_save["endog"],
+#                                     arma_save["params"]):
+#                mod_temp = SARIMAX(e, order=o, params=p,
+#                                   seasonal_order=so,
+#                                   trend=None)
+#                selmdl.append(mod_temp.fit(disp=0))
+#
+#            ffit = list()
+#
+#            for f in arma_save["ffit"]:
+#                ffit.append(f)
 
     # %%
 
@@ -253,27 +298,3 @@ def indra(train=False, stcode="abc", n_sample=100, method="arma",
     # In this MC framework, the "year" of weather data is meaningless.
     # When the climate change models will be added, these years will
     # mean something. For now, just add "2017" to every file.
-
-    if method == "arma":
-
-        _, _, xout = resampling(
-                xy_train, selmdl, ffit, train=False, sample=True,
-                n_sample=n_sample, picklepath=picklepath, randseed=randseed)
-
-    elif method == "gp":
-
-        xout = samplegp(gp_list, l_start, l_end, l_step, histlim,
-                        n_sample, xy_train, mtrack, scaler,
-                        picklepath=picklepath)
-
-        for n in range(0, xout.shape[-1]):
-
-            temp1, temp2 = wf.day_of_month(xout[:, 2, n])
-            xout[:, 2, n] = temp2
-            del [temp1, temp2]
-
-    # End of if method statement.
-
-    # Save / write-out synthetic time series.
-    wf.give_weather(xout, locdata, stcode, header, ftype=ftype,
-                    s_shift=0, fpath_out=fpath_out, masterfile=fpath_in)

@@ -386,11 +386,25 @@ def read_espr(fpath):
 
     # Find the year of the current file.
     yline = [line for line in header if "year" in line]
-    yline_split = yline[0].split(",")
+    if "," in yline:
+        yline_split = yline[0].split(",")
+    else:
+        yline_split = yline[0].split()
     year = yline_split[0].strip()
 
-    locline = [line for line in header if ("latitude" in line)][0].split(",")
-    siteline = [line for line in header if ("site name" in line)][0].split(",")
+    locline = [line for line in header if ("latitude" in line)][0]
+    siteline = [line for line in header if ("site name" in line)][0]
+
+    if "," in locline:
+        locline = locline.split(",")
+    else:
+        locline = locline.split()
+
+    if "," in siteline:
+        siteline = siteline.split(",")
+    else:
+        siteline = siteline.split()
+
     locdata = dict(loc=siteline[0], lat=locline[1], long=locline[2],
                    tz="00", alt="0000", wmo="000000")
     # ESP-r files do not contain timezone, altitude, or WMO number.
@@ -413,7 +427,10 @@ def read_espr(fpath):
         daylist = np.asarray(body[idx+1:idx+25])
 
         # Split each line of the current daylist into separate strings.
-        splitlist = [element.split(",") for element in daylist]
+        if "," in daylist[0]:
+            splitlist = [element.split(",") for element in daylist]
+        else:
+            splitlist = [element.split() for element in daylist]
 
         # Convert each element to a integer, then convert the resulting
         # list to a numpy array.
@@ -493,6 +510,9 @@ def give_weather(ts, locdata, stcode, header,
                  masterfile="./che_geneva.iwec.a", ftype="espr",
                  s_shift=0, fpath_out=".", std_cols=std_cols):
 
+    if len(ts.shape) == 2:
+        ts = np.atleast_3d(ts)
+
     n_sample = ts.shape[-1]
 
     success = np.zeros(n_sample, dtype="bool")
@@ -570,8 +590,8 @@ def give_weather(ts, locdata, stcode, header,
                 esp_master = esp_master.astype(int)
 
                 master_aslist = esp_master.values.tolist()
-
-                for md in range(0, monthday.shape[0], 24):
+                
+                for md in range(0, monthday.shape[0], 25):
                     md_list = [str("* day  {0} month  {1}".format(
                             monthday["day"][md], monthday["month"][md]))]
                     master_aslist.insert(md, md_list)
@@ -579,14 +599,16 @@ def give_weather(ts, locdata, stcode, header,
                 # Write the header to file - though the delimiter is
                 # mostly meaningless in this case.
                 with open(filepath, "w") as f:
-                    spamwriter = csv.writer(f, delimiter=",", quotechar=" ",
+                    spamwriter = csv.writer(f, delimiter="\n", quotechar="",
+                                            quoting=csv.QUOTE_NONE,
+                                            escapechar=" ",
                                             lineterminator="\n")
                     spamwriter.writerow(["".join(header)])
 
                 # Now append the actual data.
                 with open(filepath, "a") as f:
-                    spamwriter = csv.writer(f, delimiter=",", quotechar=" ",
-                                            quoting=csv.QUOTE_MINIMAL,
+                    spamwriter = csv.writer(f, delimiter=",", quotechar="",
+                                            quoting=csv.QUOTE_NONE,
                                             lineterminator="\n")
                     for line in master_aslist:
                         spamwriter.writerow(line)

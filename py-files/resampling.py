@@ -28,7 +28,7 @@ from ts_models import select_models
 from petites import solarcleaner
 
 
-def resampling(xy_train, selmdl=None, ffit=None, train=True,
+def resampling(xy_train, counter=0, selmdl=None, ffit=None, train=True,
                sample=True, n_sample=100,
                picklepath='./xxx.npy', randseed=None):
 
@@ -154,13 +154,24 @@ def resampling(xy_train, selmdl=None, ffit=None, train=True,
         # Save the outputs as a pickle.
         np.save(picklepath, ts_syn, allow_pickle=True)
 
+        sample = None
+
     else:
 
+        try:
 
-        if selmdl is None:
-            print("You did not ask me to train a model but didn't " +
-                  "supply a valid model either. Terminating with " +
-                  "None outputs.")
-            return None, None, None
+            ts_syn = np.load(picklepath)
 
-    return ffit, selmdl, ts_syn
+            sample = ts_syn[:, :, counter]
+
+        except AttributeError:
+            print("I could not open the pickle file with samples. " +
+                  "Please check it exists at {0}.".format(picklepath))
+
+#        if selmdl is None:
+#            print("You did not ask me to train a model but didn't " +
+#                  "supply a valid model either. Terminating with " +
+#                  "None outputs.")
+#            return None, None, None
+
+    return ffit, selmdl, sample
