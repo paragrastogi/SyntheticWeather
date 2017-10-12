@@ -9,47 +9,12 @@ Translating, as faithfully as possible, the resampling method first proposed
 my thesis (Rastogi, 2016, EPFL).
 """
 
-# import os
-# import random
-
 import numpy as np
-# import pandas
-from scipy.optimize import curve_fit
-
-# from sklearn.preprocessing import StandardScaler
-
-# from matplotlib import pyplot as plt
-# from IPython import get_ipython
-# get_ipython().run_line_magic('matplotlib', 'inline')
-
-import fourier
-from ts_models import select_models
-# from petites import setseed
-from petites import solarcleaner
-from petites import rhcleaner
-
-# This is the master tuple of column names, which should not be modified.
-column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
-                'ghi', 'dni', 'dhi', 'wspd', 'wdr')
-
-# This is the master tuple of time variable names,
-# which should also not be modified.
-date_cols = ('year', 'month', 'day', 'hour')
-dc = len(date_cols)
-midx = 1  # Month is in the second column - will be needed later.
 
 
 def resampling(xy_train, counter=0, selmdl=None, ffit=None,
                train=True, sample=True, n_samples=1,
                picklepath='./xxx.npy', randseed=None):
-
-    # Temporarily here - to be eventually fed in from main script.
-    # stcode = 'gen'
-    # randseed = 8760
-    # xy_train, locdata, header = get_weather(
-    #        stcode, "./gen_iwec.epw", "epw", outpath=stcode)
-    #    picklepath = './syn_gen_8760_res'
-    ###
 
     # Check to see if random number generation is reproducible.
 
@@ -74,16 +39,37 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
     # # \sigma = 1) or robust (with median and iqr).
     # scaler = StandardScaler()
 
-    fit_idx = np.arange(0, xy_train.shape[0])
-
     # %%
 
-    # Fit fourier functions to the tdb and rh series.
-
-    varidx = [4, 6]  # For now, only considering two variables.
-    othervars = (np.arange(0, xy_train.shape[1])).tolist()
-
+    # if train is True, then the model must be fit to incoming data.
     if train:
+
+        from scipy.optimize import curve_fit
+
+        import fourier
+        from ts_models import select_models
+        from petites import solarcleaner
+        from petites import rhcleaner
+        from petites import calc_tdp
+
+        # This is the master tuple of column names, which should not
+        # be modified.
+        column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
+                        'ghi', 'dni', 'dhi', 'wspd', 'wdr')
+
+        # This is the master tuple of time variable names,
+        # which should also not be modified.
+        # date_cols = ('year', 'month', 'day', 'hour')
+        # dc = len(date_cols)
+        # midx = 1  # Month is in the second column - will be needed later.
+
+        # For now, I am only considering these two variables.
+        fit_idx = np.arange(0, xy_train.shape[0])
+        varidx = [x for (x, y) in enumerate(column_names) if y == "tdb"] + \
+            [x for (x, y) in enumerate(column_names) if y == "rh"]
+        othervars = (np.arange(0, xy_train.shape[1])).tolist()
+
+        # Fit fourier functions to the tdb and rh series.
 
         # The curve_fit function outputs two things:
         params = [
@@ -118,27 +104,25 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
         sarp = range(0, 2)
         smaq = range(0, 2)
         s = 24
-        # n_samples = 50  # This should be an input to the function.
 
         selmdl = list()
-        selmdl_type = list()
         resid = np.zeros([demeaned[0].shape[0], len(varidx)])
 
         for idx, ser in enumerate(demeaned):
-            mdl_temp, type_temp, resid[:, idx] = select_models(
+            mdl_temp, resid[:, idx] = select_models(
                 arp, maq, sarp, smaq, s, ser)
-
             selmdl.append(mdl_temp)
-            selmdl_type.append(type_temp)
 
-    # %%
+        print("Done with fitting models to TDB and RH.")
+        # %%
 
         resampled = np.zeros([8760, len(varidx), n_samples])
 
-        for v in range(0, len(varidx)):
+        print("Simulating the learnt model to get synthetic noise series.")
+        print("This might take some time.\r\n")
+        for v, mdl in enumerate(selmdl):
             for n in range(0, n_samples):
-                resampled[:, v, n] = selmdl[v].simulate(
-                        nsimulations=8760)
+                resampled[:, v, n] = mdl.simulate(nsimulations=8760)
 
         # %%
 
@@ -151,14 +135,18 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
         for idx in range(0, xy_train.shape[1]):
             if idx in varidx:
                 xout[:, idx, :] = resampled[:, v, :] + \
-                    np.repeat(np.reshape(ffit[0], [-1, 1]),
+                    np.repeat(np.reshape(ffit[v], [-1, 1]),
                               resampled.shape[-1], axis=1)
                 v += 1
+
             elif idx in othervars:
                 xout[:, idx, :] = np.repeat(np.reshape(
                         xy_train[:, idx], [-1, 1]),
                         resampled.shape[-1], axis=1)
                 vv += 1
+
+            # End if idx conditional.
+        # End for idx loop.
 
         # Synthetic solar and rh data require post-processing.
 
@@ -168,21 +156,26 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
 
                 for n in range(0, n_samples):
                     xout[:, c, n] = solarcleaner(
-                            xout[:, c, n], xy_train[:, c],
-                            xy_train[:, 3])
-
-            elif colname in ["rh"]:
-                # Interpolate the bad rh values.
-
-                for n in range(0, n_samples):
-                    rh = xout[:, c, n]
-                    xout[:, c, n] = rhcleaner(rh)
+                            xout[:, c, n], xy_train[:, c])
 
                 # End loop over samples.
 
             # End colname if statement.
 
         # End colname for loop.
+
+        # Interpolate the bad rh values.
+        for n in range(0, n_samples):
+            rh = xout[:, varidx[1], n]
+            xout[:, varidx[1], n] = rhcleaner(rh)
+
+        # Calculate tdp values from tdb and rh.
+        tdp_idx = [x for (x, y) in enumerate(column_names) if y == "tdp"]
+
+        for n in range(0, n_samples):
+            xout[:, tdp_idx, n] = np.resize(
+                    calc_tdp(xout[:, varidx[0], n], xout[:, varidx[1], n]),
+                    xout[:, tdp_idx, n].shape)
 
         # Save the outputs as a pickle.
         np.save(picklepath, xout, allow_pickle=True)
@@ -200,11 +193,10 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
         except AttributeError:
             print("I could not open the pickle file with samples. " +
                   "Please check it exists at {0}.".format(picklepath))
+            sample = None
 
-#        if selmdl is None:
-#            print("You did not ask me to train a model but didn't " +
-#                  "supply a valid model either. Terminating with " +
-#                  "None outputs.")
-#            return None, None, None
+        # The non-training call is only meant to return a sample.
+        ffit = None
+        selmdl = None
 
     return ffit, selmdl, sample

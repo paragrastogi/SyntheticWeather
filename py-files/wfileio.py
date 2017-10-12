@@ -484,7 +484,7 @@ def read_espr(fpath):
         dcount += 24
 
     # tdp, calculated from tdb and rh.
-    dataout[:, 4] = petites.tdb2tdp(dataout[:, 3], dataout[:, 5])
+    dataout[:, 4] = petites.calc_tdp(dataout[:, 3], dataout[:, 5])
 
     # ghi, in W/m2.
     dataout[:, 6] = dataout[:, 7] + dataout[:, 8]
@@ -597,7 +597,7 @@ def give_weather(ts, locdata, stcode, header,
                 master_aslist = esp_master.values.tolist()
 
                 for md in range(0, monthday.shape[0], 25):
-                    md_list = [str("* day  {0} month  {1}".format(
+                    md_list = [str("* day {0} month {1}".format(
                             monthday["day"][md], monthday["month"][md]))]
                     master_aslist.insert(md, md_list)
 
@@ -609,14 +609,20 @@ def give_weather(ts, locdata, stcode, header,
                                             escapechar=" ",
                                             lineterminator="\n")
                     spamwriter.writerow(["".join(header)])
-
-                # Now append the actual data.
-                with open(filepath, "a") as f:
+                    #
+                    #                # Now append the actual data.
+                    #                with open(filepath, "a") as f:
                     spamwriter = csv.writer(f, delimiter=",", quotechar="",
                                             quoting=csv.QUOTE_NONE,
-                                            lineterminator="\n")
-                    for line in master_aslist:
+                                            escapechar=" ",
+                                            lineterminator="\n ")
+                    for line in master_aslist[:-1]:
                         spamwriter.writerow(line)
+
+                    spamwriter = csv.writer(f, delimiter=",", quotechar="",
+                                            quoting=csv.QUOTE_NONE,
+                                            lineterminator="\n\n")
+                    spamwriter.writerow(master_aslist[-1])
 
                 if os.path.isfile(filepath):
                     success[n] = True

@@ -14,6 +14,7 @@ import pickle
 import os
 from statsmodels.graphics.tsaplots import plot_acf
 from statsmodels.graphics.tsaplots import plot_pacf
+from statsmodels.graphics.correlation import plot_corr
 
 import default_colours as colours
 from wfileio import get_weather
@@ -23,7 +24,7 @@ get_ipython().run_line_magic('matplotlib', 'inline')
 
 l_start = 0
 l_end = 365*24
-n_samples = 10
+n_samples = 100
 stcode = "lgw"
 figpath = stcode
 
@@ -46,13 +47,14 @@ column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
 
 plotrange = range(l_start, l_end)
 p = 4
-#n = range(0, n_samples+1)
+n = 27
+# n = range(0, n_samples+1)
 
 # Line plot.
 ax = plt.figure(num=None, figsize=(8, 6), dpi=80,
                 facecolor='w', edgecolor='k').add_subplot(111)
 
-p2 = plt.plot(plotrange, ts[plotrange, p, 0:9], linewidth=0.5,
+p2 = plt.plot(plotrange, ts[plotrange, p, n], linewidth=0.5,
               alpha=1)
 p1 = plt.plot(plotrange, xy_train[plotrange, p],
               color=colours.blackest, linewidth=1.5)
@@ -97,16 +99,27 @@ plt.ylabel('PACF')
 plt.title('TDB')
 plt.legend(['', 'Recorded', '', 'Synthetic'])
 
+# %%
+
 # Corr plot.
 ax = plt.figure(num=None, figsize=(8, 6), dpi=80,
                 facecolor='w', edgecolor='k').add_subplot(111)
 
-p1 = plt.scatter(xy_train[plotrange, p], xy_train[plotrange, p+1],
-                 color=colours.blackest)
-p1 = plt.scatter(ts[plotrange, p, n], ts[plotrange, p+1, n],
-                 color=colours.reddest)
+dcorr1 = np.corrcoef([xy_train[plotrange, p], xy_train[plotrange, p+1],
+                           xy_train[plotrange, p+2]])
+dcorr2 = np.corrcoef([ts[plotrange, p, n], ts[plotrange, p+1, n],
+                           ts[plotrange, p+2, n]])
+#p1 = plot_corr(dcorr1, [column_names[p], column_names[p+2]])
+#p2 = plot_corr(dcorr2, [column_names[p], column_names[p+2]])
+print(dcorr1)
+print(dcorr2)
 
-plt.xlabel('Lags [Hours]')
-plt.ylabel('Corr.')
-plt.title('TDB vs TDP')
+#p1 = plt.scatter(xy_train[plotrange, p], xy_train[plotrange, p+2],
+#                 color=colours.blackest)
+#p1 = plt.scatter(ts[plotrange, p, n], ts[plotrange, p+2, n],
+#                 color=colours.red)
+
+plt.xlabel('TDB')
+plt.ylabel('RH')
+plt.title('TDB vs RH')
 plt.legend(['Recorded', 'Synthetic'])

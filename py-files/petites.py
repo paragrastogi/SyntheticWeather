@@ -21,7 +21,7 @@ def setseed(randseed):
 # ----------- END setseed function. -----------
 
 
-def solarcleaner(datain, master, idx):
+def solarcleaner(datain, master):
 
     # Using the source data - check to see if there
     # should be sunlight at a given hour. If not,
@@ -30,13 +30,11 @@ def solarcleaner(datain, master, idx):
     datain[master == 0] = 0
 
     # If there is a negative value (usually at sunrise
-    # or sunset), interpolate.
-    temp = datain
-    temp[temp < 0] = np.nan
-    nans = np.isnan(temp)
-    temp[nans] = np.interp(idx[nans], idx[~nans], temp[~nans])
+    # or sunset), set it to zero as well.
 
-    return temp
+    datain[datain < 0] = 0
+
+    return datain
 
     # A potential improvement would be to calculate sunrise and sunset
     # independently since that is an almost deterministic calculation.
@@ -52,7 +50,12 @@ def rhcleaner(rh):
     nans = np.logical_or(rh > 100, rh < 0)
     rh[nans] = np.NaN
 
-    rh[nans] = np.interp(idx[nans], idx[~nans], rh[~nans])
+    # Create interpolation function.
+    int_func = interpolate.interp1d(
+            idx[np.logical_not(nans)], rh[np.logical_not(nans)],
+            kind='nearest', fill_value='extrapolate')
+    # Apply interpolation function.
+    rh[nans] = int_func(idx[nans])
 
     return rh
 
@@ -88,7 +91,7 @@ def wstats(data, key, stat):
 # ----------- END wstats function. -----------
 
 
-def tdb2tdp(tdb, rh):
+def calc_tdp(tdb, rh):
 
     # Change relative humidity to fraction.
     phi = rh/100

@@ -48,13 +48,6 @@ import wfileio as wf
 # from losses import rmseloss
 # from losses import maeloss
 
-# import learn and sample functions from gp_funcs.
-from gp_funcs import learngp
-from gp_funcs import samplegp
-
-from petites import setseed
-from resampling import resampling
-
 # from statsmodels.tsa.arima_model import ARIMAResults
 # from statsmodels.tsa.statespace.sarimax import SARIMAX
 
@@ -74,9 +67,9 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
     #stcode="lgw"
     #n_samples=100
     #method="arma"
-    #storepath="SyntheticWeather-lgw"
-    #fpath_in= os.path.join(storepath, "lgw/GBR_London_Gatwick.a")
-    #fpath_out= os.path.join(storepath, "lgw/GBR_London_Gatwick_syn.a")
+    #storepath="lgw"
+    #fpath_in= os.path.join(storepath, "GBR_London_Gatwick.a")
+    #fpath_out= os.path.join(storepath, "GBR_London_Gatwick_syn.a")
     #ftype="espr"
     #cc=False
     #ccpath="."
@@ -84,23 +77,6 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
 
     # ------------------
     # Some initialisation house work.
-
-    # The learning/sampling functions rely on random sampling. For one run,
-    # the random seed is constant/immutable; changing it during a run
-    # would not make sense. This makes the runs repeatable -- keep track of
-    # the seed and you can reproduce exactly the same random number draws
-    # as before.
-
-    # If the user did not specify a random seed, then the generator
-    # uses the current time, in seconds since an epoch, which differs
-    # between Unix and Windows. Anyhow, this is saved in the model
-    # output in case the results need to be reproduced.
-    if randseed is None:
-        randseed = int(time.time())
-
-    # Set the seed with either the input random seed or the one
-    # assigned just before.
-    setseed(randseed)
 
     # Convert incoming stcode to lowercase.
     stcode = stcode.lower()
@@ -154,10 +130,33 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
 
     if train:
 
+        # The learning/sampling functions rely on random sampling. For one run,
+        # the random seed is constant/immutable; changing it during a run
+        # would not make sense. This makes the runs repeatable -- keep track of
+        # the seed and you can reproduce exactly the same random number draws
+        # as before.
+
+        from petites import setseed
+
+        # If the user did not specify a random seed, then the generator
+        # uses the current time, in seconds since an epoch, which differs
+        # between Unix and Windows. Anyhow, this is saved in the model
+        # output in case the results need to be reproduced.
+        if randseed is None:
+            randseed = int(time.time())
+
+        # Set the seed with either the input random seed or the one
+        # assigned just before.
+        setseed(randseed)
+
         # Train the models.
         print("Training the model. Go get a coffee or something...\r\n")
 
         if method == "gp":
+
+            # import learn and sample functions from gp_funcs.
+            from gp_funcs import learngp
+            from gp_funcs import samplegp
 
             gp_list, mtrack, scaler = learngp(
                     l_start, l_end, l_step, histlim, xy_train)
@@ -170,6 +169,8 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
                 pickle.dump(gp_save, fp)
 
         elif method == "arma":
+
+            from resampling import resampling
 
             # Call resampling with null selmdl and ffit, since those
             # haven"t been trained yet.
@@ -216,17 +217,28 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
         with open(path_counter_save, "wb") as fp:
             pickle.dump(csave, fp)
 
-        print("Saved model for station '{0}' in ".format(stcode) +
-              "folder '{0}'. You can now ask me for ".format(storepath) +
-              "samples from this model, saved in that folder.\r\n")
+        print("Saved model. You can now ask me for samples for " +
+              "station '{0}' in folder '{0}'.\r\n".format(stcode, storepath))
 
     else:
+
+        # Call the functions in sampling mode.
+
+        # The output, xout, is a numpy nd-array with the standard
+        # columns ("month", "day", "hour", "tdb", "tdp", "rh",
+        # "ghi", "dni", "dhi", "wspd", "wdr")
+
+        # In this MC framework, the "year" of weather data is meaningless.
+        # When the climate change models will be added, these years will
+        # mean something. For now, just add "2017" to every file.
 
         # Load counter.
         with open(path_counter_save, "rb") as fp:
             csave = pickle.load(fp)
 
         if method == "arma":
+
+            from resampling import resampling
 
             _, _, xout = resampling(
                     xy_train, counter=csave["counter"],
@@ -235,6 +247,10 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
                     picklepath=picklepath, randseed=randseed)
 
         elif method == "gp":
+
+            # import learn and sample functions from gp_funcs.
+            from gp_funcs import learngp
+            from gp_funcs import samplegp
 
             with open(path_model_save, "rb") as fp:
                 gp_save = pickle.load(fp)
@@ -263,47 +279,35 @@ def indra(train=False, stcode="abc", n_samples=1, method="arma",
         with open(path_counter_save, "wb") as fp:
             pickle.dump(csave, fp)
 
-#        # Load models from file.
-#
-#        if method == "gp":
-#
-#            with open(path_model_save, "rb") as fp:
-#                gp_save = pickle.load(fp)
-#
-#            gp_list = gp_save["gp_list"]
-#            mtrack = gp_save["mtrack"]
-#            scaler = gp_save["scaler"]
-#            xy_train = gp_save["xy_train"]
-#
-#        elif method == "arma":
-#
-#            with open(path_model_save, "rb") as fp:
-#                arma_save = pickle.load(fp)
-#
-#            selmdl = list()
-#
-#            for (o, so, e, p) in zip(arma_save["order"],
-#                                     arma_save["seasonal_order"],
-#                                     arma_save["endog"],
-#                                     arma_save["params"]):
-#                mod_temp = SARIMAX(e, order=o, params=p,
-#                                   seasonal_order=so,
-#                                   trend=None)
-#                selmdl.append(mod_temp.fit(disp=0))
-#
-#            ffit = list()
-#
-#            for f in arma_save["ffit"]:
-#                ffit.append(f)
-
-    # %%
-
-    # Call the sampling function.
-
-    # The output, xout, is a numpy nd-array with the standard
-    # columns ("month", "day", "hour", "tdb", "tdp", "rh",
-    # "ghi", "dni", "dhi", "wspd", "wdr")
-
-    # In this MC framework, the "year" of weather data is meaningless.
-    # When the climate change models will be added, these years will
-    # mean something. For now, just add "2017" to every file.
+        #        # Load models from file.
+        #
+        #        if method == "gp":
+        #
+        #            with open(path_model_save, "rb") as fp:
+        #                gp_save = pickle.load(fp)
+        #
+        #            gp_list = gp_save["gp_list"]
+        #            mtrack = gp_save["mtrack"]
+        #            scaler = gp_save["scaler"]
+        #            xy_train = gp_save["xy_train"]
+        #
+        #        elif method == "arma":
+        #
+        #            with open(path_model_save, "rb") as fp:
+        #                arma_save = pickle.load(fp)
+        #
+        #            selmdl = list()
+        #
+        #            for (o, so, e, p) in zip(arma_save["order"],
+        #                                     arma_save["seasonal_order"],
+        #                                     arma_save["endog"],
+        #                                     arma_save["params"]):
+        #                mod_temp = SARIMAX(e, order=o, params=p,
+        #                                   seasonal_order=so,
+        #                                   trend=None)
+        #                selmdl.append(mod_temp.fit(disp=0))
+        #
+        #            ffit = list()
+        #
+        #            for f in arma_save["ffit"]:
+        #                ffit.append(f)

@@ -330,14 +330,13 @@ def samplegp(gp_list, l_start, l_end, l_step, histlim, n_samples,
 
             for n in range(0, n_samples):
                 xout[:, c, n] = solarcleaner(
-                        xout[:, c, n], masterdata[:, c], masterdata[:, 3])
+                        xout[:, c, n], masterdata[:, c])
 
             # End loop over samples.
 
         # End colname if statement.
 
     # End colname for loop.
-
 
     end_time = time.monotonic()
     print("Time taken to sample models was %6.2f seconds."
