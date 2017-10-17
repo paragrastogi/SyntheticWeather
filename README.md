@@ -1,16 +1,16 @@
 # SyntheticWeather
 
-This repository contains scripts to create synthetic weather time series from a short weather record of at least one year. The tool (scripts and how they might be implemented in ESP-r and Ladybug) is provisionally named `indra` <sup>(1)</sup>. _ All the scripts here should be treated as **experimental** unless explicitly stated otherwise. _
+This repository contains scripts to create synthetic weather time series from a short weather record of at least one year. The tool (scripts and how they might be implemented in ESP-r and Ladybug) is provisionally named `indra` <sup>(1)</sup>. _All the scripts here should be treated as **experimental** unless explicitly stated otherwise._
 
-## Great, where do I begin?
+### Great, where do I begin?
 
-Start by going into either the folder `m-files` (MATLAB files) or the folder `py-files` (Python files). Each of them has a `README.md` or `Installation.md` file to get you started.
+Start by going into either the folder `m-files` (MATLAB files) or the folder `py-files` (Python files, if you are feeling adventurous). Each of them has a `README.md` or `Installation.md` file to get you started.
 
 ## The methods
 
-The Python scripts in the repository can be called with two methods: `arma` and `gp`. The method `arma` is an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>. The method `gp` is new and experimental - which means that it has not been published or tested extensively yet. This consitutes a significant change in the algorithm - I would not recommend using this method just yet (October 2017). 
+The MATLAB/R scripts are based on the algorithms published in Parag's thesis. While these scripts are well documented (in two conference papers and the thesis), no further work is being undertaken on that algorithm (call it the 'old' algorithm). These scripts will, hopefully by November 2017, be faithfully translated to Python (update: translation about 60% complete).
 
-While the MATLAB/R scripts are well documented (in two conference papers and my thesis), no further work is being undertaken on that algorithm (call it the 'old' algorithm). I will, hopefully by November 2017, translate the 'old' scripts to Python, faithfully.
+The Python scripts in the repository *should not be used for now* (October 2017). If you are really curious, they can be called with two methods: `arma` and `gp`. The method `arma` will be an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>. The method `gp` is new and experimental - which means that it has not been published or tested extensively yet. This consitutes a significant change in the algorithm, and I would not recommend using it just yet (October 2017). 
 
 ## License, implementation, and compatibility
 
