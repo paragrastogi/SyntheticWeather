@@ -4,3 +4,8 @@
 *.dat filter=lfs diff=lfs merge=lfs -text
 *.epw filter=lfs diff=lfs merge=lfs -text
 *.txt filter=lfs diff=lfs merge=lfs -text
+
+*.py linguist-language=Python
+*.m linguist-language=MATLAB
+*.mat linguist-language=MATLAB
+*.r linguist-language=R
