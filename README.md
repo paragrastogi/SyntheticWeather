@@ -14,11 +14,30 @@ The Python scripts in the repository *should not be used for now* (October 2017)
 
 ## License, implementation, and compatibility
 
+This tool is distributed under the GPLv3 license. Please read what this means [here](https://en.wikipedia.org/wiki/GNU_General_Public_License).
+
 I intend to make this tool fully compatible with [ESP-r](https://github.com/ESP-rCommunity "ESP-r") and [Dragonfly](https://github.com/chriswmackey/Dragonfly "Dragonfly"). However, it exists on its own as a command-line tool.
 
-Like the older work, the newer work will also, most likely, be released with a BSD-3 license. Using the older scripts requires only a valid MATLAB license and R (R is free to download and reuse). While you are free to use the scripts as you please, I am not liable for anything that happens as a result of using my scripts. Like if you accidentally release the nuclear missiles stored in the Dakotas, ruin the ski season in Switzerland, or cause a drought in Scotland.
+Using the older scripts requires only a valid MATLAB license and R (R is free to download and reuse). While you are free to use the scripts as you please, I am not liable for anything that happens as a result of using my scripts. Like if you accidentally release the nuclear missiles stored in the Dakotas, ruin the ski season in Switzerland, or cause a drought in Scotland.
 
-This work is linked to Parag Rastogi's PhD thesis at the Ecole Polytechnique Federale de Lausanne, EPFL. You can find the full text of the thesis on [EPFL's scientific repository](https://infoscience.epfl.ch/record/220971?ln=en) or [my website](https://paragrastogi.com). 
+This work is linked to my PhD thesis at the Ecole Polytechnique Federale de Lausanne, EPFL. You can find the full text of the thesis on [EPFL's scientific repository](https://infoscience.epfl.ch/record/220971?ln=en) or [my website](https://paragrastogi.com). Please cite it as:
+
+Rastogi, Parag. 2016. ‘On the Sensitivity of Buildings to Climate: The Interaction of Weather and Building Envelopes in Determining Future Building Energy Consumption’. PhD, Lausanne, Switzerland: Ecole polytechnique fédérale de Lausanne. EPFL Infoscience. https://infoscience.epfl.ch/record/220971?ln=en.
+
+@phdthesis{rastogi_sensitivity_2016,
+	address = {Lausanne, Switzerland},
+	type = {{PhD}},
+	title = {On the sensitivity of buildings to climate: the interaction of weather and building envelopes in determining future building energy consumption},
+	shorttitle = {Sensitivity of {Buildings} to {Climate}},
+	url = {https://infoscience.epfl.ch/record/220971?ln=en},
+	language = {EN},
+	school = {Ecole polytechnique fédérale de Lausanne},
+	author = {Rastogi, Parag},
+	month = aug,
+	year = {2016},
+	note = {doi:10.5075/epfl-thesis-6881},
+	file = {EPFL_TH6881.pdf:C\:\\Users\\prastogi\\AppData\\Roaming\\Zotero\\Zotero\\Profiles\\wjfrmd14.default\\zotero\\storage\\3295R3P6\\EPFL_TH6881.pdf:application/pdf}
+}
 
 ## I'm panicking/clueless
 
@@ -35,11 +54,11 @@ Happy creating fake weather!
 
 ### Acknowledgements
 
-1. This work began during Parag's PhD at the Ecole Polytechnique Federale de Lausanne. It was funded by the CCEM SECURE project and the EuroTech consortium. February 2012 - August 2016
-2. Newer work and the Python translation is being undertaken by Parag as a visiting scientist at the Energy Systems Research Unit (ESRU), University of Strathclyde, Glasgow; and the RIKEN Institute for Advanced Intelligence Project (RIKEN-AIP), Tokyo. His stay at these institutions is being financed by the Swiss National Science Foundation (SNSF). 
+1. This work began during my PhD at the Ecole Polytechnique Federale de Lausanne. It was funded by the CCEM SECURE project and the EuroTech consortium. February 2012 - August 2016
+2. Newer work and the Python translation is being undertaken by me as a visiting scientist at the Energy Systems Research Unit (ESRU), University of Strathclyde, Glasgow; and the RIKEN Institute for Advanced Intelligence Project (RIKEN-AIP), Tokyo. His stay at these institutions is being financed by the Swiss National Science Foundation (SNSF). 
 
-Parag woud like to thank his hosts: Prof. Joe Clarke (Strathclyde, Glasgow) and Dr Mohammad Emtiyaz Khan and Prof. Masashi Sugiyama (RIKEN-AIP, Tokyo). The advice of Prof. Anthony Davison (EPFL, Lausanne) was crucial in creating the first models.
+I woud like to thank his hosts: Prof. Joe Clarke (Strathclyde, Glasgow) and Dr Mohammad Emtiyaz Khan and Prof. Masashi Sugiyama (RIKEN-AIP, Tokyo). The advice of Prof. Anthony Davison (EPFL, Lausanne) was crucial in creating the first models.
 
 ### Disclaimer
 
-Parag is the sole author of these scripts and the thesis was supervised by Professor Marilyne Andersen. The scripts are the intellectual property of Parag and EPFL. Their redistribution under the liberal __ BSD-3 license __ is with the approval of EPFL, acting through Prof. Marilyne Andersen.
+Parag is the sole author of these scripts. The original PhD thesis was supervised by Professor Marilyne Andersen. The scripts are the intellectual property of Parag and EPFL. Their redistribution under the liberal __GPLv3__ license is with the approval of EPFL, acting through Prof. Marilyne Andersen.
