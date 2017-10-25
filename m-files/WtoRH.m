@@ -80,7 +80,7 @@ end
 %Humidity ratio W, [unitless fraction] % Equation (22), pg 1.8
 p_w = ((Win./0.621945).*Pressure) ./ (1 + (Win./0.621945));
 
-% Equations 5 and 6 are for calculating the saturatio pressure of water
+% Equations 5 and 6 are for calculating the saturation pressure of water
 % vapour.
 
 % Constants for Eq. 5 
