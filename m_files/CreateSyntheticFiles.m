@@ -7,7 +7,7 @@
 % Parag Rastogi
 % See the LICENSE.TXT file for more details.
 
-function CreateSyntheticFiles(pathEPWfile, namesavefldr, nboot, recdata, ccdata, varargin)
+function CreateSyntheticFiles(pathEPWfile, path_save_fldr, nboot, recdata, ccdata, varargin)
 
 % I haven't uploaded the climate change forecasts or recorded data, so
 % the following two variables are set to false:
@@ -18,7 +18,7 @@ p = inputParser;
 p.FunctionName = 'CreateSyntheticFiles';
 
 addRequired(p, 'pathEPWfile', @ischar)
-addRequired(p, 'namesavefldr', @ischar)
+addRequired(p, 'path_save_fldr', @ischar)
 addRequired(p, 'nboot', @isnumeric)
 addRequired(p, 'recdata', @islogical)
 addRequired(p, 'ccdata', @islogical)
@@ -29,10 +29,10 @@ addParameter(p, 'randseed', 42, @isnumeric)
 addParameter(p, 'hrmdlfile', '', @ischar)
 addParameter(p, 'fourierfile', '', @ischar)
 
-parse(p, pathEPWfile, namesavefldr, nboot, recdata, ccdata, varargin{:})
+parse(p, pathEPWfile, path_save_fldr, nboot, recdata, ccdata, varargin{:})
 
 pathEPWfile = p.Results.pathEPWfile;
-namesavefldr = p.Results.namesavefldr;
+path_save_fldr = p.Results.path_save_fldr;
 nboot = p.Results.nboot;
 recdata = p.Results.recdata;
 ccdata = p.Results.ccdata;
@@ -54,15 +54,13 @@ nameEPWfolder = pathEPWfolder(end-2:end);
 % prompt = ['Please enter a name for the folder in which all source ', ...
 %     'and output files are placed. The best is to have a 3-letter ', ...
 %     'code representing the weather station. (e.g., GENEVA --> GEN)\n'];
-% pathMATsave = fullfile(pathEPWfolder, input(prompt,'s'));
+% path_save_fldr = fullfile(pathEPWfolder, input(prompt,'s'));
 
-pathMATsave = fullfile(namesavefldr);
-
-if strcmp(pathMATsave,' ')
-	pathMATsave = pathEPWfolder;
+if strcmp(pathsavefldr,' ')
+	path_save_fldr = pathEPWfolder;
 end
 
-figsavepath = fullfile(pathMATsave, 'SMYfigs');
+figsavepath = fullfile(path_save_fldr, 'SMYfigs');
 
 % prompt = ['Please enter full path to folder containing CC files: \n', ...
 %     '(Leave blank if you don''t have them)\n'];
@@ -89,7 +87,7 @@ set(0, 'defaultAxesFontName', 'Helvetica')
 % % folders.
 % if nboot~=100
 % 	figsavepath = [figsavepath, num2str(nboot)];
-% 	pathMATsave = [pathMATsave, num2str(nboot)];
+% 	path_save_fldr = [path_save_fldr, num2str(nboot)];
 % end
 
 % This is the number of climate change files that will be
@@ -97,14 +95,14 @@ set(0, 'defaultAxesFontName', 'Helvetica')
 bootlen = nboot;
 
 % Folder for R
-RsubFolder = fullfile(pathMATsave, ...
+RsubFolder = fullfile(path_save_fldr, ...
 	sprintf('RinoutN%d',nboot));
 
 if exist(figsavepath,'dir')~=7
 	mkdir(figsavepath)
 end
-if exist(pathMATsave,'dir')~=7
-	mkdir(pathMATsave)
+if exist(path_save_fldr,'dir')~=7
+	mkdir(path_save_fldr)
 end
 if exist(PresentPath,'dir')~=7
 	mkdir(PresentPath)
@@ -717,7 +715,7 @@ else
     clear xdata ydata
     
     % Save the fourier fits
-    save(fullfile(pathMATsave, ['FourierFits_', ...
+    save(fullfile(path_save_fldr, ['FourierFits_', ...
         nameEPWfile,'.mat']), 'fourfits')
     
 end
@@ -801,7 +799,7 @@ else
     ic.bic.rh = [ic.bic.rh;bicrh2];
     % end
     
-    save(fullfile(pathMATsave,['HourMdls_', ...
+    save(fullfile(path_save_fldr,['HourMdls_', ...
         nameEPWfile,'.mat']), 'hrmodels','ic')
     
 end
@@ -2139,7 +2137,7 @@ else
 end
 
 
-FilePathCorr = fullfile(pathMATsave, [nameEPWfile, ...
+FilePathCorr = fullfile(path_save_fldr, [nameEPWfile, ...
 	'Corr_Perc.txt']);
 fIDcorr = fopen(FilePathCorr, 'w');
 
@@ -2211,7 +2209,7 @@ save(fullfile(pathEPWfolder, [nameEPWfile,'_Syn.mat']), ...
 	'syndata', '-v7.3')
 
 % Save extras to a MAT file
-save(fullfile(pathMATsave, ...
+save(fullfile(path_save_fldr, ...
 	[nameEPWfile,'_SynExtras.mat']), ...
 	'tdbsyn', 'rhsyn', 'ghisyn', ...
 	'dnisyn', 'dhisyn', '-v7.3')
@@ -2233,7 +2231,7 @@ if ccdata
 	syndata.dhi = dhisynCC.rcp45.col;
 	
 	% Save to a MAT file
-	save(fullfile(pathMATsave, ...
+	save(fullfile(path_save_fldr, ...
 		[nameEPWfile,'_rcp45.mat']), 'syndata', '-v7.3')
 	
 	
@@ -2244,72 +2242,72 @@ if ccdata
 	syndata.dhi = dhisynCC.rcp85.col;
 	
 	% Save to a MAT file
-	save(fullfile(pathMATsave, ...
+	save(fullfile(path_save_fldr, ...
 		[nameEPWfile,'_rcp85.mat']), 'syndata', '-v7.3')
 	
-	PlotHandle = figure('visible', 'off');
-	figname = ['TDBsynAllCC85', '_', nameEPWfile];
-	filepath = fullfile(figsavepath, figname);
-	h1 = plot(tdbsynCC.rcp85.yearly);
-	for k = 1:length(h1)
-		h1(k).Marker = '.';
-		h1(k).Color = lgrey;
-		h1(k).LineStyle = 'none';
-	end
-	ax = gca; hold(ax, 'on'); ax.Box = 'on';
-	h2 = plot(tmytable.TDB);
-	h2.LineWidth = 1; h2.Color = red;
-	ax.YLabel.Interpreter = 'latex';
-	ax.YLabel.String = 'Temperature [\textsuperscript{o}C]';
-	ax.FontSize = 22;
-	ax.LabelFontSizeMultiplier = 1.25;
-	ax.TitleFontSizeMultiplier = 1.25;
-	ax.XLim = [0,N];
-	ax.XTick = 360:720:8760-360;
-	ax.XTickLabel = month(mt,'short');
-	ax.XTickLabelRotation = 90;
-	leg = legend([h1(1),h2],{'RCP 8.5', 'Typical'}, ...
-		'location','south');
-	leg.Orientation = 'horizontal';
-	leg.FontSize = ax.FontSize;
-	SaveThatFig(PlotHandle,filepath,'printpdf',false)
-	
-	h2.Color = grey;
-	
-	SaveThatFig(PlotHandle,[filepath,'-BW'], ...
-		'printpdf', false, 'printfig',false)
-	
-	PlotHandle = figure('visible', 'off');
-	figname = ['TDBsynAllCC45', '_', nameEPWfile];
-	filepath = fullfile(figsavepath, figname);
-	h1 = plot(tdbsyn.yearly);
-	for k = 1:length(h1)
-		h1(k).Marker = '.';
-		h1(k).Color = lgrey;
-		h1(k).LineStyle = 'none';
-	end
-	ax = gca; hold(ax, 'on'); ax.Box = 'on';
-	h2 = plot(tmytable.TDB);
-	h2.LineWidth = 1; h2.Color = orange;
-	ax.YLabel.Interpreter = 'latex';
-	ax.YLabel.String = 'Temperature [\textsuperscript{o}C]';
-	ax.FontSize = 22;
-	ax.LabelFontSizeMultiplier = 1.25;
-	ax.TitleFontSizeMultiplier = 1.25;
-	ax.XLim = [0,N];
-	ax.XTick = 360:720:8760-360;
-	ax.XTickLabel = month(mt,'short');
-	ax.XTickLabelRotation = 90;
-	leg = legend([h1(1),h2],{'RCP 4.5', 'Typical'}, ...
-		'location','south');
-	leg.Orientation = 'horizontal';
-	leg.FontSize = ax.FontSize;
-	SaveThatFig(PlotHandle,filepath,'printpdf',false)
-	
-	h2.Color = grey;
-	
-	SaveThatFig(PlotHandle,[filepath,'-BW'], ...
-		'printpdf', false, 'printfig',false)
+% 	PlotHandle = figure('visible', 'off');
+% 	figname = ['TDBsynAllCC85', '_', nameEPWfile];
+% 	filepath = fullfile(figsavepath, figname);
+% 	h1 = plot(tdbsynCC.rcp85.yearly);
+% 	for k = 1:length(h1)
+% 		h1(k).Marker = '.';
+% 		h1(k).Color = lgrey;
+% 		h1(k).LineStyle = 'none';
+% 	end
+% 	ax = gca; hold(ax, 'on'); ax.Box = 'on';
+% 	h2 = plot(tmytable.TDB);
+% 	h2.LineWidth = 1; h2.Color = red;
+% 	ax.YLabel.Interpreter = 'latex';
+% 	ax.YLabel.String = 'Temperature [\textsuperscript{o}C]';
+% 	ax.FontSize = 22;
+% 	ax.LabelFontSizeMultiplier = 1.25;
+% 	ax.TitleFontSizeMultiplier = 1.25;
+% 	ax.XLim = [0,N];
+% 	ax.XTick = 360:720:8760-360;
+% 	ax.XTickLabel = month(mt,'short');
+% 	ax.XTickLabelRotation = 90;
+% 	leg = legend([h1(1),h2],{'RCP 8.5', 'Typical'}, ...
+% 		'location','south');
+% 	leg.Orientation = 'horizontal';
+% 	leg.FontSize = ax.FontSize;
+% 	SaveThatFig(PlotHandle,filepath,'printpdf',false)
+% 	
+% 	h2.Color = grey;
+% 	
+% 	SaveThatFig(PlotHandle,[filepath,'-BW'], ...
+% 		'printpdf', false, 'printfig',false)
+% 	
+% 	PlotHandle = figure('visible', 'off');
+% 	figname = ['TDBsynAllCC45', '_', nameEPWfile];
+% 	filepath = fullfile(figsavepath, figname);
+% 	h1 = plot(tdbsyn.yearly);
+% 	for k = 1:length(h1)
+% 		h1(k).Marker = '.';
+% 		h1(k).Color = lgrey;
+% 		h1(k).LineStyle = 'none';
+% 	end
+% 	ax = gca; hold(ax, 'on'); ax.Box = 'on';
+% 	h2 = plot(tmytable.TDB);
+% 	h2.LineWidth = 1; h2.Color = orange;
+% 	ax.YLabel.Interpreter = 'latex';
+% 	ax.YLabel.String = 'Temperature [\textsuperscript{o}C]';
+% 	ax.FontSize = 22;
+% 	ax.LabelFontSizeMultiplier = 1.25;
+% 	ax.TitleFontSizeMultiplier = 1.25;
+% 	ax.XLim = [0,N];
+% 	ax.XTick = 360:720:8760-360;
+% 	ax.XTickLabel = month(mt,'short');
+% 	ax.XTickLabelRotation = 90;
+% 	leg = legend([h1(1),h2],{'RCP 4.5', 'Typical'}, ...
+% 		'location','south');
+% 	leg.Orientation = 'horizontal';
+% 	leg.FontSize = ax.FontSize;
+% 	SaveThatFig(PlotHandle,filepath,'printpdf',false)
+% 	
+% 	h2.Color = grey;
+% 	
+% 	SaveThatFig(PlotHandle,[filepath,'-BW'], ...
+% 		'printpdf', false, 'printfig',false)
 	
 	clear dnisynCC dhisynCC rhsynCC
 	clear syndata
@@ -2411,7 +2409,7 @@ if recdata
 	Quants.rec.tdb = quantile(RecTables.TDB, quantsASHRAE);
 end
 
-save(fullfile(pathMATsave,['Coverage_', ...
+save(fullfile(path_save_fldr,['Coverage_', ...
 	nameEPWfile,'.mat']), 'Coverage')
 
 Quants.tmy.tdb = [StationInfo.Cool.TDB004; ...

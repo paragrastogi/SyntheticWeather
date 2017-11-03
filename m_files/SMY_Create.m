@@ -1,5 +1,5 @@
-function SMY_Create(stcode, pathEPWfldr, ...
-	pathOUTtopfolder, varargin)
+function SMY_Create(stcode, path_syn_fldr, ...
+    path_save_fldr, varargin)
 
 
 % This script will write EPW files from synthetic weather
@@ -14,85 +14,80 @@ p.FunctionName = 'SMY_Create';
 addRequired(p, 'stcode', @ischar)
 
 % This is where the EPW files should be
-addRequired(p, 'pathEPWfldr', @ischar)
+addRequired(p, 'path_syn_fldr', @ischar)
 
 % This is where the new files will be written, in a subfolder
 % based on the 'stcode' input.
-addRequired(p, 'pathOUTtopfolder', @ischar)
+addRequired(p, 'path_save_fldr', @ischar)
 
 % Do you want existing files deleted? They will be left
 % unharmed by default, and the corresponding new file (i.e.,
 % one with the same name), will not be written.
 addParameter(p, 'destroyer', false, @islogical)
 addParameter(p, 'nameLOGfile', fullfile('LogFiles', ...
-	sprintf('LogFile_SMY_Create_%s.txt',date)),@ischar)
+    sprintf('LogFile_SMY_Create_%s.txt',date)),@ischar)
 addParameter(p, 'synformat', 'mat', @ischar)
 addParameter(p, 'scenario', 'syn', @ischar)
 addParameter(p, 'sublabel', 'x', @isnumeric)
 addParameter(p, 'srcEPWfile', '', @ischar)
 
-parse(p,stcode, pathEPWfldr, ...
-	pathOUTtopfolder, varargin{:})
+parse(p,stcode, path_syn_fldr, ...
+    path_save_fldr, varargin{:})
 
 stcode = p.Results.stcode;
 destroyer = p.Results.destroyer;
-pathEPWfldr = p.Results.pathEPWfldr;
-pathOUTtopfolder = p.Results.pathOUTtopfolder;
+path_syn_fldr = p.Results.path_syn_fldr;
+path_save_fldr = p.Results.path_save_fldr;
 nameLOGfile = p.Results.nameLOGfile;
 synformat = p.Results.synformat;
 scenario = p.Results.scenario;
 sublabel = p.Results.sublabel;
 srcEPWfile = p.Results.srcEPWfile;
 
-if exist(pathOUTtopfolder, 'dir') ~= 7
-	mkdir(pathOUTtopfolder)
+if exist(path_save_fldr, 'dir') ~= 7
+    mkdir(path_save_fldr)
 end
 
 if exist('LogFiles', 'dir') ~= 7
-	mkdir('LogFiles')
+    mkdir('LogFiles')
 end
 
 % % Open a log file to record all output message
 fIDlog = fopen(nameLOGfile,'w');
 fprintf(fIDlog, ['Commencing SMY_Create script at ', ...
-	'%s \r\n'], char(datetime));
+    '%s \r\n'], char(datetime));
 
 if destroyer
-	fprintf(fIDlog, ['Destroyer is set to true.\r\n', ...
-		'All existing SMY files will be deleted.\r\n', ...
-		'I AM BECOME DEATH, THE DESTROYER OF ', ...
-		'EXISTING FILES... \r\n']);
+    fprintf(fIDlog, ['Destroyer is set to true.\r\n', ...
+        'All existing SMY files will be deleted.\r\n', ...
+        'I AM BECOME DEATH, THE DESTROYER OF ', ...
+        'EXISTING FILES... \r\n']);
 else
-	fprintf(fIDlog, ['Destroyer is false, so no files will', ...
-		' be deleted. This isn''t so much fun... though', ...
-		' it is probably faster.\r\n']);
+    fprintf(fIDlog, ['Destroyer is false, so no files will', ...
+        ' be deleted. This isn''t so much fun... though', ...
+        ' it is probably faster.\r\n']);
 end
 
 fprintf(fIDlog, ['WARNING\r\n', ...
-	'All input files are treated as text files.\r\n', ...
-	'This could cause problems with XLS and XLSX files.\r\n']);
-
-	
-% First set the paths to city subfolders
-CityDirPathIn = fullfile(pathEPWfldr);
-CityDirPathOut = fullfile(pathOUTtopfolder);
+    'All input files are treated as text files.\r\n', ...
+    'This could cause problems with XLS and XLSX files.\r\n']);
 
 
 % Skip folders that have not been requested
-if exist(CityDirPathIn, 'dir') ~= 7
+if exist(path_syn_fldr, 'dir') ~= 7
     fprintf('I could not find incoming files folder %s. \r\n', ...
-        CityDirPathIn)
+        path_syn_fldr)
     fclose(fIDlog);
     return
 end
 
-if exist(CityDirPathOut, 'dir') ~=7
-    mkdir(CityDirPathOut)
+if exist(path_save_fldr, 'dir') ~=7
+    mkdir(path_save_fldr)
 end
-	
 
-fprintf(fIDlog,'Processing folder %s\n', CityDirPathIn);
-		
+
+fprintf(fIDlog,'Processing folder %s\n', path_syn_fldr);
+
 [~, FileNameMaster, ~] = fileparts(srcEPWfile);
 
 if contains(srcEPWfile, 'Meteonorm')
@@ -109,26 +104,26 @@ mastertable.Properties.Description = ...
 
 fprintf(fIDlog,'Master Data is from %s \n', ...
     FileNameMaster);
-			
+
 
 % Find the synthetic data file in the current
 % folder, corresponding to this station.
 if strcmpi(synformat,'mat')
     if strcmpi(scenario, 'syn')
-        MATfileSyn = dir(fullfile(CityDirPathIn, ...
+        MATfileSyn = dir(fullfile(path_syn_fldr, ...
             sprintf('%s*Syn.mat', ...
             FileNameMaster(1:end-4))));
     elseif strcmpi(scenario, 'rcp45')
-        MATfileSyn = dir(fullfile(CityDirPathIn, ...
+        MATfileSyn = dir(fullfile(path_syn_fldr, ...
             sprintf('%s*rcp45.mat', ...
             FileNameMaster(1:end-4))));
     elseif strcmpi(scenario, 'rcp85')
-        MATfileSyn = dir(fullfile(CityDirPathIn, ...
+        MATfileSyn = dir(fullfile(path_syn_fldr, ...
             sprintf('%s*rcp85.mat', ...
             FileNameMaster(1:end-4))));
     end
 elseif strcmpi(synformat,'csv')
-    MATfileSyn = dir(fullfile(CityDirPathIn, ...
+    MATfileSyn = dir(fullfile(path_syn_fldr, ...
         sprintf('%s*Syn.csv', ...
         FileNameMaster(1:end-4))));
 end
@@ -159,14 +154,14 @@ elseif all(size(MATfileSyn)>1)
     end
     MATfileSyn = temp;
 end
-			
-			
+
+
 if strcmpi(synformat,'mat')
     % This loads a struct called 'syndata'
-    load(fullfile(CityDirPathIn, MATfileSyn));
+    load(fullfile(path_syn_fldr, MATfileSyn), 'syndata');
     
 elseif strcmpi(synformat,'csv')
-    readsynCSV = csvread(CityDirPathIn, MATfileSyn);
+    readsynCSV = csvread(path_syn_fldr, MATfileSyn);
     syndata.tdb = readsynCSV(:,1);
     syndata.rh = readsynCSV(:,2);
     syndata.ghi = readsynCSV(:,3);
@@ -185,34 +180,31 @@ end
 N = 8760;
 
 UniqueSynYears= unique(syndata.Year);
-PickBootLen = length(syndata.Year) / ...
-    length(UniqueSynYears) / N;
+PickBootLen = length(syndata.Year) / length(UniqueSynYears) / N;
 SynYears = repmat(UniqueSynYears, PickBootLen, 1);
 
 % New batch has a set of sub labels shifted by the value of sublabel.
 temp1 = (0:1:(PickBootLen-1)) + sublabel;
-temp2 = repmat(temp1,length(UniqueSynYears),1);
+temp2 = repmat(temp1, length(UniqueSynYears),1);
 temp2 = temp2(:);
 
-SubLabelArray = cellfun(@num2str, num2cell(temp2), 'UniformOutput', 0); 
+SubLabelArray = cellfun(@num2str, num2cell(temp2), 'UniformOutput', 0);
 
 SynYearsNames = strcat(cellfun(@num2str, ...
     num2cell(SynYears), 'UniformOutput', 0), '_', SubLabelArray);
 
-OutFilePath = fullfile(pathOUTtopfolder, CityMasterName);
-
 % Path to the new file, i.e. output file.
-FilePathNew = fullfile(OutFilePath, cellfun(@(x) ...
-    sprintf('%s_%s_%08s.epw', StationID, ...
+FilePathNew = fullfile(path_save_fldr, cellfun(@(x) ...
+    sprintf('%s_%s_%s.epw', stcode, ...
     scenario, x), SynYearsNames, 'UniformOutput', 0));
 
-% Check if file already exists. If destroyer was true, the existing 
+% Check if file already exists. If destroyer was true, the existing
 % file should have been deleted already.
 FileExister = cellfun(@(x) exist(x,'file')==2, FilePathNew);
 
 % Logical to record succesful creation of files
 copysuccess = false(1,length(FilePathNew));
-			
+
 
 % Format string for EPW files obtained from
 % USDOE website
@@ -236,10 +228,31 @@ numEPWhead = 8;
 HeaderSave = cell(numEPWhead,1);
 
 % Open file for low-level read/write operations
-fileIDMaster = fopen(FilePathMaster,'r');
+fileIDMaster = fopen(srcEPWfile,'r');
 
 % Copy Header lines almost verbatim (except
 % COMMENTS 1 field)
+
+new_src_add = upper(['; The following ', ...
+    'data columns replaced with synthetic ', ...
+    'values: ''GHI'', ''DNI'', ''DHI'', ', ...
+    '''RH'', ''TDB''.']);
+new_src_add_syn = [new_src_add, upper(['The years are dummy values, ', ...
+    'they do not imply an actual ', ...
+    'prediction for a specific year. ', ...
+    'The hourly values of each parameter are not ', ...
+    'predictions either, so do not think of them as', ...
+    'the exact values at some specific future hour.'])];
+new_src_add_rcp = [new_src_add, upper(['The years represent the ', ...
+    'prediction for a specific year in the ', ...
+    'future. However, a prediction should ', ...
+    'not be taken too literally, since it ', ...
+    'comes from an approximate model based', ...
+    ' on the state of the art in 2005.', ...
+    'All data was downloaded from the CORDEX', ...
+    ' project web site with the help of ', ...
+    'Georgios Mavormatidis, EMPA Duebendorf ', ...
+    '(Zurich) in October 2015.'])];
 
 for el = 1:numEPWhead
     
@@ -249,33 +262,12 @@ for el = 1:numEPWhead
     if strcmpi(FileLine(1:10),'COMMENTS 1')
         % Add name of new source to header line
         % COMMENTS 1
-        newsrcadd = upper(['; The following ', ...
-            'data columns replaced with synthetic ', ...
-            'values: ''GHI'', ''DNI'', ''DHI'', ', ...
-            '''RH'', ''TDB''.']);
         if strcmpi(scenario,'syn')
-            newsrcadd = [newsrcadd, ...
-                upper(['The years are dummy values, ', ...
-                'they do not imply an actual ', ...
-                'prediction for a specific year. ', ...
-                'The synthetic values are not ', ...
-                'predictions either, so they do not ', ...
-                'represent the exact value at some ', ...
-                'specific future hour.'])];
+            new_src_add = new_src_add_syn;
         else
-            newsrcadd = [newsrcadd, ...
-                upper(['The years represent the ', ...
-                'prediction for a specific year in the ', ...
-                'future. However, a prediction should ', ...
-                'not be taken too literally, since it ', ...
-                'comes from an approximate model based', ...
-                ' on the state of the art in 2005.', ...
-                'All data was downloaded from the CORDEX', ...
-                ' project web site with the help of ', ...
-                'Georgios Mavormatidis, EMPA Duebendorf ', ...
-                '(Zurich) in October 2015.'])];
+            new_src_add = new_src_add_rcp;
         end
-        FileLineNew = strcat(FileLine, newsrcadd);
+        FileLineNew = strcat(FileLine, new_src_add);
         FileLine = FileLineNew;
     end
     

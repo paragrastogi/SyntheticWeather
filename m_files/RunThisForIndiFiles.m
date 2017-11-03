@@ -7,6 +7,9 @@ srcEPWfile = fullfile('..', 'm_data', 'GEN', 'GEN_IWEC.epw');
 destroyer = false;
 
 SMY_Create('GEN', outfolder, synfolder, ...
+    'sublabel', 50, 'scenario', 'syn', 'srcEPWfile', srcEPWfile)
+
+SMY_Create('GEN', outfolder, synfolder, ...
     'sublabel', 50, 'scenario', 'rcp85', 'srcEPWfile', srcEPWfile)
 
 SMY_Create('GEN', outfolder, synfolder, ...

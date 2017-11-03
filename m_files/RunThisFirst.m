@@ -1,13 +1,13 @@
 % An example run of the CreateSyntheticFiles function.
 
 % Path to source file.
-pathEPWfile = fullfile('..', 'm_data', 'GEN', 'GEN_Meteonorm.epw');
+pathEPWfile = fullfile('..', 'm_data', 'GEN', 'GEN_IWEC.epw');
 
 % Path to folder where you want all the new stuff saved.
-namesavefldr = fullfile('..', 'syn_data', 'GEN');
+path_save_fldr = fullfile('..', 'syn_data', 'GEN');
 
 % Number of samples.
-nboot = 50;
+nboot = 10;
 
 % Is recorded data present? Default is no. If this is present, then the
 % script will calculate a bunch of summary statistics. However, you must
@@ -16,6 +16,9 @@ recdata = false;
 
 % Same for climate change 'data' - i.e., outputs from atmospheric models
 % of climate change.
+% Setting this to true will generate two variants: rcp45 and rcp85,
+% corresponding to the RCP 4.5 and RCP 8.5 simulations from the IPCC
+% respectively.
 ccdata = false;
 
 % Random seed. If you use the same random seed for any run with the same
@@ -28,5 +31,5 @@ randseed = 42;
 % hrmdlfile = ''
 % fourierfile = ''
 
-CreateSyntheticFiles(pathEPWfile, namesavefldr, nboot, recdata, ...
+CreateSyntheticFiles(pathEPWfile, path_save_fldr, nboot, recdata, ...
     ccdata, 'randseed', randseed)
