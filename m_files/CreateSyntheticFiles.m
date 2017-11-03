@@ -25,7 +25,7 @@ addRequired(p, 'ccdata', @islogical)
 addParameter(p, 'nameEPWfolder', @ischar)
 addParameter(p, 'ccpath', '', @ischar)
 addParameter(p, 'recpath', '', @ischar)
-addParameter(p, 'randseed', 8760, @isnumeric)
+addParameter(p, 'randseed', 42, @isnumeric)
 addParameter(p, 'hrmdlfile', '', @ischar)
 addParameter(p, 'fourierfile', '', @ischar)
 

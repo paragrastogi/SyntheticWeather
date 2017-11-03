@@ -89,7 +89,7 @@ parser.add_argument("--long", type=int, default=0,
                     help="Station longitude.")
 parser.add_argument("--alt", type=int, default=0,
                     help="Station altitude.")
-parser.add_argument("--randseed", type=int, default=None,
+parser.add_argument("--randseed", type=int, default=42,
                     help="Set the seed for this sampling " +
                     "run. If you don't know what this " +
                     "is, don't worry. The default is 8760.")
