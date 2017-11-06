@@ -56,7 +56,7 @@ nameEPWfolder = pathEPWfolder(end-2:end);
 %     'code representing the weather station. (e.g., GENEVA --> GEN)\n'];
 % path_save_fldr = fullfile(pathEPWfolder, input(prompt,'s'));
 
-if strcmp(pathsavefldr,' ')
+if strcmp(path_save_fldr,' ')
 	path_save_fldr = pathEPWfolder;
 end
 
