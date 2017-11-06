@@ -1,4 +1,4 @@
-function SMY_Create(stcode, path_syn_fldr, ...
+function SMY_Create(stcode, path_syn_file, ...
     path_save_fldr, varargin)
 
 
@@ -13,12 +13,13 @@ p.FunctionName = 'SMY_Create';
 % which folders to run
 addRequired(p, 'stcode', @ischar)
 
-% This is where the EPW files should be
-addRequired(p, 'path_syn_fldr', @ischar)
+% This is where the synthetic (mat) file should be.
+addRequired(p, 'path_syn_file', @ischar)
 
 % This is where the new files will be written, in a subfolder
 % based on the 'stcode' input.
 addRequired(p, 'path_save_fldr', @ischar)
+
 
 % Do you want existing files deleted? They will be left
 % unharmed by default, and the corresponding new file (i.e.,
@@ -26,20 +27,20 @@ addRequired(p, 'path_save_fldr', @ischar)
 addParameter(p, 'destroyer', false, @islogical)
 addParameter(p, 'nameLOGfile', fullfile('LogFiles', ...
     sprintf('LogFile_SMY_Create_%s.txt',date)),@ischar)
-addParameter(p, 'synformat', 'mat', @ischar)
+
 addParameter(p, 'scenario', 'syn', @ischar)
 addParameter(p, 'sublabel', 'x', @isnumeric)
 addParameter(p, 'srcEPWfile', '', @ischar)
 
-parse(p,stcode, path_syn_fldr, ...
+parse(p,stcode, path_syn_file, ...
     path_save_fldr, varargin{:})
 
 stcode = p.Results.stcode;
 destroyer = p.Results.destroyer;
-path_syn_fldr = p.Results.path_syn_fldr;
+path_syn_file = p.Results.path_syn_file;
 path_save_fldr = p.Results.path_save_fldr;
 nameLOGfile = p.Results.nameLOGfile;
-synformat = p.Results.synformat;
+% synformat = p.Results.synformat;
 scenario = p.Results.scenario;
 sublabel = p.Results.sublabel;
 srcEPWfile = p.Results.srcEPWfile;
@@ -72,21 +73,12 @@ fprintf(fIDlog, ['WARNING\r\n', ...
     'All input files are treated as text files.\r\n', ...
     'This could cause problems with XLS and XLSX files.\r\n']);
 
-
-% Skip folders that have not been requested
-if exist(path_syn_fldr, 'dir') ~= 7
-    fprintf('I could not find incoming files folder %s. \r\n', ...
-        path_syn_fldr)
-    fclose(fIDlog);
-    return
-end
-
 if exist(path_save_fldr, 'dir') ~=7
     mkdir(path_save_fldr)
 end
 
 
-fprintf(fIDlog,'Processing folder %s\n', path_syn_fldr);
+fprintf(fIDlog,'Processing folder %s\n', path_syn_file);
 
 [~, FileNameMaster, ~] = fileparts(srcEPWfile);
 
@@ -106,62 +98,23 @@ fprintf(fIDlog,'Master Data is from %s \n', ...
     FileNameMaster);
 
 
-% Find the synthetic data file in the current
-% folder, corresponding to this station.
-if strcmpi(synformat,'mat')
-    if strcmpi(scenario, 'syn')
-        MATfileSyn = dir(fullfile(path_syn_fldr, ...
-            sprintf('%s*Syn.mat', ...
-            FileNameMaster(1:end-4))));
-    elseif strcmpi(scenario, 'rcp45')
-        MATfileSyn = dir(fullfile(path_syn_fldr, ...
-            sprintf('%s*rcp45.mat', ...
-            FileNameMaster(1:end-4))));
-    elseif strcmpi(scenario, 'rcp85')
-        MATfileSyn = dir(fullfile(path_syn_fldr, ...
-            sprintf('%s*rcp85.mat', ...
-            FileNameMaster(1:end-4))));
-    end
-elseif strcmpi(synformat,'csv')
-    MATfileSyn = dir(fullfile(path_syn_fldr, ...
-        sprintf('%s*Syn.csv', ...
-        FileNameMaster(1:end-4))));
-end
-
-% Remove MAT files with the 'extras' suffix from
-% the list since they contain, well, extra data.
-MATfileSyn = MATfileSyn(cellfun(@isempty,...
-    regexp({MATfileSyn.name},'extras')));
-% Keep only the names from the list
-MATfileSyn = char({MATfileSyn.name});
-
 % If no synthetic data files are found, skip this city
-if isempty(MATfileSyn)
-    fprintf(fIDlog,['No synthetic data files found for', ...
-        ' base file %s\n'], FileNameMaster);
+if isempty(path_syn_file) || exist(path_syn_file, 'file') ~= 2
+    fprintf(fIDlog,['No synthetic data files at path', ...
+        '%s\n'], path_syn_file);
+    fprintf(['No synthetic data files found at path ', ...
+        '%s\n'], path_syn_file);
     fclose(fIDlog);
     return
-elseif all(size(MATfileSyn)>1)
-    fprintf(fIDlog,['Multiple synthetic data files found for', ...
-        ' base file %s. Continuing with data file name that matches best.\n'], FileNameMaster);
-    for f = 1:size(MATfileSyn, 1)
-        if strcmp(MATfileSyn(f, 1:end-8), FileNameMaster)
-            temp = MATfileSyn(f,:);
-            break
-        else
-            temp = 'na';
-        end
-    end
-    MATfileSyn = temp;
 end
 
 
-if strcmpi(synformat,'mat')
+if strcmpi(path_syn_file(end-2:end), 'mat')
     % This loads a struct called 'syndata'
-    load(fullfile(path_syn_fldr, MATfileSyn), 'syndata');
+    load(fullfile(path_syn_file), 'syndata');
     
-elseif strcmpi(synformat,'csv')
-    readsynCSV = csvread(path_syn_fldr, MATfileSyn);
+elseif strcmpi(path_syn_file(end-2:end), 'csv')
+    readsynCSV = csvread(path_syn_file);
     syndata.tdb = readsynCSV(:,1);
     syndata.rh = readsynCSV(:,2);
     syndata.ghi = readsynCSV(:,3);
@@ -357,7 +310,7 @@ for f = 1:length(FilePathNew)
             '%d .\r\n'], LineCounter);
     end
     
-    fprintf('Written file number %d\r\n', f);
+    fprintf('Written file number %d of %d\r\n', f, length(FilePathNew));
     
 end
 

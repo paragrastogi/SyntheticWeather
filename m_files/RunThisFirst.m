@@ -6,7 +6,7 @@ pathEPWfile = fullfile('..', 'm_data', 'GEN', 'GEN_IWEC.epw');
 % Path to folder where you want all the new stuff saved.
 path_save_fldr = fullfile('..', 'syn_data', 'GEN');
 
-% Number of samples.
+% Number of samples. Change this to get more/less samples.
 nboot = 10;
 
 % Is recorded data present? Default is no. If this is present, then the
