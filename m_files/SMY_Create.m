@@ -165,12 +165,14 @@ copysuccess = false(1,length(FilePathNew));
 % 9?9?9?9?9,18.7,14.4,76,101000,0,0,340,0,0,0,0,0,0,
 % 0,0,0.9,0,0,1.3,77777,9,999999999,0,0.0000,0,0,
 % 999.000,999.0,99.0
-strbegin = '%4d,%d,%d,%d,%02d,%7d';
+strbegin = '%4d,%d,%d,%d,%02d,%06u';
 strrepeat = ',%.1f';
 LineEnder = '\r\n';
 
 FormatEPWData = [strbegin, repmat(strrepeat, ...
-    1, size(mastertable,2)-6), LineEnder];
+    1, 2), ',%02u', repmat(strrepeat, ...
+    1, size(mastertable,2)-9), LineEnder];
+
 formatEPWhead = '%s\r\n';
 
 % Read in the header from the EPW master file as a series of lines.
@@ -194,7 +196,7 @@ new_src_add_syn = [new_src_add, upper(['The years are dummy values, ', ...
     'they do not imply an actual ', ...
     'prediction for a specific year. ', ...
     'The hourly values of each parameter are not ', ...
-    'predictions either, so do not think of them as', ...
+    'predictions either, so do not think of them as ', ...
     'the exact values at some specific future hour.'])];
 new_src_add_rcp = [new_src_add, upper(['The years represent the ', ...
     'prediction for a specific year in the ', ...
@@ -277,8 +279,7 @@ for f = 1:length(FilePathNew)
     % Convert the quality flags to a meaningless
     % number. This lets the table be converted
     % to
-    mtablecurr.QualFlags = repmat(9999999, ...
-        size(mastertable,1),1);
+    mtablecurr.QualFlags = repmat(090909, size(mastertable, 1) ,1); 
     
     % TDB
     mtablecurr.TDB = syndata.tdb(CurrIdx);
@@ -293,14 +294,15 @@ for f = 1:length(FilePathNew)
     mtablecurr.DHI = syndata.dhi(CurrIdx);
     
     % RH
-    mtablecurr.RH = syndata.rh(CurrIdx);
+    mtablecurr.RH = round(syndata.rh(CurrIdx));
     
     % Convert to array and rotate for writing.
     mtablecurr = (table2array(mtablecurr))';
-    
+        
+    % FormatEPWData
+    % mtablecurr(1, :)
     % Write the numerical data to the file
-    copysuccess(f) = fprintf(fileIDNew, ...
-        FormatEPWData, mtablecurr);
+    copysuccess(f) = fprintf(fileIDNew, FormatEPWData, mtablecurr);
     
     fclose(fileIDNew);
     
