@@ -2,14 +2,14 @@
 
 % Path to source file.
 % pathEPWfile = fullfile('..', 'm_data', 'GEN', 'GEN_IWEC.epw');
-pathEPWfile = 'E:\WeatherData\HistoricalData\was\NIST_TMY3_2015-01_to_2015-12_TMY3.epw';
+pathEPWfile = '/media/rasto/LargeKaali/WeatherData/HistoricalData/was/NIST_TMY3_2016-01_to_2016-12_TMY3.epw';
 
 % Path to folder where you want all the new stuff saved.
 % path_save_fldr = fullfile('..', 'syn_data', 'GEN');
-path_save_fldr = 'F:\WeatherData\SyntheticData\was';
+path_save_fldr = '/media/rasto/LargeKaali/WeatherData/SyntheticData/was';
 
 % Number of samples. Change this to get more/less samples.
-nboot = 50;
+nboot = 25;
 
 % Is recorded data present? Default is no. If this is present, then the
 % script will calculate a bunch of summary statistics. However, you must
@@ -23,7 +23,7 @@ recdata = false;
 % respectively.
 ccdata = true;
 
-ccpath = 'F:\WeatherData\CCdata\was';
+ccpath = '/media/rasto/LargeKaali/WeatherData/CCdata/was';
 
 % Random seed. If you use the same random seed for any run with the same
 % source data, the random samples produced will be exactly the same.
@@ -32,8 +32,8 @@ randseed = 1;
 % If this is not the first time you are running these files, the hourly
 % Fourier and SARIMA models might be stored. You can specify the path to
 % these here.
-hrmdlfile = 'E:\WeatherData\SyntheticData\was\FourierFits_NIST_TMY3_2015-01_to_2015-12_TMY3.mat';
-fourierfile = 'E:\WeatherData\SyntheticData\was\HourMdls_NIST_TMY3_2015-01_to_2015-12_TMY3.mat';
+hrmdlfile = '/media/rasto/LargeKaali/WeatherData/SyntheticData/was/FourierFits_NIST_TMY3_2016-01_to_2016-12_TMY3.mat';
+fourierfile = '/media/rasto/LargeKaali/WeatherData/SyntheticData/was/HourMdls_NIST_TMY3_2016-01_to_201-12_TMY3.mat';
 
 CreateSyntheticFiles(pathEPWfile, path_save_fldr, nboot, recdata, ...
     ccdata, 'randseed', randseed, 'hrmdlfile', hrmdlfile, ...

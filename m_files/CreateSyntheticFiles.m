@@ -131,9 +131,9 @@ mt = datetime(2015,1:nm,1); % Month number
 % Number of days in each month
 % nm_days = [31;28;31;30;31;30;31;31;30;31;30;31];
 
-% Read the header info to obtain extreme and design
-% conditions, in addition to location information.
-StationInfo = TMYHeaderReader(pathEPWfile);
+% % Read the header info to obtain extreme and design
+% % conditions, in addition to location information.
+% StationInfo = TMYHeaderReader(pathEPWfile);
 
 % % Dry-bulb Temperature
 TDBk = tmytable.TDB + 273.15; % Temperature in Kelvin
@@ -159,12 +159,12 @@ dni(ghi <= ghi_limit) = 0;
 % Use the following convention when putting the three time
 % series together: tdb - 1, ghi - 2, w - 3
 
-% Check and save cross-correlations between tdb, ghi, and
-% w series
-corrOptions.nLags = 7*24; % 7 days
-corrOptions.nMA = 0;
-corrOptions.nStd = 2;
-% Number of standard deviations for confidence bounds
+% % Check and save cross-correlations between tdb, ghi, and
+% % w series
+% corrOptions.nLags = 7*24; % 7 days
+% corrOptions.nMA = 0;
+% corrOptions.nStd = 2;
+% % Number of standard deviations for confidence bounds
 
 % This is a flag to give the skewness and kurtosis
 % functions. The flag indicates that what is being
@@ -374,7 +374,7 @@ if recdata
 	RecTables.RH(RecTables.RH>=100 | RecTables.RH<=0) = nan;
 	
 	% Special cleaning for certain stations
-	if ~isempty(strfind(nameEPWfile,'GEN'))
+	if contains(nameEPWfile, 'GEN')
 		% GENEVA, which has two very large jumps
 		% Between 22:00 on December 31, 1969 and
 		% 1:00 on January 1, 1973
@@ -387,7 +387,7 @@ if recdata
 			RecTables.Month==12 & ...
 			RecTables.Day==31 & RecTables.Hour==22) = NaN;
 		
-	elseif ~isempty(strfind(nameEPWfile,'DEL'))
+	elseif contains(nameEPWfile,'DEL')
 		% While the lowest recorded temperature in DELHI has
 		% has been -2.2, the zeros in the record are
 		% unfortunately gaps in the record. Also, there are
@@ -1076,15 +1076,15 @@ CCdataFilePath = fullfile(ccpath, 'HourlyFutureData.mat');
 
 if exist(CCdataFilePath,'file')==2
 	% If concatenated file already exists
-	load(CCdataFilePath);
+	load(CCdataFilePath, 'FutureTime', 'FutureWeather');
 else
 	% File does not exist
 	CCdataFilePath = CatClimChangeData(ccpath);
-	load(CCdataFilePath);
+	load(CCdataFilePath, 'FutureTime', 'FutureWeather');
 end
 
 % This file should contain two variables:
-% FutureWeather - a struct containing the individual
+% FutureWeather - a struct containing the individualC
 % variables, split by climate change scenario. Within
 % each scenario, each variable is organised into a 3D
 % matrix of 95x8760x6
