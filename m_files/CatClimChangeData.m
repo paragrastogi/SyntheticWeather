@@ -159,7 +159,9 @@ for c = 1:length(scenarios)
             % most variables will increase.
             FutureYears = unique(temp(:,1));
             
-            if length(FutureYears)>FutureYearLen
+            if length(FutureYears) > FutureYearLen
+                FutureYearLen = length(FutureYears);
+            elseif length(FutureYears) < FutureYearLen
                 FutureYearLen = length(FutureYears);
             end
             
@@ -170,19 +172,29 @@ for c = 1:length(scenarios)
                 % y x H x m (year, hours, model).
                 temp2 = ...
                     reshape(permute(repmat(temp(temp(:,1)== ...
-                    FutureYears(y),:), 1, 1, 24), [1 3 2]), [], 4);
+                    FutureYears(y), :), 1, 1, 24), [1 3 2]), [], 4);
                 % 'Standard' hours in this year (all 8760 hours).
                 stdhours = datetime(temp2(1,1), 1, 1, 0, 0, 0): ...
                     hours(1):datetime(temp2(1,1), 12, 31, 23, 0, 0);
                 stdhours = stdhours(:);
                 
-                % Sort the vector by month and then day.
-                temp2 = sortrows(temp2, [2,3]);
+                N = size(stdhours, 1);
                 
+                % Sort the vector by month and then day.
+                temp2 = sortrows(temp2, [2, 3]);
+                
+                % Do a unique operation to avoid duplicates.
+                temp3 = [unique(temp2(:,1:3), 'rows'), ...
+                    grpstats(temp2(:,end), temp2(:, 2:3), @nanmean)];
+                                
                 % Actual number of hours that exist for this year.
-                acthours = datetime(temp2(:,1), temp2(:,2), ...
-                    temp2(:,3), reshape(repmat(0:23, 1, length(unique(temp2(:,2:3), 'rows'))), [], 1), ...
-                    zeros(size(temp2,1), 1), zeros(size(temp2,1), 1)) ;
+                acthours = datetime( ...
+                    reshape(repmat(temp3(:, 1), 1, 24)', [], 1), ...
+                    reshape(repmat(temp3(:, 2), 1, 24)', [], 1), ...
+                    reshape(repmat(temp3(:, 3), 1, 24)', [], 1), ...
+                    reshape(repmat(0:23, 1, size(temp3, 1)), [], 1), ...
+                    zeros(size(temp3, 1)*24, 1), ...
+                    zeros(size(temp3, 1)*24, 1) ) ;
                 
                 % Eliminate leap years - sorry!
                 if any(month(stdhours)==2 & day(stdhours)==29)
@@ -193,7 +205,9 @@ for c = 1:length(scenarios)
                 % expected 'standard' hours.
                 hourcommon = ismember(stdhours, acthours);
                 
-                FutureWeather.(UniqueParams{p}).(scenarios{c})(y,hourcommon,r) = (temp2(:,end))';
+                FutureWeather.(UniqueParams{p}).(scenarios{c}) ...
+                    (y, hourcommon, r) = reshape( ...
+                    repmat(temp3(:,end), 1, 24)', [], 1);
             end
         end
         
@@ -211,6 +225,7 @@ for c = 1:length(scenarios)
     TimeSyn = (datetime(FutureYears(1),1,1,0,0,0) : hours(1) : ...
         datetime(FutureYears(1),12,31,23,0,0))';
     % The increment is one hour.
+    
     
     FutureTime = [reshape((repmat(FutureYears', ...
         length(TimeSyn),1)),[],1), ...
