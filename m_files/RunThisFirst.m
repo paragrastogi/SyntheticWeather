@@ -2,11 +2,27 @@
 
 % Path to source file.
 % pathEPWfile = fullfile('..', 'm_data', 'GEN', 'GEN_IWEC.epw');
-pathEPWfile = '/media/rasto/LargeKaali/WeatherData/HistoricalData/was/NIST_TMY3_2016-01_to_2016-12_TMY3.epw';
+if strcmp(getenv('computername'), 'SATAH')
+    prefixpath = 'f:\WeatherData';
+elseif isunix && strcmp(getenv('USER'), 'rasto')
+    prefixpath = '/media/rasto/LargeKaali/WeatherData';
+end
+
+epw_filename = 'USA_VA_Dulles-Washington.Dulles.Intl.AP.724030_TMYx-15';
+
+pathEPWfile = fullfile(prefixpath, 'HistoricalData', ...
+    'was', [epw_filename, '.epw']);
+%     pathEPWfile = '/media/rasto/LargeKaali/WeatherData/HistoricalData/was/NIST_TMY3_2015-01_to_2015-12_TMY3.epw';
+% end
 
 % Path to folder where you want all the new stuff saved.
 % path_save_fldr = fullfile('..', 'syn_data', 'GEN');
-path_save_fldr = '/media/rasto/LargeKaali/WeatherData/SyntheticData/was';
+path_save_fldr = fullfile(prefixpath, 'SyntheticData', 'was');
+% if strcmp(getenv('computername'), 'SATAH')
+%     path_save_fldr = 'f:\WeatherData\SyntheticData\was';
+% elseif isunix && strcmp(getenv('USER'), 'rasto')
+%     path_save_fldr = '/media/rasto/LargeKaali/WeatherData/SyntheticData/was';
+% end
 
 % Number of samples. Change this to get more/less samples.
 nboot = 25;
@@ -23,7 +39,12 @@ recdata = false;
 % respectively.
 ccdata = true;
 
-ccpath = '/media/rasto/LargeKaali/WeatherData/CCdata/was';
+ccpath = fullfile(prefixpath, 'CCdata', 'was');
+% if strcmp(getenv('computername'), 'SATAH')
+%     path_save_fldr = 'f:\WeatherData\CCData\was';
+% elseif isunix && strcmp(getenv('USER'), 'rasto')
+%     ccpath = '/media/rasto/LargeKaali/WeatherData/CCdata/was';
+% end
 
 % Random seed. If you use the same random seed for any run with the same
 % source data, the random samples produced will be exactly the same.
@@ -32,9 +53,10 @@ randseed = 1;
 % If this is not the first time you are running these files, the hourly
 % Fourier and SARIMA models might be stored. You can specify the path to
 % these here.
-hrmdlfile = '/media/rasto/LargeKaali/WeatherData/SyntheticData/was/FourierFits_NIST_TMY3_2016-01_to_2016-12_TMY3.mat';
-fourierfile = '/media/rasto/LargeKaali/WeatherData/SyntheticData/was/HourMdls_NIST_TMY3_2016-01_to_201-12_TMY3.mat';
+hrmdlfile = fullfile(prefixpath, 'SyntheticData', 'was', ['FourierFits', epw_filename, '.mat']);
+fourierfile = fullfile(prefixpath, 'SyntheticData', 'was', ['HourMdls', epw_filename, '.mat']);
+% 'hrmdlfile', hrmdlfile, ...
+%     'fourierfile', fourierfile,
 
 CreateSyntheticFiles(pathEPWfile, path_save_fldr, nboot, recdata, ...
-    ccdata, 'randseed', randseed, 'hrmdlfile', hrmdlfile, ...
-    'fourierfile', fourierfile, 'ccpath', ccpath)
+    ccdata, 'randseed', randseed, 'ccpath', ccpath)
