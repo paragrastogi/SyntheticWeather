@@ -1107,6 +1107,11 @@ end
 
 FutureYears = unique(FutureTime(:,1));
 
+% FutureYears are sometimes not cast properly - reshape them here.
+if FutureTime(1,1) ~= FutureTime(2,1)
+    FutureTime(:,1) = reshape(reshape(FutureTime(:,1), [], 8760)', [], 1);
+end
+
 dVals.tdb.rcp45 = NaN(size(FutureTime,1),1);
 dVals.tdb.rcp85 = NaN(size(FutureTime,1),1);
 dVals.rh.rcp45 = NaN(size(FutureTime,1),1);
