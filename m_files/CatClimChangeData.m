@@ -41,82 +41,93 @@ NumModels = length(ModelFolders);
 NumParam = 7;
 NumFilesTotal = NumParam*3;
 
-% Make a table to store the climate change data for this folder
-CCdata = table();
-CCdata.Model = cell(length(ModelFolders)*length(NumFilesTotal),1);
-CCdata.SubModel = cell(length(ModelFolders)*length(NumFilesTotal),1);
-CCdata.Parameter = cell(length(ModelFolders)*length(NumFilesTotal),1);
-CCdata.Data = cell(length(ModelFolders)*length(NumFilesTotal),1);
-counter = 1;
-
 scenarios = {'rcp45', 'rcp85'};
 
-
-for m = 1:NumModels
+if exist(fullfile(CCdataFolderPath,'CollClim.mat'), 'file') ~= 2
     
-    % Get all the csv files
-    FilesList = dir(fullfile(CCdataFolderPath,ModelFolders{m}, '*.csv'));
-    FilesList = {FilesList.name};
+    % Make a table to store the climate change data for this folder
+    CCdata = table();
+    CCdata.Model = cell(length(ModelFolders)*length(NumFilesTotal),1);
+    CCdata.SubModel = cell(length(ModelFolders)*length(NumFilesTotal),1);
+    CCdata.Parameter = cell(length(ModelFolders)*length(NumFilesTotal),1);
+    CCdata.Data = cell(length(ModelFolders)*length(NumFilesTotal),1);
+    counter = 1;
     
-    for f = 1: length(FilesList)
+    for m = 1:NumModels
         
-        SplitFileName = strsplit(FilesList{f}, {'_', '.'});
+        % Get all the csv files
+        FilesList = dir(fullfile(CCdataFolderPath,ModelFolders{m}, '*.csv'));
+        FilesList = {FilesList.name};
         
-        % This is the current parameter being read in
-        Param = SplitFileName{1};
-        if strcmp(Param, 'tas')
-            Param = 'TDBdmean';
-        elseif strcmp(Param, 'tasmin')
-            Param = 'TDBdmin';
-        elseif strcmp(Param, 'tasmax')
-            Param = 'TDBdmax';
-        elseif strcmp(Param, 'ps')
-            Param = 'ATMPRdmean';
-        elseif strcmp(Param, 'sfcWind')
-            Param = 'Wspd_dmean';
-        elseif strcmp(Param, 'rsds')
-            Param = 'GHIdmean';
-        elseif strcmp(Param, 'huss')
-            Param = 'Wdmean';
+        for f = 1: length(FilesList)
+            
+            SplitFileName = strsplit(FilesList{f}, {'_', '.'});
+            
+            % This is the current parameter being read in
+            Param = SplitFileName{1};
+            if strcmp(Param, 'tas')
+                Param = 'TDBdmean';
+            elseif strcmp(Param, 'tasmin')
+                Param = 'TDBdmin';
+            elseif strcmp(Param, 'tasmax')
+                Param = 'TDBdmax';
+            elseif strcmp(Param, 'ps')
+                Param = 'ATMPRdmean';
+            elseif strcmp(Param, 'sfcWind')
+                Param = 'Wspd_dmean';
+            elseif strcmp(Param, 'rsds')
+                Param = 'GHIdmean';
+            elseif strcmp(Param, 'huss')
+                Param = 'Wdmean';
+            end
+            
+            % Period
+            SubModel = SplitFileName{2};
+            
+            try
+                ReadData = csvread(fullfile(CCdataFolderPath, ModelFolders{m}, ...
+                    FilesList{f}));
+            catch err
+                fprintf('Could not read file, probably empty\r\n')
+                continue
+            end
+            
+            % Convert specific humidity to humidity ratio
+            if strcmp(Param,'Wdmean')
+                ReadData(:, end) = -ReadData(:, end)./(ReadData(:, end) - 1);
+            end
+            
+            %         if strcmp(SubModel,'historical')
+            %             ReadData = [(1951:2005)', ReadData];
+            %         else
+            %             ReadData = [(2006:2100)', ReadData];
+            %         end
+            
+            
+            CCdata.Model(counter) = ModelFolders(m);
+            CCdata.SubModel(counter) = {SubModel};
+            CCdata.Parameter(counter) = {Param};
+            CCdata.Data(counter) = {ReadData};
+            
+            counter = counter + 1;
         end
         
-        % Period
-        SubModel = SplitFileName{2};
-        
-        try
-            ReadData = csvread(fullfile(CCdataFolderPath, ModelFolders{m}, ...
-                FilesList{f}));
-        catch err
-            fprintf('Could not read file, probably empty\r\n')
-            continue
-        end
-        
-        % Convert specific humidity to humidity ratio
-        if strcmp(Param,'Wdmean')
-            ReadData(:, end) = -ReadData(:, end)./(ReadData(:, end) - 1);
-        end
-        
-        %         if strcmp(SubModel,'historical')
-        %             ReadData = [(1951:2005)', ReadData];
-        %         else
-        %             ReadData = [(2006:2100)', ReadData];
-        %         end
-        
-        
-        CCdata.Model(counter) = ModelFolders(m);
-        CCdata.SubModel(counter) = {SubModel};
-        CCdata.Parameter(counter) = {Param};
-        CCdata.Data(counter) = {ReadData};
-        
-        counter = counter + 1;
     end
+    
+    save(fullfile(CCdataFolderPath,'CollClim.mat'), 'CCdata')
+    
+else
+    
+    load(fullfile(CCdataFolderPath,'CollClim.mat'), 'CCdata')
     
 end
 
-save(fullfile(CCdataFolderPath,'CollClim.mat'),'CCdata')
-
 UniqueParams = unique(CCdata.Parameter);
 
+if NumModels == 0
+    ModelFolders = unique(CCdata.Model);
+    NumModels = length(ModelFolders);
+end
 
 for c = 1:length(scenarios)
     
@@ -186,7 +197,7 @@ for c = 1:length(scenarios)
                 % Do a unique operation to avoid duplicates.
                 temp3 = [unique(temp2(:,1:3), 'rows'), ...
                     grpstats(temp2(:,end), temp2(:, 2:3), @nanmean)];
-                                
+                
                 % Actual number of hours that exist for this year.
                 acthours = datetime( ...
                     reshape(repmat(temp3(:, 1), 1, 24)', [], 1), ...

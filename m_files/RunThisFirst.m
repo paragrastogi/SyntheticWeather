@@ -3,25 +3,23 @@
 % Path to source file.
 % pathEPWfile = fullfile('..', 'm_data', 'GEN', 'GEN_IWEC.epw');
 if strcmp(getenv('computername'), 'SATAH')
-    prefixpath = 'f:\WeatherData';
+    prefixpath = 'd:\WeatherData';
 elseif isunix && strcmp(getenv('USER'), 'rasto')
     prefixpath = '/media/rasto/LargeKaali/WeatherData';
 end
 
-epw_filename = 'USA_VA_Dulles-Washington.Dulles.Intl.AP.724030_TMYx-15';
+epw_filename = 'IND_GJ_Ahmedabad-Patel.Intl.AP.426470_ISHRAE2014';
 
 pathEPWfile = fullfile(prefixpath, 'HistoricalData', ...
-    'was', [epw_filename, '.epw']);
-%     pathEPWfile = '/media/rasto/LargeKaali/WeatherData/HistoricalData/was/NIST_TMY3_2015-01_to_2015-12_TMY3.epw';
-% end
+    'amd', [epw_filename, '.epw']);
 
 % Path to folder where you want all the new stuff saved.
 % path_save_fldr = fullfile('..', 'syn_data', 'GEN');
-path_save_fldr = fullfile(prefixpath, 'SyntheticData', 'was');
+path_save_fldr = fullfile(prefixpath, 'SyntheticData', 'amd');
 % if strcmp(getenv('computername'), 'SATAH')
-%     path_save_fldr = 'f:\WeatherData\SyntheticData\was';
+%     path_save_fldr = 'f:\WeatherData\SyntheticData\amd';
 % elseif isunix && strcmp(getenv('USER'), 'rasto')
-%     path_save_fldr = '/media/rasto/LargeKaali/WeatherData/SyntheticData/was';
+%     path_save_fldr = '/media/rasto/LargeKaali/WeatherData/SyntheticData/amd';
 % end
 
 % Number of samples. Change this to get more/less samples.
@@ -39,24 +37,24 @@ recdata = false;
 % respectively.
 ccdata = true;
 
-ccpath = fullfile(prefixpath, 'CCdata', 'was');
+ccpath = fullfile(prefixpath, 'CCdata', 'amd');
 % if strcmp(getenv('computername'), 'SATAH')
-%     path_save_fldr = 'f:\WeatherData\CCData\was';
+%     path_save_fldr = 'f:\WeatherData\CCData\amd';
 % elseif isunix && strcmp(getenv('USER'), 'rasto')
-%     ccpath = '/media/rasto/LargeKaali/WeatherData/CCdata/was';
+%     ccpath = '/media/rasto/LargeKaali/WeatherData/CCdata/amd';
 % end
 
 % Random seed. If you use the same random seed for any run with the same
 % source data, the random samples produced will be exactly the same.
-randseed = 1;
+randseed = 42;
 
 % If this is not the first time you are running these files, the hourly
 % Fourier and SARIMA models might be stored. You can specify the path to
 % these here.
-hrmdlfile = fullfile(prefixpath, 'SyntheticData', 'was', ['FourierFits', epw_filename, '.mat']);
-fourierfile = fullfile(prefixpath, 'SyntheticData', 'was', ['HourMdls', epw_filename, '.mat']);
-% 'hrmdlfile', hrmdlfile, ...
-%     'fourierfile', fourierfile,
+% hrmdlfile = fullfile(prefixpath, 'SyntheticData', 'amd', ['FourierFits_', epw_filename, '.mat']);
+% fourierfile = fullfile(prefixpath, 'SyntheticData', 'amd', ['HourMdls_', epw_filename, '.mat']);
+% , ...
+%     'hrmdlfile', hrmdlfile, 'fourierfile', fourierfile
 
 CreateSyntheticFiles(pathEPWfile, path_save_fldr, nboot, recdata, ...
     ccdata, 'randseed', randseed, 'ccpath', ccpath)

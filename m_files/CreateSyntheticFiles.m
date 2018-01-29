@@ -1130,6 +1130,12 @@ if length(PickModel)>1
     PickModel = randsample(PickModel, 1);
 end
 
+% Sometimes there are all zero rows continuously at the end - remove them.
+for p = 1:length(UniqueParams)
+    FutureWeather.(UniqueParams{p}).rcp45(size(FutureTime,1)+1:end, :) = [];
+    FutureWeather.(UniqueParams{p}).rcp85(size(FutureTime,1)+1:end, :) = [];
+end
+
 % Monthly selection not used any more since only ONE
 % model is used in ONE call to this script.
 
@@ -1142,7 +1148,7 @@ dVals.tdb.rcp45 = FutureWeather.TDBdmean.rcp45(:, ...
 	PickModel);
 
 dVals.rh.rcp85 = WtoRH(FutureWeather.Wdmean.rcp85(:, ...
-	PickModel),dVals.tdb.rcp85);
+	PickModel), dVals.tdb.rcp85);
 dVals.rh.rcp45 = WtoRH(FutureWeather.Wdmean.rcp45(:, ...
 	PickModel),dVals.tdb.rcp45);
 
