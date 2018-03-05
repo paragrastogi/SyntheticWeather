@@ -14,7 +14,16 @@ import numpy as np
 
 def resampling(xy_train, counter=0, selmdl=None, ffit=None,
                train=True, sample=True, n_samples=1,
-               picklepath='./xxx.npy', randseed=None):
+               picklepath='test_out.npy', randseed=None,
+               arp_ub=2, maq_ub=2, sarp_ub=2, smaq_ub=2, s=24):
+
+    # Set ranges for various model parameters.
+    # Each range is one more than what we are
+    # interested in because range cuts off at end-1.
+    arp = range(0, arp_ub+1)
+    maq = range(0, arp_ub+1)
+    sarp = range(0, arp_ub+1)
+    smaq = range(0, arp_ub+1)
 
     # Check to see if random number generation is reproducible.
 
@@ -51,6 +60,9 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
         from petites import solarcleaner
         from petites import rhcleaner
         from petites import calc_tdp
+
+        # Progress bar!
+        # from tqdm import tqdm
 
         # This is the master tuple of column names, which should not
         # be modified.
@@ -94,16 +106,6 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
         # %%
 
         # Fit ARIMA models.
-
-        # Set ranges for various model parameters.
-        # Each range is one more than what we are
-        # interested in because range cuts off at end-1.
-
-        arp = range(0, 2)
-        maq = range(0, 2)
-        sarp = range(0, 2)
-        smaq = range(0, 2)
-        s = 24
 
         selmdl = list()
         resid = np.zeros([demeaned[0].shape[0], len(varidx)])
