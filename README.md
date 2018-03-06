@@ -1,22 +1,24 @@
-# SyntheticWeather
+<h1>SyntheticWeather</h1>
 
 This repository contains scripts to create synthetic weather time series from a short weather record of at least one year. The tool (scripts and how they might be implemented in ESP-r and Ladybug) is provisionally named `indra` <sup>(1)</sup>. _All the scripts here should be treated as **experimental** unless explicitly stated otherwise._
 
 ### Great, where do I begin?
 
-Start by going into either the folder `m-files` (MATLAB files) or the folder `py-files` (Python files, if you are feeling adventurous). Each of them has a `README.md` or `Installation.md` file to get you started.
+Please please go to the <a href='https://github.com/paragrastogi/SyntheticWeather/wiki'>wiki</a>. I can't make you do it though, so yes, be your own boss. The wiki contains a step-by-step guide to installing and running mighty **indra**.
+
+If you know your way around MATLAB or Python, go directly into either the folder `m-files` (MATLAB files) or the folder `py-files` (Python files). Most of the scripts explain themselves. **Sample Python commands** are <a href='https://github.com/paragrastogi/SyntheticWeather/wiki/Sample-Commands'>given here</a>. 
 
 ## The methods
 
-The MATLAB/R scripts are based on the algorithms published in Parag's thesis. While these scripts are well documented (in two conference papers and the thesis), no further work is being undertaken on that algorithm (call it the 'old' algorithm). These scripts will, hopefully by November 2017, be faithfully translated to Python (update: translation about 60% complete).
+The MATLAB/R scripts are based on the algorithms published in Parag's thesis. While these scripts are well documented (in two conference papers and the thesis), I won't be working on these any more.
 
-The Python scripts in the repository *should not be used for now* (October 2017). If you are really curious, they can be called with two methods: `arma` and `gp`. The method `arma` will be an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>. The method `gp` is new and experimental - which means that it has not been published or tested extensively yet. This consitutes a significant change in the algorithm, and I would not recommend using it just yet (October 2017). 
+The Python scripts in the repository are translations of these original scripts. The method is an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>.  
 
 ## License, implementation, and compatibility
 
-This tool is distributed under the GPLv3 license. Please read what this means [here](https://en.wikipedia.org/wiki/GNU_General_Public_License).
+This tool is distributed under the GPLv3 license. Please read what this means <a href='https://en.wikipedia.org/wiki/GNU_General_Public_License'>here</a>.
 
-I intend to make this tool fully compatible with [ESP-r](https://github.com/ESP-rCommunity "ESP-r") and [Dragonfly](https://github.com/chriswmackey/Dragonfly "Dragonfly"). However, it exists on its own as a command-line tool.
+This tool is in the process of being made compatible with <a href='https://github.com/ESP-rCommunity'>ESP-r</a> and <a href='https://github.com/chriswmackey/Dragonfly'>Dragonfly</a>. However, it exists on its own as a command-line tool.
 
 Using the older scripts requires only a valid MATLAB license and R (R is free to download and reuse). While you are free to use the scripts as you please, I am not liable for anything that happens as a result of using my scripts. Like if you accidentally release the nuclear missiles stored in the Dakotas, ruin the ski season in Switzerland, or cause a drought in Scotland.
 

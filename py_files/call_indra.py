@@ -30,7 +30,7 @@ parser.add_argument("--stcode", type=str, default="abc",
                     "If you are not passing seed data, and want me to " +
                     "pick up a saved model, please use the station code" +
                     " of the saved model.")
-parser.add_argument("--n_samples", type=int, default=1,
+parser.add_argument("--n_samples", type=int, default=10,
                     help="How many samples do you want out?")
 parser.add_argument("--fpath_in", type=str, help="Path to a weather " +
                     "file (seed file).", default="wf_in.a")

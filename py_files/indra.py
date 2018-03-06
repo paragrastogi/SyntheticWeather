@@ -176,8 +176,9 @@ def indra(train=False, stcode="abc", n_samples=1,
         with open(path_counter_save, "wb") as fp:
             pickle.dump(csave, fp)
 
-        print("I've saved the model for station '{0}'. You can now ask me " +
-              "for samples in folder '{1}'.\r\n".format(stcode, storepath))
+        print("I've saved the model for station '{0}'. ".format(stcode) +
+              "You can now ask me for samples in folder '{1}'\r\n.".format(
+                  storepath))
 
     else:
 
