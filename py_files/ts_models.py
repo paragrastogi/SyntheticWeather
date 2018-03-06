@@ -6,8 +6,8 @@ Created on Sun Oct  8 20:29:16 2017
 """
 import numpy as np
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-# from sys import stdout
-from tqdm import tqdm
+from sys import stdout
+# from tqdm import tqdm
 
 
 def select_models(arp, maq, sarp, smaq, s, ts_in):
@@ -19,7 +19,7 @@ def select_models(arp, maq, sarp, smaq, s, ts_in):
 
     # Loop through all possible combinations of ar, ma, sar, and sma lags.
 
-    for p in tqdm(arp, desc='Choosing model'):
+    for p in arp:
         for q in maq:
             for pp in sarp:
                 for qq in smaq:
@@ -64,9 +64,9 @@ def select_models(arp, maq, sarp, smaq, s, ts_in):
                         # print('fit threw an error')
                         continue
 
-                    # # Print out a heartbeat.
-                    # stdout.write("... ")
-                    # stdout.flush()
+                    # Print out a heartbeat.
+                    stdout.write("...{0}".format(counter))
+                    stdout.flush()
 
                 # End qq loop.
             # End pp loop.
