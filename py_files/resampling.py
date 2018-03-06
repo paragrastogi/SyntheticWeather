@@ -25,7 +25,9 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
     sarp = range(0, arp_ub+1)
     smaq = range(0, arp_ub+1)
 
-    # Check to see if random number generation is reproducible.
+    # Number of variables affected by this script.
+    # Only two for now.
+    NUM_VARS = 2
 
     # Seed random number generators.
     #    if randseed is None:
@@ -77,16 +79,19 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
 
         # For now, I am only considering these two variables.
         fit_idx = np.arange(0, xy_train.shape[0])
-        varidx = [x for (x, y) in enumerate(column_names) if y == "tdb"] + \
-            [x for (x, y) in enumerate(column_names) if y == "rh"]
+        tdb_idx = [x for (x, y) in enumerate(column_names) if y == "tdb"][0]
+        rh_idx = [x for (x, y) in enumerate(column_names) if y == "rh"][0]
+        ghi_idx = [x for (x, y) in enumerate(column_names) if y == "ghi"][0]
+        # varidx = [x for (x, y) in enumerate(column_names) if y == "tdb"] + \
+        #     [x for (x, y) in enumerate(column_names) if y == "rh"]
         othervars = (np.arange(0, xy_train.shape[1])).tolist()
 
         # Fit fourier functions to the tdb and rh series.
 
         # The curve_fit function outputs two things:
         params = [
-                curve_fit(fourier.fit_tdb, fit_idx, xy_train[:, varidx[0]]),
-                curve_fit(fourier.fit_rh, fit_idx, xy_train[:, varidx[1]])
+                curve_fit(fourier.fit_tdb, fit_idx, xy_train[:, tdb_idx]),
+                curve_fit(fourier.fit_rh, fit_idx, xy_train[:, rh_idx])
                 ]
         # tdb, rh, tdb_low, tdb_high, rh_low
 
@@ -100,15 +105,15 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
         # (whichever is applicable) from the raw values to get the
         # 'de-meaned' values (values from which the mean has
         # been removed).
-        demeaned = [xy_train[:, varidx[0]] - ffit[0],
-                    xy_train[:, varidx[1]] - ffit[1]]
+        demeaned = [xy_train[:, tdb_idx] - ffit[0],
+                    xy_train[:, rh_idx] - ffit[1]]
 
         # %%
 
         # Fit ARIMA models.
 
         selmdl = list()
-        resid = np.zeros([demeaned[0].shape[0], len(varidx)])
+        resid = np.zeros([demeaned[0].shape[0], NUM_VARS])
 
         for idx, ser in enumerate(demeaned):
             mdl_temp, resid[:, idx] = select_models(
@@ -116,17 +121,14 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
             selmdl.append(mdl_temp)
 
         print("Done with fitting models to TDB and RH.")
-        # %%
 
-        resampled = np.zeros([8760, len(varidx), n_samples])
+        resampled = np.zeros([8760, NUM_VARS, n_samples])
 
         print("Simulating the learnt model to get synthetic noise series.")
         print("This might take some time.\r\n")
         for v, mdl in enumerate(selmdl):
             for n in range(0, n_samples):
                 resampled[:, v, n] = mdl.simulate(nsimulations=8760)
-
-        # %%
 
         # Add the resampled time series back to the fourier series.
         xout = np.zeros([resampled.shape[0], xy_train.shape[1],
@@ -135,7 +137,7 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
         v = 0
         vv = 0
         for idx in range(0, xy_train.shape[1]):
-            if idx in varidx:
+            if idx in [rh_idx, tdb_idx]:
                 xout[:, idx, :] = resampled[:, v, :] + \
                     np.repeat(np.reshape(ffit[v], [-1, 1]),
                               resampled.shape[-1], axis=1)
@@ -150,6 +152,10 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
             # End if idx conditional.
         # End for idx loop.
 
+        # Clean the tdb and rh values.
+
+        print('I am going to clean all synthetic values.')
+
         # Synthetic solar and rh data require post-processing.
 
         for c, colname in enumerate(column_names):
@@ -158,7 +164,7 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
 
                 for n in range(0, n_samples):
                     xout[:, c, n] = solarcleaner(
-                            xout[:, c, n], xy_train[:, c])
+                        xout[:, c, n], xy_train[:, c])
 
                 # End loop over samples.
 
@@ -168,16 +174,16 @@ def resampling(xy_train, counter=0, selmdl=None, ffit=None,
 
         # Interpolate the bad rh values.
         for n in range(0, n_samples):
-            rh = xout[:, varidx[1], n]
-            xout[:, varidx[1], n] = rhcleaner(rh)
+            rh = xout[:, rh_idx, n]
+            xout[:, rh_idx, n] = rhcleaner(rh)
 
         # Calculate tdp values from tdb and rh.
         tdp_idx = [x for (x, y) in enumerate(column_names) if y == "tdp"]
 
         for n in range(0, n_samples):
             xout[:, tdp_idx, n] = np.resize(
-                    calc_tdp(xout[:, varidx[0], n], xout[:, varidx[1], n]),
-                    xout[:, tdp_idx, n].shape)
+                calc_tdp(xout[:, tdb_idx, n], xout[:, rh_idx, n]),
+                xout[:, tdp_idx, n].shape)
 
         # Save the outputs as a pickle.
         np.save(picklepath, xout, allow_pickle=True)

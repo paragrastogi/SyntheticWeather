@@ -95,7 +95,7 @@ def indra(train=False, stcode="abc", n_samples=1,
     # See accompanying script "wfileio".
     try:
         xy_train, locdata, header = wf.get_weather(
-                stcode, fpath_in, ftype)
+            stcode, fpath_in, ftype)
 
         print("Successfully retrieved weather data.\r\n")
 
@@ -110,11 +110,11 @@ def indra(train=False, stcode="abc", n_samples=1,
 
     if train:
 
-        # The learning/sampling functions rely on random sampling. For one run,
-        # the random seed is constant/immutable; changing it during a run
-        # would not make sense. This makes the runs repeatable -- keep track of
-        # the seed and you can reproduce exactly the same random number draws
-        # as before.
+        # The learning/sampling functions rely on random sampling. For one
+        # run, the random seed is constant/immutable; changing it during a
+        # run would not make sense. This makes the runs repeatable -- keep
+        # track of the seed and you can reproduce exactly the same random
+        # number draws as before.
 
         # If the user did not specify a random seed, then the generator
         # uses the current time, in seconds since an epoch, which differs
@@ -176,8 +176,8 @@ def indra(train=False, stcode="abc", n_samples=1,
         with open(path_counter_save, "wb") as fp:
             pickle.dump(csave, fp)
 
-        print("Saved model. You can now ask me for samples for " +
-              "station '{0}' in folder '{1}'.\r\n".format(stcode, storepath))
+        print("I've saved the model for station '{0}'. You can now ask me " +
+              "for samples in folder '{1}'.\r\n".format(stcode, storepath))
 
     else:
 
@@ -189,7 +189,7 @@ def indra(train=False, stcode="abc", n_samples=1,
 
         # In this MC framework, the "year" of weather data is meaningless.
         # When the climate change models will be added, these years will
-        # mean something. For now, just add "2017" to every file.
+        # mean something. For now, any number will do.
 
         # Load counter.
         with open(path_counter_save, "rb") as fp:
@@ -212,5 +212,6 @@ def indra(train=False, stcode="abc", n_samples=1,
         csave["counter"] += 1
         if csave["counter"] >= (csave["n_samples"]-1):
             csave["counter"] = 0
+
         with open(path_counter_save, "wb") as fp:
             pickle.dump(csave, fp)
