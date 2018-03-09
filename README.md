@@ -4,15 +4,15 @@ This repository contains scripts to create synthetic weather time series from a 
 
 ### Great, where do I begin?
 
-Please please go to the <a href='https://github.com/paragrastogi/SyntheticWeather/wiki'>wiki</a>. I can't make you do it though, so yes, be your own boss. The wiki contains a step-by-step guide to installing and running mighty **indra**.
+<strong>Please, please see the <a href='https://github.com/paragrastogi/SyntheticWeather/wiki'>wiki</a> first.</strong> I can't make you do it though, so yes, be your own boss. The wiki contains a step-by-step guide to installing and running mighty <b>indra</b>.
 
-If you know your way around MATLAB or Python, go directly into either the folder `m-files` (MATLAB files) or the folder `py-files` (Python files). Most of the scripts explain themselves. **Sample Python commands** are <a href='https://github.com/paragrastogi/SyntheticWeather/wiki/Sample-Commands'>given here</a>. 
+If you know your way around MATLAB or Python, go directly into either the folder `m-files` (MATLAB files) or the folder `py-files` (Python files). Most of the scripts explain themselves. **Sample Python commands** are <a href='https://github.com/paragrastogi/SyntheticWeather/wiki/Sample-Commands'>given here</a>.
 
 ## The methods
 
 The MATLAB/R scripts are based on the algorithms published in Parag's thesis. While these scripts are well documented (in two conference papers and the thesis), I won't be working on these any more.
 
-The Python scripts in the repository are translations of these original scripts. The method is an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>.  
+The Python scripts in the repository are translations of these original scripts. The method is an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>.
 
 ## License, implementation, and compatibility
 
@@ -57,7 +57,7 @@ Happy creating fake weather!
 ### Acknowledgements
 
 1. This work began during my PhD at the Ecole Polytechnique Federale de Lausanne. It was funded by the CCEM SECURE project and the EuroTech consortium. February 2012 - August 2016
-2. Newer work and the Python translation is being undertaken by me as a visiting scientist at the Energy Systems Research Unit (ESRU), University of Strathclyde, Glasgow; and the RIKEN Institute for Advanced Intelligence Project (RIKEN-AIP), Tokyo. His stay at these institutions is being financed by the Swiss National Science Foundation (SNSF). 
+2. Newer work and the Python translation is being undertaken by me as a visiting scientist at the Energy Systems Research Unit (ESRU), University of Strathclyde, Glasgow; and the RIKEN Institute for Advanced Intelligence Project (RIKEN-AIP), Tokyo. His stay at these institutions is being financed by the Swiss National Science Foundation (SNSF).
 
 I woud like to thank his hosts: Prof. Joe Clarke (Strathclyde, Glasgow) and Dr Mohammad Emtiyaz Khan and Prof. Masashi Sugiyama (RIKEN-AIP, Tokyo). The advice of Prof. Anthony Davison (EPFL, Lausanne) was crucial in creating the first models.
 
