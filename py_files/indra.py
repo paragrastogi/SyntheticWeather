@@ -52,13 +52,14 @@ from resampling import resampling
 # from losses import maeloss
 
 
-def indra(train=False, stcode="abc", n_samples=1,
+def indra(train=False, stcode="abc", n_samples=10,
           fpath_in="wf_in.a", fpath_out="wf_out.a",
           ftype="espr", storepath=".",
           stlat=0.0, stlong=0.0, stalt=0.0,
           randseed=None,
           arp_ub=2, maq_ub=2, sarp_ub=2,
-          smaq_ub=2, seasonality=24):
+          smaq_ub=2, seasonality=24,
+          lb=0.01, ub=99.9):
 
     # Uncomment when debugging this script to avoid having to call the
     # whole function.
@@ -133,11 +134,10 @@ def indra(train=False, stcode="abc", n_samples=1,
         # Call resampling with null selmdl and ffit, since those
         # haven"t been trained yet.
         ffit, selmdl, _ = resampling(
-            xy_train, selmdl=None, ffit=None,
-            train=True, sample=False, n_samples=n_samples,
-            picklepath=picklepath, randseed=randseed,
-            arp_ub=smaq_ub, maq_ub=smaq_ub,
-            sarp_ub=smaq_ub, smaq_ub=smaq_ub, s=seasonality)
+            xy_train, train=True, n_samples=n_samples,
+            picklepath=picklepath,
+            arma_params=[arp_ub, maq_ub, sarp_ub, smaq_ub, seasonality],
+            lb=lb, ub=ub)
 
         # The non-seasonal order of the model. This exists in both
         # ARIMA and SARIMAX models, so it has to exist in the output
@@ -197,12 +197,7 @@ def indra(train=False, stcode="abc", n_samples=1,
             csave = pickle.load(fp)
 
         _, _, xout = resampling(
-            xy_train, counter=csave["counter"],
-            selmdl=None, ffit=None,
-            train=False, sample=True, n_samples=1,
-            picklepath=picklepath, randseed=randseed,
-            arp_ub=arp_ub, maq_ub=maq_ub,
-            sarp_ub=sarp_ub, smaq_ub=smaq_ub, s=seasonality)
+            xy_train, counter=csave["counter"], train=False, sample=True)
 
         # Save / write-out synthetic time series.
         wf.give_weather(xout, locdata, stcode, header, ftype=ftype,

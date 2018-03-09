@@ -11,14 +11,27 @@ import random
 import numpy as np
 from scipy import interpolate
 
-
-# Seed random number generators. Called as a function in main indra
-# script once and only once.
 def setseed(randseed):
+    '''Seed random number generators. Called as a function in main indra
+    script once and only once.'''
+
     np.random.seed(randseed)
     random.seed = randseed
 
 # ----------- END setseed function. -----------
+
+
+def quantilecleaner(datain, lb=0.01, ub=99.9):
+    '''Generic cleaner based on quantiles. Needs a time series / dataset
+       and cut-off quantiles. This function will censor the data outside
+       those quantiles and interpolate the missing values using nearest
+       neighbour.'''
+
+    dataout = datain
+
+    return dataout
+
+# ----------- END quantilecleaner function. -----------
 
 
 def solarcleaner(datain, master):

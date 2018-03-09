@@ -83,6 +83,14 @@ parser.add_argument("--seasonality", type=int, default=24,
                     help="The period of the seasonal terms (seasonality) " +
                     "to use in the model. If you don't know what this " +
                     "is, don't worry. The default is 24.")
+parser.add_argument("--lb", type=int, default=0.01,
+                    help="Lower bound percentile value to " +
+                    "use for cleaning the synthetic data. " +
+                    "The default is 0.01%.")
+parser.add_argument("--ub", type=int, default=99.9,
+                    help="Upper bound percentile value to " +
+                    "use for cleaning the synthetic data. " +
+                    "The default is 99.9%.")
 
 args = parser.parse_args()
 
@@ -102,11 +110,13 @@ maq_ub = args.maq_ub
 sarp_ub = args.sarp_ub,
 smaq_ub = args.smaq_ub
 seasonality = args.seasonality
+lb = args.lb
+ub = args.ub
 
 print("\r\nInvoking indra for {0}.\r\n".format(stcode))
 
 if storepath == "SyntheticWeather":
-    storepath = storepath + stcode
+    storepath = storepath + '_' + stcode
 
 if __name__ == "__main__":
     indra(train, stcode=stcode,
@@ -118,4 +128,5 @@ if __name__ == "__main__":
           stlat=stlat, stlong=stlong, stalt=stalt,
           randseed=randseed,
           arp_ub=arp_ub, maq_ub=maq_ub, sarp_ub=sarp_ub,
-          smaq_ub=smaq_ub, seasonality=seasonality)
+          smaq_ub=smaq_ub, seasonality=seasonality,
+          lb=lb, ub=ub)
