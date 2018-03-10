@@ -11,22 +11,42 @@ my thesis (Rastogi, 2016, EPFL).
 
 import numpy as np
 
+from scipy.optimize import curve_fit
+
+import fourier
+from ts_models import select_models
+# Useful small functions like solarcleaner.
+import petites as petite
+
+# Number of variables resampled - TDB and RH.
+NUM_VARS = 2
+
+# "Standard" length of output year.
+STD_LEN_OUT = 8760
+
+# This is the master tuple of column names, which should not
+# be modified.
+COLUMNS = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
+           'ghi', 'dni', 'dhi', 'wspd', 'wdr')
+
 
 def resampling(xy_train, train=True, n_samples=10,
                picklepath='test_out.npy', counter=0,
-               arma_params=[2, 2, 2, 2, 24], lb=0.01, ub=99.9):
+               arma_params=None, bounds=None):
 
-    # Number of variables affected by this script.
-    # Only two for now.
-    NUM_VARS = 2
+    # Reassign defaults if incoming list params are None
+    # (i.e., nothing passed.)
+    if arma_params is None:
+        arma_params = [2, 2, 1, 1, 24]
 
-    # %%
+    if bounds is None:
+        bounds = [0.01, 99.9]
 
     # if train is True, then the model must be fit to incoming data.
     if train:
 
         ffit, selmdl, xout = trainer(
-            xy_train, n_samples, arma_params, NUM_VARS)
+            xy_train, n_samples, arma_params, bounds)
 
         # Save the outputs as a pickle.
         np.save(picklepath, xout, allow_pickle=True)
@@ -46,61 +66,37 @@ def resampling(xy_train, train=True, n_samples=10,
     return ffit, selmdl, sample
 
 
-def trainer(xy_train, n_samples, arma_params, NUM_VARS, lb, ub):
+def trainer(xy_train, n_samples, arma_params, bounds):
     '''Train the model with this function.'''
 
-    from scipy.optimize import curve_fit
-
-    import fourier
-    from ts_models import select_models
-    from petites import solarcleaner
-    from petites import rhcleaner
-    from petites import calc_tdp
-    from petites import quantilecleaner
-
-    # Progress bar!
-    # from tqdm import tqdm
-
-    # "Standard" length of output year.
-    STD_LEN_OUT = 8760
-
-    # This is the master tuple of column names, which should not
-    # be modified.
-    column_names = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
-                    'ghi', 'dni', 'dhi', 'wspd', 'wdr')
-
-    # This is the master tuple of time variable names,
-    # which should also not be modified.
-    # date_cols = ('year', 'month', 'day', 'hour')
-    # dc = len(date_cols)
-    # midx = 1  # Month is in the second column - will be needed later.
+    fit_idx = np.arange(0, xy_train.shape[0])
 
     # For now, I am only considering these two variables.
-    fit_idx = np.arange(0, xy_train.shape[0])
-    tdb_idx = [x for (x, y) in enumerate(column_names) if y == "tdb"][0]
-    rh_idx = [x for (x, y) in enumerate(column_names) if y == "rh"][0]
-    sol_idx = [x for (x, y) in enumerate(column_names) if y == "ghi"] + \
-        [x for (x, y) in enumerate(column_names) if y == "dni"] + \
-        [x for (x, y) in enumerate(column_names) if y == "dhi"]
+    tdb_idx = [x for (x, y) in enumerate(COLUMNS) if y == "tdb"][0]
+    rh_idx = [x for (x, y) in enumerate(COLUMNS) if y == "rh"][0]
+
+    sol_idx = [x for (x, y) in enumerate(COLUMNS) if y == "ghi"] + \
+        [x for (x, y) in enumerate(COLUMNS) if y == "dni"] + \
+        [x for (x, y) in enumerate(COLUMNS) if y == "dhi"]
 
     # Later, we will calculate tdp values from tdb and rh, so store the index.
-    tdp_idx = [x for (x, y) in enumerate(column_names) if y == "tdp"]
+    tdp_idx = [x for (x, y) in enumerate(COLUMNS) if y == "tdp"]
 
-    # varidx = [x for (x, y) in enumerate(column_names) if y == "tdb"] + \
-    #     [x for (x, y) in enumerate(column_names) if y == "rh"]
-    othervars = (np.arange(0, xy_train.shape[1])).tolist()
+    # othervars = (np.arange(0, xy_train.shape[1]-2)).tolist()
 
     # Fit fourier functions to the tdb and rh series.
 
-    # The curve_fit function outputs two things:
+    # The curve_fit function outputs two things: parameters of the fit and
+    # the estimated covariance. We only use the first.
+    # Inputs are the function to fit (fourier in this case),
+    # xdata, and ydata.
     params = [
         curve_fit(fourier.fit_tdb, fit_idx, xy_train[:, tdb_idx]),
         curve_fit(fourier.fit_rh, fit_idx, xy_train[:, rh_idx])
         ]
 
     # Call the fourier fit function with the calculated
-    # parameters to get the
-    # values of the fourier fit at each time step
+    # parameters to get the values of the fourier fit at each time step
     ffit = [fourier.fit('tdb', fit_idx, *params[0][0]),
             fourier.fit('rh', fit_idx, *params[1][0])]
 
@@ -108,15 +104,15 @@ def trainer(xy_train, n_samples, arma_params, NUM_VARS, lb, ub):
     # (whichever is applicable) from the raw values to get the
     # 'de-meaned' values (values from which the mean has
     # been removed).
-    demeaned = [xy_train[:, tdb_idx] - ffit[0],
-                xy_train[:, rh_idx] - ffit[1]]
+    DeMeaned = [x-y for x, y in zip([xy_train[:, tdb_idx],
+                                     xy_train[:, rh_idx]], ffit)]
 
     # Fit ARIMA models.
 
     selmdl = list()
-    resid = np.zeros([demeaned[0].shape[0], NUM_VARS])
+    resid = np.zeros([DeMeaned[0].shape[0], NUM_VARS])
 
-    for idx, ser in enumerate(demeaned):
+    for idx, ser in enumerate(DeMeaned):
         mdl_temp, resid[:, idx] = select_models(
             arma_params, ser)
         selmdl.append(mdl_temp)
@@ -128,30 +124,26 @@ def trainer(xy_train, n_samples, arma_params, NUM_VARS, lb, ub):
     print("Simulating the learnt model to get synthetic noise series.")
     print("This might take some time.\r\n")
     for mdl_idx, mdl in enumerate(selmdl):
-        for n in range(0, n_samples):
-            resampled[:, mdl_idx, n] = mdl.simulate(
+        for sample_num in range(0, n_samples):
+            resampled[:, mdl_idx, sample_num] = mdl.simulate(
                 nsimulations=STD_LEN_OUT)
         # End n for loop.
     # End mdl for loop.
 
     # Add the resampled time series back to the fourier series.
-    xout = np.zeros([STD_LEN_OUT, xy_train.shape[1],
-                     resampled.shape[-1]])
 
-    v = 0
-    vv = 0
-    for idx in range(0, xy_train.shape[1]):
-        if idx in [rh_idx, tdb_idx]:
-            xout[:, idx, :] = (resampled[:, v, :] +
-                               np.repeat(np.reshape(ffit[v], [-1, 1]),
-                               resampled.shape[-1], axis=1))
-            v += 1
+    # First make the xout array using all variables. Variables other than RH
+    # and TDB are just repeated from the incoming files.
+    xout = np.tile(np.atleast_3d(xy_train), n_samples)
 
-        elif idx in othervars:
-            xout[:, idx, :] = np.repeat(np.reshape(
-                xy_train[:, idx], [-1, 1]),
-                resampled.shape[-1], axis=1)
-            vv += 1
+    for train_idx, xout_idx in enumerate([rh_idx, tdb_idx]):
+
+        # Add the fourier fits from the training data to the
+        # resampled/resimulated ARMA model outputs.
+        xout[:, xout_idx, :] = (
+            resampled[:, train_idx, :] +
+            np.reshape(np.tile(ffit[train_idx], n_samples), (STD_LEN_OUT, -1))
+            )
 
         # End if idx conditional.
     # End for idx loop.
@@ -167,20 +159,22 @@ def trainer(xy_train, n_samples, arma_params, NUM_VARS, lb, ub):
 
     # Clean the RH values using phyiscal limits (0-100).
 
-    for n in range(0, n_samples):
+    for sample_num in range(0, n_samples):
 
         for solcols in sol_idx:
-            xout[:, solcols, n] = solarcleaner(
-                xout[:, solcols, n], xy_train[:, solcols])
+            xout[:, solcols, sample_num] = petite.solarcleaner(
+                xout[:, solcols, sample_num], xy_train[:, solcols])
 
-        xout[:, tdb_idx, n] = quantilecleaner(xout[:, tdb_idx, n],
-            lb=lb, ub=ub)
+        xout[:, tdb_idx, sample_num] = petite.quantilecleaner(
+            xout[:, tdb_idx, sample_num], xy_train, bounds=bounds)
 
-        xout[:, rh_idx, n] = rhcleaner(xout[:, rh_idx, n])
+        xout[:, rh_idx, sample_num] = petite.quantilecleaner(
+            xout[:, rh_idx, sample_num], xy_train, bounds=bounds)
 
-        xout[:, tdp_idx, n] = np.resize(
-            calc_tdp(xout[:, tdb_idx, n], xout[:, rh_idx, n]),
-            xout[:, tdp_idx, n].shape)
+        xout[:, tdp_idx, sample_num] = np.resize(
+            petite.calc_tdp(xout[:, tdb_idx, sample_num],
+                            xout[:, rh_idx, sample_num]),
+            xout[:, tdp_idx, sample_num].shape)
 
         # End loop over samples.
 

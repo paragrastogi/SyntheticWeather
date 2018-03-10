@@ -5,10 +5,11 @@ Created on Sun Oct  8 20:29:16 2017
 @author: rasto
 """
 from sys import stdout
+from itertools import product
 import numpy as np
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 # from tqdm import tqdm
-from itertools import product
+
 
 def select_models(arma_params, ts_in):
 
@@ -21,13 +22,19 @@ def select_models(arma_params, ts_in):
 
     aic_curr = 0
     selaic = np.infty
+    mod_fit_curr = None
 
     counter = 0
+    # Total iterations expected.
+    # total_iters = np.prod([x+1 for x in arma_params[:-1]])
+    # print(total_iters)
 
     # Loop through all possible combinations of ar, ma, sar, and sma lags.
 
+    print("Iterations to go: ")
+
     for p, q, pp, qq in product(
-        range(0, arma_params[0]+1), range(0, arma_params[1]+1),
+            range(0, arma_params[0]+1), range(0, arma_params[1]+1),
             range(0, arma_params[2]+1), range(0, arma_params[3]+1)):
 
         if p == 0 and q == 0:
@@ -45,38 +52,26 @@ def select_models(arma_params, ts_in):
             aic_curr = mod_fit_curr.aic
 
             if np.isnan(aic_curr):
+                counter += 1
                 continue
 
-            else:
+            # if counter > 0:
+            if aic_curr < selaic:
+                [selaic, selmdl] = [aic_curr, mod_fit_curr]
 
-                if counter > 0:
-                    if aic_curr < selaic:
-                        selaic = aic_curr
-                        selmdl = mod_fit_curr
-                    # else:
-                    #    print("aic_curr > selaic")
+            # elif counter == 0:
+            #     [selaic, selmdl] = [aic_curr, mod_fit_curr]
 
-                elif counter == 0:
-                    selaic = aic_curr
-                    selmdl = mod_fit_curr
-
-                counter += 1
-                # print("counter {0}".format(counter))
-                # print("aic_curr {0}".format(aic_curr))
-                # print("selaic {0}".format(selaic))
+            counter += 1
 
         except Exception as err:
-            # print('fit threw an error')
+            print('fit threw an error')
             continue
 
         # Print out a heartbeat.
-        stdout.write("...{0}".format(counter))
-        stdout.flush()
+        print("{0} ...".format(counter))
 
-                # End qq loop.
-            # End pp loop.
-        # End q loop.
-    # End p loop.
+    # End p, q, pp, qq nested loops.
 
     resid = selmdl.resid
 

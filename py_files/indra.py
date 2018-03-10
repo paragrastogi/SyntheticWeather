@@ -52,51 +52,63 @@ from resampling import resampling
 # from losses import maeloss
 
 
-def indra(train=False, stcode="abc", n_samples=10,
-          fpath_in="wf_in.a", fpath_out="wf_out.a",
-          ftype="espr", storepath=".",
-          stlat=0.0, stlong=0.0, stalt=0.0,
+def indra(train=False, station_code="abc", n_samples=10,
+          path_file_in="wf_in.a", path_file_out="wf_out.a",
+          file_type="espr", store_path=".",
+          station_coordinates=None,
           randseed=None,
-          arp_ub=2, maq_ub=2, sarp_ub=2,
-          smaq_ub=2, seasonality=24,
-          lb=0.01, ub=99.9):
+          arma_params=None,
+          bounds=None):
+
+    # Reassign defaults if incoming list params are None
+    # (i.e., nothing passed.)
+    if arma_params is None:
+        arma_params = [2, 2, 1, 1, 24]
+
+    if bounds is None:
+        bounds = [0.01, 99.9]
+
+    if station_coordinates is None:
+        station_coordinates = [0.0, 0.0, 0.0]
 
     # Uncomment when debugging this script to avoid having to call the
     # whole function.
     # train=False
-    # stcode="lgw"
+    # station_code="lgw"
     # n_samples=100
-    # storepath="lgw"
-    # fpath_in= os.path.join(storepath, "GBR_London_Gatwick.a")
-    # fpath_out= os.path.join(storepath, "GBR_London_Gatwick_syn.a")
-    # ftype="espr"
+    # store_path="lgw"
+    # path_file_in= os.path.join(store_path, "GBR_London_Gatwick.a")
+    # path_file_out= os.path.join(store_path, "GBR_London_Gatwick_syn.a")
+    # file_type="espr"
     # randseed=None
 
     # ------------------
     # Some initialisation house work.
 
-    # Convert incoming stcode to lowercase.
-    stcode = stcode.lower()
+    # Convert incoming station_code to lowercase.
+    station_code = station_code.lower()
 
-    if storepath == '.':
-        storepath = stcode
+    # Make a folder named using the station code in case no path to
+    # folder was passed.
+    if store_path == '.':
+        store_path = station_code
 
-    # Store everything in a folder named <stcode>.
-    if not os.path.isdir(storepath):
-        os.makedirs(storepath)
+    # Store everything in a folder named <station_code>.
+    if not os.path.isdir(store_path):
+        os.makedirs(store_path)
 
     # These will be the files where the outputs will be stored.
-    path_model_save = os.path.join(storepath, "model.p")
+    path_model_save = os.path.join(store_path, "model.p")
     # Save output time series.
-    picklepath = os.path.join(storepath, "syn.npy")
-    path_counter_save = os.path.join(storepath, "counter.p")
+    picklepath = os.path.join(store_path, "syn.npy")
+    path_counter_save = os.path.join(store_path, "counter.p")
 
     # ----------------
 
     # See accompanying script "wfileio".
     try:
         xy_train, locdata, header = wf.get_weather(
-            stcode, fpath_in, ftype)
+            station_code, path_file_in, file_type)
 
         print("Successfully retrieved weather data.\r\n")
 
@@ -136,8 +148,8 @@ def indra(train=False, stcode="abc", n_samples=10,
         ffit, selmdl, _ = resampling(
             xy_train, train=True, n_samples=n_samples,
             picklepath=picklepath,
-            arma_params=[arp_ub, maq_ub, sarp_ub, smaq_ub, seasonality],
-            lb=lb, ub=ub)
+            arma_params=arma_params,
+            bounds=bounds)
 
         # The non-seasonal order of the model. This exists in both
         # ARIMA and SARIMAX models, so it has to exist in the output
@@ -152,33 +164,34 @@ def indra(train=False, stcode="abc", n_samples=10,
             # Try to find the seasonal order. If it exists, save the
             # sarimax model. This should almost always be the case.
             seasonal_order = [
-                (int(p.model.k_seasonal_ar/p.model.seasonal_periods),
+                (int(mdl.model.k_seasonal_ar/mdl.model.seasonal_periods),
                  0,
-                 int(p.model.k_seasonal_ma/p.model.seasonal_periods),
-                 p.model.seasonal_periods)
-                for p in selmdl]
+                 int(mdl.model.k_seasonal_ma/mdl.model.seasonal_periods),
+                 mdl.model.seasonal_periods)
+                for mdl in selmdl
+                ]
 
             arma_save = dict(order=order, params=params,
                              seasonal_order=seasonal_order,
                              ffit=ffit, endog=endog,
                              randseed=randseed)
 
-        except AttributeError:
+        except Exception:
             # Otherwise, ask for forgiveness and save the ARIMA model.
             arma_save = dict(order=order, params=params, endog=endog,
                              ffit=ffit, randseed=randseed)
 
-        with open(path_model_save, "wb") as fp:
-            pickle.dump(arma_save, fp)
+        with open(path_model_save, "wb") as open_file:
+            pickle.dump(arma_save, open_file)
 
         # Save counter.
         csave = dict(counter=0, n_samples=n_samples)
-        with open(path_counter_save, "wb") as fp:
-            pickle.dump(csave, fp)
+        with open(path_counter_save, "wb") as open_file:
+            pickle.dump(csave, open_file)
 
-        print("I've saved the model for station '{0}'. ".format(stcode) +
-              "You can now ask me for samples in folder '{1}'\r\n.".format(
-                  storepath))
+        print(("I've saved the model for station '{0}'. "
+               "You can now ask me for samples in folder '{1}'."
+               "\r\n").format(station_code, store_path))
 
     else:
 
@@ -193,15 +206,15 @@ def indra(train=False, stcode="abc", n_samples=10,
         # mean something. For now, any number will do.
 
         # Load counter.
-        with open(path_counter_save, "rb") as fp:
-            csave = pickle.load(fp)
+        with open(path_counter_save, "rb") as open_file:
+            csave = pickle.load(open_file)
 
         _, _, xout = resampling(
             xy_train, counter=csave["counter"], train=False, sample=True)
 
         # Save / write-out synthetic time series.
-        wf.give_weather(xout, locdata, stcode, header, ftype=ftype,
-                        s_shift=0, fpath_out=fpath_out, masterfile=fpath_in)
+        wf.give_weather(xout, locdata, station_code, header, file_type=file_type,
+                        s_shift=0, path_file_out=path_file_out, masterfile=path_file_in)
 
         # This function has been asked to give a sample, so update
         # the counter.
@@ -209,5 +222,5 @@ def indra(train=False, stcode="abc", n_samples=10,
         if csave["counter"] >= (csave["n_samples"]-1):
             csave["counter"] = 0
 
-        with open(path_counter_save, "wb") as fp:
-            pickle.dump(csave, fp)
+        with open(path_counter_save, "wb") as open_file:
+            pickle.dump(csave, open_file)

@@ -10,6 +10,8 @@ import random
 
 import numpy as np
 from scipy import interpolate
+import pandas as pd
+
 
 def setseed(randseed):
     '''Seed random number generators. Called as a function in main indra
@@ -21,20 +23,35 @@ def setseed(randseed):
 # ----------- END setseed function. -----------
 
 
-def quantilecleaner(datain, lb=0.01, ub=99.9):
+def quantilecleaner(datain, xy_train, bounds=None):
     '''Generic cleaner based on quantiles. Needs a time series / dataset
        and cut-off quantiles. This function will censor the data outside
-       those quantiles and interpolate the missing values using nearest
-       neighbour.'''
+       those quantiles and interpolate the missing values using linear
+       interpolation.'''
 
-    dataout = datain
+    if bounds is None:
+        bounds = [0.01, 99.9]
 
-    return dataout
+    datain_quantiles = np.percentile(xy_train, bounds)
+
+    dataout = pd.DataFrame(datain)
+
+    dataout = dataout.mask(
+        np.logical_or(dataout < datain_quantiles[0],
+                      dataout > datain_quantiles[1]),
+        other=np.NaN).interpolate(method='linear')
+
+    # Pass back values with only one dimension.
+    return np.squeeze(dataout.values)
 
 # ----------- END quantilecleaner function. -----------
 
 
 def solarcleaner(datain, master):
+
+    '''Clean solar values by setting zeros at corresponding times in master
+       to zero in the synthetic data. This is a proxy for sunrise, sunset,
+       and twilight.'''
 
     # Using the source data - check to see if there
     # should be sunlight at a given hour. If not,
@@ -57,54 +74,47 @@ def solarcleaner(datain, master):
 
 def rhcleaner(rh):
 
-    # RH values cannot be more than 100 or less than 0.
+    '''RH values cannot be more than 100 or less than 0.'''
 
-    idx = np.arange(0, rh.shape[0])
-    nans = np.logical_or(rh > 100, rh < 0)
-    rh[nans] = np.NaN
+    rhout = pd.DataFrame(rh)
 
-    # Create interpolation function.
-    int_func = interpolate.interp1d(
-            idx[np.logical_not(nans)], rh[np.logical_not(nans)],
-            kind='nearest', fill_value='extrapolate')
-    # Apply interpolation function.
-    rh[nans] = int_func(idx[nans])
+    rhout = rhout.mask(rhout > 100, other=99).mask(rhout < 0, other=1)
 
-    return rh
+    return np.squeeze(rhout.values)
 
-    # A potential improvement would be to calculate sunrise and sunset
-    # independently since that is an almost deterministic calculation.
-
-# ----------- END solarcleaner function. -----------
+# ----------- END rhcleaner function. -----------
 
 
-def wstats(data, key, stat):
+def wstats(datain, key, stat):
 
-    a = data.groupby(key)
+    grouped_data = datain.groupby(key)
 
     if stat is 'mean':
-        b = a.mean()
+        dataout = grouped_data.mean()
     elif stat is 'sum':
-        b = a.sum()
+        dataout = grouped_data.sum()
     elif stat is 'max':
-        b = a.max()
+        dataout = grouped_data.max()
     elif stat is 'min':
-        b = a.min()
+        dataout = grouped_data.min()
     elif stat is 'std':
-        b = a.std()
+        dataout = grouped_data.std()
     elif stat is 'q1':
-        b = a.quantile(0.25)
+        dataout = grouped_data.quantile(0.25)
     elif stat is 'q3':
-        b = a.quantile(0.75)
+        dataout = grouped_data.quantile(0.75)
     elif stat is 'med':
-        b = a.median()
+        dataout = grouped_data.median()
 
-    return b
+    return dataout
 
 # ----------- END wstats function. -----------
 
 
 def calc_tdp(tdb, rh):
+
+    '''Calculate dew point temperature using dry bulb temperature
+       and relative humidity.'''
 
     # Change relative humidity to fraction.
     phi = rh/100
@@ -121,21 +131,13 @@ def calc_tdp(tdb, rh):
     # (Eq. 5 and 6, Psychrometrics)
 
     # Constants for Eq. 5, Temperature -200°C to 0°C.
-    c1 = -5.6745359*10**3
-    c2 = 6.3925247
-    c3 = -9.6778430*10**-3
-    c4 = 6.2215701*10**-7
-    c5 = 2.0747825*10**-9
-    c6 = -9.4840240*10**-13
-    c7 = 4.1635019
+    FROZEN_CONST = [-5.6745359*10**3, 6.3925247, -9.6778430*10**-3,
+                    6.2215701*10**-7, 2.0747825*10**-9,
+                    -9.4840240*10**-13, 4.1635019]
 
     # Constants for Eq. 6, Temperature 0°C to 200°C.
-    c8 = -5.8002206*10**3
-    c9 = +1.3914993
-    c10 = -4.8640239*10**-2
-    c11 = +4.1764768*10**-5
-    c12 = -1.4452093*10**-8
-    c13 = +6.5459673
+    LIQUID_CONST = [-5.8002206*10**3, 1.3914993, -4.8640239*10**-2,
+                    4.1764768*10**-5, -1.4452093*10**-8, 6.5459673]
 
     # This is to distinguish between the two versions of equation 5.
     ice = tdb_k <= 273.15
@@ -144,17 +146,19 @@ def calc_tdp(tdb, rh):
     lnp_ws = np.zeros(tdb_k.shape)
 
     # Eq. 5, pg 1.2
-    lnp_ws[ice] = (c1/tdb_k[ice] + c2 + c3*tdb_k[ice] + c4*tdb_k[ice]**2 +
-                   c5*tdb_k[ice]**3 + c6*tdb_k[ice]**4 +
-                   c7*np.log(tdb_k[ice]))
+    lnp_ws[ice] = (
+        FROZEN_CONST[0]/tdb_k[ice] + FROZEN_CONST[1] +
+        FROZEN_CONST[2]*tdb_k[ice] + FROZEN_CONST[3]*tdb_k[ice]**2 +
+        FROZEN_CONST[4]*tdb_k[ice]**3 + FROZEN_CONST[5]*tdb_k[ice]**4 +
+        FROZEN_CONST[6]*np.log(tdb_k[ice]))
 
     # Eq. 6, pg 1.2
     lnp_ws[np.logical_not(ice)] = (
-            c8/tdb_k[not_ice] + c9 +
-            c10*tdb_k[not_ice] +
-            c11*tdb_k[not_ice]**2 +
-            c12*tdb_k[not_ice]**3 +
-            c13*np.log(tdb_k[np.logical_not(ice)]))
+        LIQUID_CONST[0]/tdb_k[not_ice] + LIQUID_CONST[1] +
+        LIQUID_CONST[2]*tdb_k[not_ice] +
+        LIQUID_CONST[3]*tdb_k[not_ice]**2 +
+        LIQUID_CONST[4]*tdb_k[not_ice]**3 +
+        LIQUID_CONST[5]*np.log(tdb_k[not_ice]))
 
     # Temperature in the above formulae must be absolute,
     # i.e. in Kelvin
@@ -166,27 +170,23 @@ def calc_tdp(tdb, rh):
     p_w = (phi * p_ws) / 1000  # [kPa]
 
     # Constants for Eq. 39
-    c14 = 6.54
-    c15 = 14.526
-    c16 = 0.7389
-    c17 = 0.09486
-    c18 = 0.4569
+    EQ39_CONST = [6.54, 14.526, 0.7389, 0.09486, 0.4569]
 
-    alpha = np.log(p_w)
-    idx = np.arange(0, alpha.size)
-    duds = np.logical_or(np.isinf(alpha), np.isnan(alpha))
-    int_func = interpolate.interp1d(
-            idx[np.logical_not(duds)], alpha[np.logical_not(duds)],
-            kind='nearest', fill_value='extrapolate')
-    alpha[duds] = int_func(idx[duds])
+    p_w[p_w <= 0] = 1e-6
+    alpha = pd.DataFrame(np.log(p_w))
+    alpha = alpha.replace(
+        [np.inf, -np.inf], np.NaN).interpolate(method='nearest')
 
     # Eq. 39
-    tdp = c14 + c15*alpha + c16*(alpha**2) + c17*(alpha**3) + \
-        c18*(p_w**0.1984)
+    tdp = alpha.apply(lambda x: EQ39_CONST[0] + EQ39_CONST[1]*x + EQ39_CONST[2]*(x**2) +
+           EQ39_CONST[3]*(x**3) + EQ39_CONST[4]*(p_w**0.1984))
 
     # Eq. 40, TDP less than 0°C and greater than 93°C
-    tdp_ice = np.logical_or(tdp < 0, np.isnan(tdp), np.isinf(tdp))
+    tdp_ice = tdp < 0
     tdp[tdp_ice] = 6.09 + 12.608*alpha[tdp_ice] + 0.4959*(alpha[tdp_ice]**2)
+
+    tdp = tdp.replace(
+        [np.inf, -np.inf], np.NaN).interpolate(method='nearest')
 
     return tdp
 
