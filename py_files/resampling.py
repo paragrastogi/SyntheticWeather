@@ -10,7 +10,6 @@ my thesis (Rastogi, 2016, EPFL).
 """
 
 import numpy as np
-
 from scipy.optimize import curve_fit
 
 import fourier
@@ -23,6 +22,10 @@ NUM_VARS = 2
 
 # "Standard" length of output year.
 STD_LEN_OUT = 8760
+
+# Number of nearest neighbours (of each synthetic day in array of recorded
+# days using daily mean temperature) from which to choose solar radiation.
+NUM_NBOURS = 10
 
 # This is the master tuple of column names, which should not
 # be modified.
@@ -117,12 +120,12 @@ def trainer(xy_train, n_samples, arma_params, bounds):
             arma_params, ser)
         selmdl.append(mdl_temp)
 
-    print("Done with fitting models to TDB and RH.")
+    print("Done with fitting models to TDB and RH.\r\n")
 
     resampled = np.zeros([STD_LEN_OUT, NUM_VARS, n_samples])
 
-    print("Simulating the learnt model to get synthetic noise series.")
-    print("This might take some time.\r\n")
+    print(("Simulating the learnt model to get synthetic noise series."
+           "This might take some time.\r\n"))
     for mdl_idx, mdl in enumerate(selmdl):
         for sample_num in range(0, n_samples):
             resampled[:, mdl_idx, sample_num] = mdl.simulate(
@@ -142,15 +145,15 @@ def trainer(xy_train, n_samples, arma_params, bounds):
         # resampled/resimulated ARMA model outputs.
         xout[:, xout_idx, :] = (
             resampled[:, train_idx, :] +
-            np.reshape(np.tile(ffit[train_idx], n_samples), (STD_LEN_OUT, -1))
+            np.reshape(np.tile(ffit[train_idx], n_samples),
+                       (STD_LEN_OUT, -1))
             )
 
-        # End if idx conditional.
-    # End for idx loop.
+    # End for rh_idx, tdp_idx loop.
 
     # Clean the tdb and rh values.
 
-    print('I am going to clean all synthetic values.')
+    print('I am going to clean all synthetic values.\r\n')
 
     # All synthetic data requires post-processing.
 
@@ -160,10 +163,6 @@ def trainer(xy_train, n_samples, arma_params, bounds):
     # Clean the RH values using phyiscal limits (0-100).
 
     for sample_num in range(0, n_samples):
-
-        for solcols in sol_idx:
-            xout[:, solcols, sample_num] = petite.solarcleaner(
-                xout[:, solcols, sample_num], xy_train[:, solcols])
 
         xout[:, tdb_idx, sample_num] = petite.quantilecleaner(
             xout[:, tdb_idx, sample_num], xy_train, bounds=bounds)
@@ -178,7 +177,57 @@ def trainer(xy_train, n_samples, arma_params, bounds):
 
         # End loop over samples.
 
-    # End colname for loop.
+    # Calculate daily means of temperature.
+    tdb_syn_dailymeans = np.mean(np.reshape(np.squeeze(xout[:, tdb_idx, :]),
+                                            [-1, 24, n_samples]), axis=1)
+    tdb_dailymeans = np.mean(np.reshape(np.squeeze(xout[:, tdb_idx]),
+                                        [-1, 24]), axis=1)
+
+    # Cycle through each array of daily means.
+    for idx, syn_means in enumerate(tdb_syn_dailymeans.T):
+        # Find the nearest neighbour to each element of the syn_means array.
+        # Nearest neighbours must be in the same month to preserve length
+        # of day.
+
+        for month in range(0, 12):
+
+            # THIS ISN'T WORKING.
+            this_month = tdb_syn_dailymeans[:, 0] == month
+
+            # First find 10 nearest neighbours.
+            nearest_nbour_temp = [
+                (np.abs(x-tdb_dailymeans[this_month])).argsort(
+                )[:NUM_NBOURS] for x in syn_means[this_month]]
+            # This works by taking the indices from sorting the values,
+            # in ascending order, and then picking the first four of those.
+
+            # Now take one random nearest neighbour.
+            nearest_nbour = [x[np.random.randint(0, NUM_NBOURS)]
+                             for x in nearest_nbour_temp]
+
+            print(len(nearest_nbour))
+            print(len(nearest_nbour[0]))
+            print(np.sum(this_month))
+    
+    # for train_idx, xout_idx in enumerate(sol_idx):
+
+    # # Add the fourier fits from the training data to the
+    # # resampled/resimulated ARMA model outputs.
+    # xout[:, xout_idx, :] = (
+    #     resampled[:, train_idx, :] +
+    #     np.reshape(np.tile(ffit[train_idx], n_samples),
+    #                (STD_LEN_OUT, -1))
+    #     )
+
+    for sample_num in range(0, n_samples):
+
+        for solcols in sol_idx:
+            xout[:, solcols, sample_num] = petite.solarcleaner(
+                xout[:, solcols, sample_num], xy_train[:, solcols])
+
+        # End sol_idx loop
+
+    # End for sample_num loop.
 
     return ffit, selmdl, xout
 
