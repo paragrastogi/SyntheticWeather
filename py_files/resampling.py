@@ -25,7 +25,7 @@ STD_LEN_OUT = 8760
 
 # Number of nearest neighbours (of each synthetic day in array of recorded
 # days using daily mean temperature) from which to choose solar radiation.
-NUM_NBOURS = 10
+# NUM_NBOURS = 10
 
 # This is the master tuple of column names, which should not
 # be modified.
@@ -78,9 +78,9 @@ def trainer(xy_train, n_samples, arma_params, bounds):
     tdb_idx = [x for (x, y) in enumerate(COLUMNS) if y == "tdb"][0]
     rh_idx = [x for (x, y) in enumerate(COLUMNS) if y == "rh"][0]
 
-    sol_idx = [x for (x, y) in enumerate(COLUMNS) if y == "ghi"] + \
-        [x for (x, y) in enumerate(COLUMNS) if y == "dni"] + \
-        [x for (x, y) in enumerate(COLUMNS) if y == "dhi"]
+    sol_idx = ([x for (x, y) in enumerate(COLUMNS) if y == "ghi"] +
+               [x for (x, y) in enumerate(COLUMNS) if y == "dni"] +
+               [x for (x, y) in enumerate(COLUMNS) if y == "dhi"])
 
     # Later, we will calculate tdp values from tdb and rh, so store the index.
     tdp_idx = [x for (x, y) in enumerate(COLUMNS) if y == "tdp"]
@@ -180,45 +180,62 @@ def trainer(xy_train, n_samples, arma_params, bounds):
     # Calculate daily means of temperature.
     tdb_syn_dailymeans = np.mean(np.reshape(np.squeeze(xout[:, tdb_idx, :]),
                                             [-1, 24, n_samples]), axis=1)
-    tdb_dailymeans = np.mean(np.reshape(np.squeeze(xout[:, tdb_idx]),
+    tdb_dailymeans = np.mean(np.reshape(np.squeeze(xy_train[:, tdb_idx]),
                                         [-1, 24]), axis=1)
 
-    # Cycle through each array of daily means.
-    for idx, syn_means in enumerate(tdb_syn_dailymeans.T):
-        # Find the nearest neighbour to each element of the syn_means array.
-        # Nearest neighbours must be in the same month to preserve length
-        # of day.
+    for month in range(1, 13):
 
-        for month in range(0, 12):
+        # This month's indices.
+        this_month = xout[0:-1:24, 1, 0] == month
 
-            # THIS ISN'T WORKING.
-            this_month = tdb_syn_dailymeans[:, 0] == month
+        nearest_nbours = list()
+
+        # Cycle through each array of daily means.
+        for _, syn_means in enumerate(tdb_syn_dailymeans.T):
+            # Find the nearest neighbour to each element of the syn_means
+            # array. Nearest neighbours must be in the same month to preserve
+            # length of day.
 
             # First find 10 nearest neighbours.
-            nearest_nbour_temp = [
+            nearest_nbours_temp = [
                 (np.abs(x-tdb_dailymeans[this_month])).argsort(
-                )[:NUM_NBOURS] for x in syn_means[this_month]]
+                )[:n_samples] for x in syn_means[this_month]
+                ]
             # This works by taking the indices from sorting the values,
             # in ascending order, and then picking the first four of those.
 
-            # Now take one random nearest neighbour.
-            nearest_nbour = [x[np.random.randint(0, NUM_NBOURS)]
-                             for x in nearest_nbour_temp]
+            # Pick one of the ten nearest neighbours.
+            nearest_nbours.append([x[np.random.randint(
+                0, n_samples, size=1)] for x in nearest_nbours_temp])
 
-            print(len(nearest_nbour))
-            print(len(nearest_nbour[0]))
-            print(np.sum(this_month))
-    
-    # for train_idx, xout_idx in enumerate(sol_idx):
+        neighbour_indices = list()
+        # Convert them to day-long indices.
+        for n_group in nearest_nbours:
+            neighbour_indices.append([np.add(((np.asarray(x)-1)*24),
+                                             np.arange(0, 24))
+                                      for x in n_group])
 
-    # # Add the fourier fits from the training data to the
-    # # resampled/resimulated ARMA model outputs.
-    # xout[:, xout_idx, :] = (
-    #     resampled[:, train_idx, :] +
-    #     np.reshape(np.tile(ffit[train_idx], n_samples),
-    #                (STD_LEN_OUT, -1))
-    #     )
+        # Find the solar data for this month.
+        solar_this_month = np.asarray([xy_train[xy_train[:, 1] == month, x]
+                                       for x in sol_idx]).T
 
+        solar_samples = list()
+        for n_group in neighbour_indices:
+            for n_subgroup in n_group:
+                solar_samples.append([solar_this_month[x, :]
+                                      for x in n_subgroup])
+
+        # Convert to numpy array and reshape into an
+        # n_days x n_samples array.
+        solar_samples = np.reshape(np.asarray(solar_samples),
+                                   [-1, len(sol_idx), n_samples])
+
+        # Put the solar samples back in to xout.
+        for counter, sidx in enumerate(sol_idx):
+            xout[xy_train[:, 1] == month, sidx, :] = solar_samples[
+                :, counter, :]
+
+    # Send the solar columns to cleaning.
     for sample_num in range(0, n_samples):
 
         for solcols in sol_idx:

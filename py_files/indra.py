@@ -210,11 +210,12 @@ def indra(train=False, station_code="abc", n_samples=10,
             csave = pickle.load(open_file)
 
         _, _, xout = resampling(
-            xy_train, counter=csave["counter"], train=False, sample=True)
+            xy_train, counter=csave["counter"], train=False)
 
         # Save / write-out synthetic time series.
-        wf.give_weather(xout, locdata, station_code, header, file_type=file_type,
-                        s_shift=0, path_file_out=path_file_out, masterfile=path_file_in)
+        wf.give_weather(xout, locdata, station_code, header,
+                        file_type=file_type, s_shift=0,
+                        file_out=path_file_out, masterfile=path_file_in)
 
         # This function has been asked to give a sample, so update
         # the counter.

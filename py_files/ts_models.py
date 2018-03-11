@@ -65,7 +65,7 @@ def select_models(arma_params, ts_in):
             counter += 1
 
         except Exception as err:
-            print('fit threw an error')
+            # print('fit threw an error')
             continue
 
         # Print out a heartbeat.
