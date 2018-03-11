@@ -1,20 +1,20 @@
-<h1>SyntheticWeather</h1>
+<h1>INDRA</h1>
 
-This repository contains scripts to create synthetic weather time series from a short weather record of at least one year. The tool (scripts and how they might be implemented in ESP-r and Ladybug) is provisionally named `indra` <sup>(1)</sup>. _All the scripts here should be treated as **experimental** unless explicitly stated otherwise._
+This repository contains scripts to create synthetic weather time series from a short weather record of at least one year. This tool is named `indra` <sup>(1)</sup>. _All the scripts here should be treated as **experimental** unless explicitly stated otherwise._
 
-### Great, where do I begin?
+<h2>Great, where do I begin?</h2>
 
 <strong>Please, please see the <a href='https://github.com/paragrastogi/SyntheticWeather/wiki'>wiki</a> first.</strong> I can't make you do it though, so yes, be your own boss. The wiki contains a step-by-step guide to installing and running mighty <b>indra</b>.
 
 If you know your way around MATLAB or Python, go directly into either the folder `m-files` (MATLAB files) or the folder `py-files` (Python files). Most of the scripts explain themselves. **Sample Python commands** are <a href='https://github.com/paragrastogi/SyntheticWeather/wiki/Sample-Commands'>given here</a>.
 
-## The methods
+<h2>The methods</h2>
 
 The MATLAB/R scripts are based on the algorithms published in Parag's thesis. While these scripts are well documented (in two conference papers and the thesis), I won't be working on these any more.
 
 The Python scripts in the repository are translations of these original scripts. The method is an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>.
 
-## License, implementation, and compatibility
+<h2>License, implementation, and compatibility</h2>
 
 This tool is distributed under the GPLv3 license. Please read what this means <a href='https://en.wikipedia.org/wiki/GNU_General_Public_License'>here</a>.
 
@@ -37,18 +37,17 @@ Rastogi, Parag. 2016. ‘On the Sensitivity of Buildings to Climate: The Interacti
 	author = {Rastogi, Parag},
 	month = aug,
 	year = {2016},
-	note = {doi:10.5075/epfl-thesis-6881},
-	file = {EPFL_TH6881.pdf:C\:\\Users\\prastogi\\AppData\\Roaming\\Zotero\\Zotero\\Profiles\\wjfrmd14.default\\zotero\\storage\\3295R3P6\\EPFL_TH6881.pdf:application/pdf}
+	note = {doi:10.5075/epfl-thesis-6881}
 }
 
-## I'm panicking/clueless
+<h2>I'm panicking/clueless</h2>
 
 If you have questions or concerns, or notice errors, please contact me at `contact[at]paragrastogi.com`.
 
 Happy creating fake weather!
 
 
-### Footnotes
+<h2>Footnotes</h2>
 
 (1) I haven't thought up a smarmy, contrived acronym yet but I'm working on it.
 
