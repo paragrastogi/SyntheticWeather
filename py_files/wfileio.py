@@ -67,10 +67,11 @@ def get_weather(stcode, fpath, ftype="espr"):
     locdata = None
     header = None
 
-    if os.path.isfile(fpath):
-        print("Running weather file reader for station " +
-              "{0}. Expecting format {1}.\r\n".format(stcode, ftype))
-    else:
+    # if os.path.isfile(fpath):
+    #     print("Running weather file reader for station " +
+    #           "{0}. Expecting format {1}.\r\n".format(stcode, ftype))
+
+    if not os.path.isfile(fpath):
         print("I cannot find file {0}.".format(fpath) +
               " Returning empty dataframe.\r\n")
         return wdata, locdata, header
