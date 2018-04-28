@@ -18,26 +18,14 @@ Description of algorithm:
     4. Un-scale the data using the same scaler as (2) above.
     5. Clean / post-process the data if needed, e.g., oscillation of solar
        values around sunrise and sunset.
-
-Features to be implemented:
-    1. Load climate change model information and add that to the model.
-       The outputs of climate models are usually in the form of mean changes.
-       I"ve added them to my models in the past - need to figure out best way
-       to do this now.
-    2. Ability to get recorded or typical data automatically from some web
-       service if the user provides coordinates or WMO station number.
-    3. Ability to download climate change data the same way.
-    4. Ability to learn a transfer function between urban and rural stations
-       for quick-and-not-too-dirty estimates of urban heat island effects.
-       So long as time series of a year-ish are available from the locations
-       of interest, the transfer _should_ be able to proceed without requiring
-       too much information about the local urban canopy.
 """
 
 import os
+import glob
 import sys
 import pickle
 import time
+import pandas as pd
 
 # These custom functions load and clean recorded data.
 # For now, we are only concerned with ncdc and nsrdb.
@@ -51,10 +39,13 @@ from resampling import resampling
 # from losses import rmseloss
 # from losses import maeloss
 
+supported_fmts = ["espr", "epw", "csv"]
+
 
 def indra(train=False, station_code="abc", n_samples=10,
-          path_file_in="wf_in.a", path_file_out="wf_out.a",
-          file_type="espr", store_path=".",
+          path_file_in="wf_in.epw", path_file_out="wf_out.epw",
+          file_type="epw", store_path=".",
+          climate_change=False, path_cc_file='ccfile.p',
           station_coordinates=None,
           randseed=None,
           arma_params=None,
@@ -105,22 +96,6 @@ def indra(train=False, station_code="abc", n_samples=10,
 
     # ----------------
 
-    # See accompanying script "wfileio".
-    try:
-        xy_train, locdata, header = wf.get_weather(
-            station_code, path_file_in, file_type)
-
-        print("Successfully retrieved weather data.\r\n")
-
-    except Exception as err:
-        print("Error: " + str(err))
-        exc_type, _, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print(exc_type, fname, exc_tb.tb_lineno)
-        print("I could not read the incoming weather file. " +
-              "Terminating this run.\r\n")
-        # return 0
-
     if train:
 
         # The learning/sampling functions rely on random sampling. For one
@@ -140,8 +115,49 @@ def indra(train=False, station_code="abc", n_samples=10,
         # assigned just before.
         setseed(randseed)
 
+        # See accompanying script "wfileio".
+        try:
+            if os.path.isfile(path_file_in):
+                xy_train, locdata, header = wf.get_weather(
+                    station_code, path_file_in, file_type)
+
+            elif os.path.isdir(path_file_in):
+
+                list_wfiles = [glob.glob(os.path.join(path_file_in, "*." + x))
+                               for x in supported_fmts]
+                list_wfiles = sum(list_wfiles, [])
+
+                xy_list = list()
+
+                for file in list_wfiles:
+                    xy_temp, locdata, header = wf.get_weather(
+                        station_code, file, file[-3:])
+                    xy_list.append(xy_temp)
+
+                xy_train = pd.concat(xy_list)
+
+            print("Successfully retrieved weather data.\r\n")
+
+        except Exception as err:
+            print("Error: " + str(err))
+            exc_type, _, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
+            print("I could not read the incoming weather file. " +
+                  "Terminating this run.\r\n")
+
         # Train the models.
         print("Training the model. Go get a coffee or something...\r\n")
+
+        if climate_change:
+            with open(path_cc_file, 'rb') as f:
+                cc_data = pickle.load(f)
+        else:
+            cc_data = None
+
+        # Hard-coded the scenario as of now - should be added as a
+        # parameter later.
+        cc_scenario = 'rcp85'
 
         # Call resampling with null selmdl and ffit, since those
         # haven"t been trained yet.
@@ -149,7 +165,7 @@ def indra(train=False, station_code="abc", n_samples=10,
             xy_train, train=True, n_samples=n_samples,
             picklepath=picklepath,
             arma_params=arma_params,
-            bounds=bounds)
+            bounds=bounds, cc_data=cc_data, cc_scenario=cc_scenario)
 
         # The non-seasonal order of the model. This exists in both
         # ARIMA and SARIMAX models, so it has to exist in the output
@@ -164,12 +180,11 @@ def indra(train=False, station_code="abc", n_samples=10,
             # Try to find the seasonal order. If it exists, save the
             # sarimax model. This should almost always be the case.
             seasonal_order = [
-                (int(mdl.model.k_seasonal_ar/mdl.model.seasonal_periods),
+                (int(mdl.model.k_seasonal_ar / mdl.model.seasonal_periods),
                  0,
-                 int(mdl.model.k_seasonal_ma/mdl.model.seasonal_periods),
+                 int(mdl.model.k_seasonal_ma / mdl.model.seasonal_periods),
                  mdl.model.seasonal_periods)
-                for mdl in selmdl
-                ]
+                for mdl in selmdl]
 
             arma_save = dict(order=order, params=params,
                              seasonal_order=seasonal_order,
@@ -185,7 +200,7 @@ def indra(train=False, station_code="abc", n_samples=10,
             pickle.dump(arma_save, open_file)
 
         # Save counter.
-        csave = dict(counter=0, n_samples=n_samples)
+        csave = dict(counter=0, n_samples=n_samples, randseed=randseed)
         with open(path_counter_save, "wb") as open_file:
             pickle.dump(csave, open_file)
 
@@ -209,13 +224,21 @@ def indra(train=False, station_code="abc", n_samples=10,
         with open(path_counter_save, "rb") as open_file:
             csave = pickle.load(open_file)
 
-        _, _, xout = resampling(
-            xy_train, counter=csave["counter"], train=False)
+        _, _, sample = resampling(
+            pd.DataFrame(), train=False, counter=csave["counter"],
+            picklepath=os.path.join(store_path, 'syn.npy'))
 
+        if os.path.isdir(path_file_in):
+
+            list_wfiles = glob.glob(os.path.join(path_file_in, "*.epw"))
+            path_file_in = list_wfiles[0]
+
+        xy_master, locdata, header = wf.get_weather(
+                    station_code, path_file_in, file_type)
         # Save / write-out synthetic time series.
-        wf.give_weather(xout, locdata, station_code, header,
+        wf.give_weather(sample, locdata, station_code, header,
                         file_type=file_type, s_shift=0,
-                        file_out=path_file_out, masterfile=path_file_in)
+                        path_file_out=path_file_out, masterfile=path_file_in)
 
         # This function has been asked to give a sample, so update
         # the counter.

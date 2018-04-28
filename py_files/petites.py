@@ -9,8 +9,17 @@ Created on Fri Sep 29 15:30:34 2017
 import random
 
 import numpy as np
-from scipy import interpolate
+# from scipy import interpolate
 import pandas as pd
+
+# Constants for Eq. 5, Temperature -200°C to 0°C.
+FROZEN_CONST = [-5.6745359 * 10**3, 6.3925247, -9.6778430 * 10**-3,
+                6.2215701 * 10**-7, 2.0747825 * 10**-9,
+                -9.4840240 * 10**-13, 4.1635019]
+
+# Constants for Eq. 6, Temperature 0°C to 200°C.
+LIQUID_CONST = [-5.8002206 * 10**3, 1.3914993, -4.8640239 * 10**-2,
+                4.1764768 * 10**-5, -1.4452093 * 10**-8, 6.5459673]
 
 
 def setseed(randseed):
@@ -23,16 +32,17 @@ def setseed(randseed):
 # ----------- END setseed function. -----------
 
 
-def quantilecleaner(datain, xy_train, bounds=None):
+def quantilecleaner(datain, xy_train, var, bounds=None):
     '''Generic cleaner based on quantiles. Needs a time series / dataset
-       and cut-off quantiles. This function will censor the data outside
+       and cut-off quantiles. Also needs the name of the variable (var) in
+       the incoming dataframe. This function will censor the data outside
        those quantiles and interpolate the missing values using linear
        interpolation.'''
 
     if bounds is None:
         bounds = [0.01, 99.9]
 
-    datain_quantiles = np.percentile(xy_train, bounds)
+    datain_quantiles = np.percentile(xy_train[var], bounds)
 
     dataout = pd.DataFrame(datain)
 
@@ -57,12 +67,12 @@ def solarcleaner(datain, master):
     # should be sunlight at a given hour. If not,
     # then set corresponding synthetic value to zero.
 
-    datain[master == 0] = 0
+    datain = datain.mask(master == 0, other=0)
 
     # If there is a negative value (usually at sunrise
     # or sunset), set it to zero as well.
 
-    datain[datain < 0] = 0
+    datain = datain.mask(datain < 0, other=0)
 
     return datain
 
@@ -124,20 +134,14 @@ def calc_tdp(tdb, rh):
     phi[phi < 0] = 0
 
     # Convert tdb to Kelvin.
-    tdb_k = tdb + 273.15
+    if any(tdb < 200):
+        tdb_k = tdb + 273.15
+    else:
+        tdb_k = tdb
 
     # Equations for calculating the saturation pressure
     # of water vapour, taken from ASHRAE Fundamentals 2009.
     # (Eq. 5 and 6, Psychrometrics)
-
-    # Constants for Eq. 5, Temperature -200°C to 0°C.
-    FROZEN_CONST = [-5.6745359*10**3, 6.3925247, -9.6778430*10**-3,
-                    6.2215701*10**-7, 2.0747825*10**-9,
-                    -9.4840240*10**-13, 4.1635019]
-
-    # Constants for Eq. 6, Temperature 0°C to 200°C.
-    LIQUID_CONST = [-5.8002206*10**3, 1.3914993, -4.8640239*10**-2,
-                    4.1764768*10**-5, -1.4452093*10**-8, 6.5459673]
 
     # This is to distinguish between the two versions of equation 5.
     ice = tdb_k <= 273.15
@@ -191,3 +195,59 @@ def calc_tdp(tdb, rh):
     return tdp
 
 # ----------- END tdb2tdp function. -----------
+
+
+def w2rh(w, tdb, ps=101325):
+
+    if any(tdb < 200):
+        tdb_k = tdb + 273.15
+    else:
+        tdb_k = tdb
+
+    # Humidity ratio W, [unitless fraction]
+    # Equation (22), pg 1.8
+    p_w = ((w / 0.621945) * ps) / (1 + (w / 0.621945))
+
+    # This is to distinguish between the two versions of equation 5.
+    ice = tdb_k <= 273.15
+    not_ice = np.logical_not(ice)
+
+    lnp_ws = np.zeros(tdb_k.shape)
+
+    # Eq. 5, pg 1.2
+    lnp_ws[ice] = (
+        FROZEN_CONST[0] / tdb_k[ice] + FROZEN_CONST[1] +
+        FROZEN_CONST[2] * tdb_k[ice] + FROZEN_CONST[3] * tdb_k[ice]**2 +
+        FROZEN_CONST[4] * tdb_k[ice]**3 + FROZEN_CONST[5] * tdb_k[ice]**4 +
+        FROZEN_CONST[6] * np.log(tdb_k[ice]))
+
+    # Eq. 6, pg 1.2
+    lnp_ws[np.logical_not(ice)] = (
+        LIQUID_CONST[0] / tdb_k[not_ice] + LIQUID_CONST[1] +
+        LIQUID_CONST[2] * tdb_k[not_ice] +
+        LIQUID_CONST[3] * tdb_k[not_ice]**2 +
+        LIQUID_CONST[4] * tdb_k[not_ice]**3 +
+        LIQUID_CONST[5] * np.log(tdb_k[not_ice]))
+
+    # Temperature in the above formulae must be absolute,
+    # i.e. in Kelvin
+
+    # Continuing from eqs. 5 and 6
+    p_ws = np.e**(lnp_ws)  # [Pa]
+
+    phi = p_w / p_ws  # [Pa] Formula(24), pg 1.8
+
+    rh = phi * 100
+
+    # Relative Humidity from fraction to percentage.
+    return rhcleaner(rh)
+
+# ----------- END w2rh function. -----------
+
+
+def remove_leap_day(df):
+    '''Removes leap day using time index.'''
+
+    return df[~((df.index.month == 2) & (df.index.day == 29))]
+
+# ----------- END remove_leap_day function. -----------

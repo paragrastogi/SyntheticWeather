@@ -31,7 +31,7 @@ def select_models(arma_params, ts_in):
 
     # Loop through all possible combinations of ar, ma, sar, and sma lags.
 
-    print("Iterations to go: ")
+    print("Iteration number: ")
 
     for p, q, pp, qq in product(
             range(0, arma_params[0]+1), range(0, arma_params[1]+1),

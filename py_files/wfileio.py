@@ -2,9 +2,12 @@ import os
 import numpy as np
 import pandas as pd
 import csv
+import re
 from scipy import interpolate
 
-import petites
+import petites as petite
+
+import pdb
 
 """
 This file contains functions to:
@@ -55,12 +58,10 @@ espr_generic_header = """*CLIMATE
 std_cols = ("year", "month", "day", "hour", "tdb", "tdp", "rh",
             "ghi", "dni", "dhi", "wspd", "wdr")
 
-# %%
 
+def get_weather(stcode, fpath, file_type="epw"):
 
-def get_weather(stcode, fpath, ftype="espr"):
-
-    # This function calls the relevant reader based on the ftype.
+    # This function calls the relevant reader based on the file_type.
 
     # Initialise as a non-object.
     wdata = None
@@ -68,9 +69,9 @@ def get_weather(stcode, fpath, ftype="espr"):
     header = None
 
     # if os.path.isfile(fpath):
-    #     print("Running weather file reader for station " +
-    #           "{0}. Expecting format {1}.\r\n".format(stcode, ftype))
-
+    #     # print("Running weather file reader for station " +
+    #     #       "{0}. Expecting format {1}.\r\n".format(stcode, file_type))
+    # else:
     if not os.path.isfile(fpath):
         print("I cannot find file {0}.".format(fpath) +
               " Returning empty dataframe.\r\n")
@@ -78,7 +79,7 @@ def get_weather(stcode, fpath, ftype="espr"):
 
     # Load data for given station.
 
-    if ftype == "pickle":
+    if file_type == "pickle":
         try:
             wdata_array = pd.read_pickle(fpath)
             return wdata_array
@@ -88,23 +89,27 @@ def get_weather(stcode, fpath, ftype="espr"):
             print("Error: " + str(err))
             wdata = None
 
-    elif ftype == "epw":
+    elif file_type == "epw" or fpath[-4:] == ".epw":
 
         try:
             wdata, locdata, header = read_epw(fpath)
+            # Remove leap day.
+            wdata = petite.remove_leap_day(wdata)
         except Exception as err:
             print("Error: " + str(err))
             wdata = None
 
-    elif ftype == "espr":
+    elif file_type == "espr" or fpath[-4:] == ".espr":
 
         try:
             wdata, locdata, header = read_espr(fpath)
+            # Remove leap day.
+            wdata = petite.remove_leap_day(wdata)
         except Exception as err:
             print("Error: " + str(err))
             wdata = None
 
-    elif ftype == "csv":
+    elif file_type == "csv" or fpath[-4:] == ".csv":
 
         try:
             wdata = pd.read_csv(fpath, header=0)
@@ -114,16 +119,18 @@ def get_weather(stcode, fpath, ftype="espr"):
             # which will be reassigned later in this function.
             locdata = dict(loc=stcode, lat="00", long="00",
                            tz="00", alt="00", wmo="000000")
-            header = "# Unknown incoming file format " + \
-                     "(not epw or espr)\r\n" + \
-                     "# Dummy location data: " + \
-                     "loc: {0}".format(locdata["loc"]) + \
-                     "lat: {0}".format(locdata["lat"]) + \
-                     "long: {0}".format(locdata["long"]) + \
-                     "tz: {0}".format(locdata["tz"]) + \
-                     "alt: {0}".format(locdata["alt"]) + \
-                     "wmo: {0}".format(locdata["wmo"]) + \
-                     "\r\n"
+            header = ("# Unknown incoming file format " +
+                      "(not epw or espr)\r\n" +
+                      "# Dummy location data: " +
+                      "loc: {0}".format(locdata["loc"]) +
+                      "lat: {0}".format(locdata["lat"]) +
+                      "long: {0}".format(locdata["long"]) +
+                      "tz: {0}".format(locdata["tz"]) +
+                      "alt: {0}".format(locdata["alt"]) +
+                      "wmo: {0}".format(locdata["wmo"]) +
+                      "\r\n")
+            # Remove leap day.
+            wdata = petite.remove_leap_day(wdata)
 
         except Exception as err:
             print("Error: " + str(err))
@@ -131,7 +138,7 @@ def get_weather(stcode, fpath, ftype="espr"):
             header = None
             locdata = None
 
-    # End ftype if statement.
+    # End file_type if statement.
 
     # The first try didn"t work for some reason.
 
@@ -145,12 +152,16 @@ def get_weather(stcode, fpath, ftype="espr"):
             if fmt == "epw":
                 try:
                     wdata, locdata, header = read_epw(fpath)
+                    # Remove leap day.
+                    wdata = petite.remove_leap_day(wdata)
                 except Exception as err:
                     print("Error: " + str(err))
                     wdata = None
             elif fmt == "espr":
                 try:
                     wdata, locdata, header = read_espr(fpath)
+                    # Remove leap day.
+                    wdata = petite.remove_leap_day(wdata)
                 except Exception as err:
                     print("Error: " + str(err))
                     wdata = None
@@ -161,16 +172,18 @@ def get_weather(stcode, fpath, ftype="espr"):
                                      "rh", "ghi", "dni", "dhi", "wspd", "wdr"]
                     locdata = dict(loc="xxx", lat="00", long="00",
                                    tz="00", alt="00", wmo="000000")
-                    header = "# Unknown incoming file format " + \
-                             "(not epw or espr)\r\n" + \
-                             "# Dummy location data: " + \
-                             "loc: {0}".format(locdata["loc"]) + \
-                             "lat: {0}".format(locdata["lat"]) + \
-                             "long: {0}".format(locdata["long"]) + \
-                             "tz: {0}".format(locdata["tz"]) + \
-                             "alt: {0}".format(locdata["alt"]) + \
-                             "wmo: {0}".format(locdata["wmo"]) + \
-                             "\r\n"
+                    header = ("# Unknown incoming file format " +
+                              "(not epw or espr)\r\n" +
+                              "# Dummy location data: " +
+                              "loc: {0}".format(locdata["loc"]) +
+                              "lat: {0}".format(locdata["lat"]) +
+                              "long: {0}".format(locdata["long"]) +
+                              "tz: {0}".format(locdata["tz"]) +
+                              "alt: {0}".format(locdata["alt"]) +
+                              "wmo: {0}".format(locdata["wmo"]) +
+                              "\r\n")
+                    # Remove leap day.
+                    wdata = petite.remove_leap_day(wdata)
 
                 except Exception as err:
                     print("Error: " + str(err))
@@ -185,6 +198,9 @@ def get_weather(stcode, fpath, ftype="espr"):
 
     locdata["loc"] = stcode
 
+    # Remove leap day.
+    wdata = petite.remove_leap_day(wdata)
+
     if wdata is None:
         print("All attempts to read your file were unsuccesful, " +
               "returning empty table.")
@@ -195,20 +211,13 @@ def get_weather(stcode, fpath, ftype="espr"):
         if len(np.unique(wdata.year.values)) > 1:
             # Incoming file is probably a TMY or TRY file,
             # so insert a dummy year.
-            wdata["year"] = 2017
+            wdata["year"] = 2222
 
-        wdata_array = (np.vstack([
-                wdata.year.values, wdata.month.values,
-                wdata.day.values, wdata.hour.values,
-                wdata.tdb.values, wdata.tdp.values,
-                wdata.rh.values, wdata.ghi.values,
-                wdata.dni.values, wdata.dhi.values,
-                wdata.wspd.values, wdata.wdr.values
-                ])).T
-        # Note that the second column is day_of_month here but in the main
-        # indra script it will be converted to day_of_year.
+        wdata.index = pd.to_datetime(
+            pd.concat([wdata.year, wdata.month, wdata.day,
+                       wdata.hour], axis=1))
 
-        return wdata_array, locdata, header
+        return wdata, locdata, header
 
     # Ignore this bit of code for now.
 
@@ -274,11 +283,11 @@ def day_of_month(day):
 
 # %%
 epw_colnames = ["Year", "Month", "Day", "Hour", "Minute", "QualFlags",
-                    "TDB", "TDP", "RH", "ATMPR", "ETRH", "ETRN", "HIR",
-                    "GHI", "DNI", "DHI", "GHE", "DNE", "DHE", "ZL",
-                    "WDR", "WSPD", "TSKY", "OSKY", "VIS", "CHGT",
-                    "PWO", "PWC", "PWT", "AOPT", "SDPT",
-                    "SLAST", "UnknownVar1", "UnknownVar2", "UnknownVar3"]
+                "TDB", "TDP", "RH", "ATMPR", "ETRH", "ETRN", "HIR",
+                "GHI", "DNI", "DHI", "GHE", "DNE", "DHE", "ZL",
+                "WDR", "WSPD", "TSKY", "OSKY", "VIS", "CHGT",
+                "PWO", "PWC", "PWT", "AOPT", "SDPT",
+                "SLAST", "UnknownVar1", "UnknownVar2", "UnknownVar3"]
 
 
 def read_epw(fpath, epw_colnames=epw_colnames):
@@ -289,8 +298,26 @@ def read_epw(fpath, epw_colnames=epw_colnames):
     # Number of header lines expected.
     hlines = 8
 
+    # See if you can find a year in the file name.
+    y_temp = list(set(re.findall(r'\d{4}', fpath)))
+
+    if y_temp:
+        if type(y_temp) is list:
+            year = [y for y in y_temp if int(y) > 1900][0]
+        else:
+            year = '2017'
+    else:
+        year = '2017'
+
+    if type(year) is list:
+        print('Found multiple years in file name, assigning 2017.')
+        year = '2017'
+
     # Uniform date index for all tmy weather data tables.
-    dates = pd.date_range("1/1/2017", periods=8760, freq="H")
+    dates = pd.DatetimeIndex(
+        start="1/1/{:s} 00:00:00".format(year),
+        end="31/12/{:s} 23:00:00".format(year),
+        freq="1H")
 
     # Convert the names to lowercase.
     epw_colnames = [x.lower() for x in epw_colnames]
@@ -301,7 +328,7 @@ def read_epw(fpath, epw_colnames=epw_colnames):
     # Look in folder for weather data files.
     if os.path.isdir(fpath):
         filepaths = [os.path.join(fpath, f.lower())
-                     for f in (os.listdir(fpath))]
+                     for f in os.listdir(fpath)]
     else:
         filepaths = fpath
 
@@ -322,9 +349,16 @@ def read_epw(fpath, epw_colnames=epw_colnames):
 
         # Read table, ignoring header lines.
         wdata_typ = pd.read_csv(f, delimiter=",", skiprows=hlines,
-                                header=None, names=epw_colnames)
+                                header=None, names=epw_colnames,
+                                index_col=False)
 
-        wdata_typ.index = dates
+        if wdata_typ.shape[0] == 8784:
+            wdata_typ.index = dates
+            wdata_typ = petite.remove_leap_day(wdata_typ)
+        elif wdata_typ.shape[0] == 8760:
+            # Remove leap day.
+            dates = dates[~((dates.month == 2) & (dates.day == 29))]
+            wdata_typ.index = dates
 
         if len(wdata_typ.columns) == 35:
             # Some files have three extra columns
@@ -485,7 +519,7 @@ def read_espr(fpath):
         dcount += 24
 
     # tdp, calculated from tdb and rh.
-    dataout[:, 4] = petites.calc_tdp(dataout[:, 3], dataout[:, 5])
+    dataout[:, 4] = petite.calc_tdp(dataout[:, 3], dataout[:, 5])
 
     # ghi, in W/m2.
     dataout[:, 6] = dataout[:, 7] + dataout[:, 8]
@@ -513,191 +547,193 @@ def read_espr(fpath):
 
 
 def give_weather(ts, locdata, stcode, header,
-                 masterfile="che_geneva.iwec.a", ftype="espr",
-                 s_shift=0, fpath_out=".", std_cols=std_cols):
+                 masterfile="GEN_IWEC.epw", file_type="epw",
+                 s_shift=0, path_file_out=".", std_cols=None):
 
-    if len(ts.shape) == 2:
-        ts = np.atleast_3d(ts)
+    if file_type == 'csv' and isinstance(ts, pd.DataFrame):
+        std_cols = ts.columns
 
-    n_samples = ts.shape[-1]
+    # If no columns were passed, infer them from the columns of the dataframe.
+    if std_cols is None:
+        std_cols = ts.columns
 
-    success = np.zeros(n_samples, dtype="bool")
+    # Make dataframe into a numpy array.
+    df = ts
+    ts = df.values
 
-    uy = np.asarray(np.unique(ts[:, 0, 0]), dtype=int)
+    success = False
 
-    for n in range(0, n_samples):
+    year = np.asarray(np.unique(ts[:, 0]), dtype=int)
 
-        for y, year in enumerate(uy):
+    # If last hour was interpreted as first hour of next year, you might
+    # have two years.
+    # This happens if the incoming file has hours from 1 to 24.
+    if len(year) > 1:
+        counts = np.bincount(year)
+        year = np.argmax(counts)
 
-            if fpath_out == ".":
-                # Make a standardised name for output file.
-                filepath = os.path.join(
-                        fpath_out, "wf_out_{0}_{1}".format(
-                                year, n + s_shift))
-            else:
-                # Files need to be renamed so strip out the extension.
-                fpath_out = fpath_out.replace(".a", "").replace(
-                        ".epw", "").replace(".csv", "")
+    if path_file_out == ".":
+        # Make a standardised name for output file.
+        filepath = os.path.join(
+            path_file_out, "wf_out_{0}_{1}".format(
+                year, s_shift))
+    else:
+        # Files need to be renamed so strip out the extension.
+        filepath = path_file_out.replace(
+            ".a", "").replace(".epw", "").replace(".csv", "")
 
-                # Use the name that has come in.
-                if n_samples == 1:
-                    filepath = fpath_out
-                else:
-                    filepath = fpath_out + "_{0}_{1}".format(
-                                year, n + s_shift)
+    if str(year) not in filepath:
+        filepath = filepath + "_{:04d}".format(year)
 
-            ts_curr = ts[ts[:, 0, n] == year, :, n]
+    if file_type == "espr":
 
-            if ftype == "espr":
+        # These columns will be replaced.
+        esp_columns = ["dhi", "tdb", "dni", "wspd", "rh"]
 
-                if filepath[-2:] != ".a":
-                    filepath = filepath + ".a"
+        if filepath[-2:] != ".a":
+            filepath = filepath + ".a"
 
-                esp_master, locdata, header = read_espr(masterfile)
+        esp_master, locdata, header = read_espr(masterfile)
 
-                # Replace the year in the header.
-                yline = [line for line in header if "year" in line]
-                yval = yline[0].split(",")
-                yline[0] = yline[0].replace(yval[0], str(year))
-                header = [yline[0] if "year" in line else line
-                          for line in header]
-                # Cut out the last new-line character since numpy savetxt
-                # puts in a newline character after the header anyway.
-                header[-1] = header[-1][:-1]
+        # Replace the year in the header.
+        yline = [line for line in header if "year" in line]
+        yval = yline[0].split(",")
+        yline[0] = yline[0].replace(yval[0], str(year))
+        header = [yline[0] if "year" in line else line
+                  for line in header]
+        # Cut out the last new-line character since numpy savetxt
+        # puts in a newline character after the header anyway.
+        header[-1] = header[-1][:-1]
 
-                # Replace the relevant columns with "new" data.
-                esp_master.loc[:, "tdb"] = np.squeeze(
-                        ts_curr[:, [c for c, name in enumerate(std_cols)
-                                if name == "tdb"]])*10  # deci-Degrees.
-                esp_master.loc[:, "rh"] = np.squeeze(
-                        ts_curr[:, [c for c, name in enumerate(std_cols)
-                                if name == "rh"]])
-                esp_master.loc[:, "dhi"] = np.squeeze(
-                        ts_curr[:, [c for c,  name in enumerate(std_cols)
-                                if name == "dhi"]])
-                esp_master.loc[:, "dni"] = np.squeeze(
-                        ts_curr[:, [c for c,  name in enumerate(std_cols)
-                                if name == "dni"]])
-                esp_master.loc[:, "wspd"] = np.squeeze(
-                        ts_curr[:, [c for c,  name in enumerate(std_cols)
-                                if name == "wspd"]])*10  # deci-m/s.
+        for col in esp_columns:
+            esp_master.loc[:, col] = df[col].values
+            if col in ["tdb", "wspd"]:
+                # Deci-degrees and deci-m/s respectively.
+                esp_master.loc[:, col] *= 10
+        # Create a datetime index for this year.
+        esp_master.index = pd.DatetimeIndex(
+            start='{:04d}-01-01 00:00:00'.format(year),
+            end='{:04d}-12-31 23:00:00'.format(year),
+            freq='1H')
 
-                # Save month and day to write out to file as separate rows.
-                monthday = (esp_master.loc[:, ["day", "month"]]).astype(int)
+        # Save month and day to write out to file as separate rows.
+        monthday = (esp_master.loc[:, ["day", "month"]]).astype(int)
 
-                # Drop those columns that will not be written out.
-                esp_master = esp_master.drop(
-                        ["year", "month", "day", "hour", "ghi", "tdp"],
-                        axis=1)
-                # Re-arrange the columns into the espr clm file order.
-                esp_master = esp_master[["dhi", "tdb", "dni", "wspd",
-                                         "wdr", "rh"]]
-                # Convert all data to int.
-                esp_master = esp_master.astype(int)
+        # Drop those columns that will not be written out.
+        esp_master = esp_master.drop(
+            ["year", "month", "day", "hour", "ghi", "tdp"],
+            axis=1)
+        # Re-arrange the columns into the espr clm file order.
+        esp_master = esp_master[esp_columns]
+        # Convert all data to int.
+        esp_master = esp_master.astype(int)
 
-                master_aslist = esp_master.values.tolist()
+        master_aslist = esp_master.values.tolist()
 
-                for md in range(0, monthday.shape[0], 25):
-                    md_list = [str("* day {0} month {1}".format(
-                            monthday["day"][md], monthday["month"][md]))]
-                    master_aslist.insert(md, md_list)
+        for md in range(0, monthday.shape[0], 25):
+            md_list = [str("* day {0} month {1}".format(
+                monthday["day"][md], monthday["month"][md]))]
+            master_aslist.insert(md, md_list)
 
-                # Write the header to file - though the delimiter is
-                # mostly meaningless in this case.
-                with open(filepath, "w") as f:
-                    spamwriter = csv.writer(f, delimiter="\n", quotechar="",
-                                            quoting=csv.QUOTE_NONE,
-                                            escapechar=" ",
-                                            lineterminator="\n")
-                    spamwriter.writerow(["".join(header)])
-                    #
-                    #                # Now append the actual data.
-                    #                with open(filepath, "a") as f:
-                    spamwriter = csv.writer(f, delimiter=",", quotechar="",
-                                            quoting=csv.QUOTE_NONE,
-                                            escapechar=" ",
-                                            lineterminator="\n ")
-                    for line in master_aslist[:-1]:
-                        spamwriter.writerow(line)
+        # Write the header to file - though the delimiter is
+        # mostly meaningless in this case.
+        with open(filepath, "w") as f:
+            spamwriter = csv.writer(f, delimiter="\n", quotechar="",
+                                    quoting=csv.QUOTE_NONE,
+                                    escapechar=" ",
+                                    lineterminator="\n")
+            spamwriter.writerow(["".join(header)])
 
-                    spamwriter = csv.writer(f, delimiter=",", quotechar="",
-                                            quoting=csv.QUOTE_NONE,
-                                            lineterminator="\n\n")
-                    spamwriter.writerow(master_aslist[-1])
+            spamwriter = csv.writer(f, delimiter=",", quotechar="",
+                                    quoting=csv.QUOTE_NONE,
+                                    escapechar=" ",
+                                    lineterminator="\n ")
+            for line in master_aslist[:-1]:
+                spamwriter.writerow(line)
 
-                if os.path.isfile(filepath):
-                    success[n] = True
-                else:
-                    success[n] = False
+            spamwriter = csv.writer(f, delimiter=",", quotechar="",
+                                    quoting=csv.QUOTE_NONE,
+                                    lineterminator="\n\n")
+            spamwriter.writerow(master_aslist[-1])
 
-                # End espr writer.
+        if os.path.isfile(filepath):
+            success = True
+        else:
+            success = False
 
-            elif ftype == "epw":
+        # End espr writer.
 
-                if filepath[-4:] != ".epw":
-                    filepath = filepath + ".epw"
+    elif file_type == "epw":
 
-                epw_fmt = ["%4u", "%2u", "%2u", "%2u", "%2u", "%44s"] + \
-                    ((np.repeat("%5.2f", len(epw_colnames)-(6+3))).tolist())
+        if filepath[-4:] != ".epw":
+            filepath = filepath + ".epw"
 
-                epw_master, locdata, header = read_epw(masterfile)
-                # Cut out the last new-line character since numpy savetxt
-                # puts in a newline character after the header anyway.
-                header[-1] = header[-1][:-1]
+        epw_fmt = (["%4u", "%2u", "%2u", "%2u", "%2u", "%44s"] +
+                   ((np.repeat("%5.2f", len(epw_colnames) - (6 + 3))
+                     ).tolist()))
 
-                epw_master.loc[:, "tdb"] = np.squeeze(
-                        ts_curr[:, [c for c, name in enumerate(std_cols)
-                                if name == "tdb"]])
-                epw_master.loc[:, "tdp"] = np.squeeze(
-                        ts_curr[:, [c for c, name in enumerate(std_cols)
-                                if name == "tdp"]])
-                epw_master.loc[:, "rh"] = np.squeeze(
-                        ts_curr[:, [c for c, name in enumerate(std_cols)
-                                if name == "rh"]])
-                epw_master.loc[:, "ghi"] = np.squeeze(
-                        ts_curr[:, [c for c, name in enumerate(std_cols)
-                                if name == "ghi"]])
-                epw_master.loc[:, "dni"] = np.squeeze(
-                        ts_curr[:, [c for c, name in enumerate(std_cols)
-                                if name == "dni"]])
-                epw_master.loc[:, "dhi"] = np.squeeze(
-                        ts_curr[:, [c for c,  name in enumerate(std_cols)
-                                if name == "dhi"]])
-                epw_master.loc[:, "wspd"] = np.squeeze(
-                        ts_curr[:, [c for c,  name in enumerate(std_cols)
-                                if name == "wspd"]])
-                epw_master.loc[:, "wdr"] = np.squeeze(
-                        ts_curr[:, [c for c,  name in enumerate(std_cols)
-                                if name == "wdr"]])
+        epw_master, locdata, header = read_epw(masterfile)
+        # Cut out the last new-line character since numpy savetxt
+        # puts in a newline character after the header anyway.
+        header[-1] = header[-1][:-1]
 
-                np.savetxt(filepath, epw_master.values, fmt=epw_fmt,
-                           delimiter=",", header="".join(header),
-                           comments="")
+        # These columns will be replaced.
+        epw_columns = ["tdb", "tdp", "rh", "ghi", "dni", "dhi", "wspd", "wdr"]
+        for col in epw_columns:
+            epw_master.loc[:, col] = df[col].values
 
-                if os.path.isfile(filepath):
-                    success[n] = True
-                else:
-                    success[n] = False
+        # Replace the year of the master file.
+        epw_master["year"] = year
 
-                # End EPW writer.
+        np.savetxt(filepath, epw_master.values, fmt=epw_fmt,
+                   delimiter=",", header="".join(header),
+                   comments="")
 
-            else:
+        if os.path.isfile(filepath):
+            success = True
+        else:
+            success = False
 
-                if filepath[-4:] != ".csv":
-                    filepath = filepath + ".csv"
+        # End EPW writer.
 
-                np.savetxt(filepath, np.squeeze(ts_curr), "%5.2f",
-                           delimiter=",", header=header + " ".join(std_cols),
-                           comments="#")
+    else:
 
-                if os.path.isfile(filepath):
-                    success[n] = True
-                else:
-                    success[n] = False
+        if filepath[-4:] != ".csv":
+            filepath = filepath + ".csv"
 
-    print("You asked for {0} files to be written out. ".format(n_samples) +
-          "I was able to write out {0} files successfully.".format(
-                  np.sum(success)))
-#    return 1
+        # # Remove string columns.
+        # ts = ts[:, [idx for idx, x in enumerate(ts[0, :])
+        #             if not isinstance(x, str)]]
+
+        # Create a datetime index for this year.
+        future_index = pd.DatetimeIndex(
+            start='{:04d}-01-01 00:00:00'.format(year),
+            end='{:04d}-12-31 23:00:00'.format(year),
+            freq='1H')
+
+        ts = pd.DataFrame(data=ts, columns=std_cols)
+        ts['year'] = future_index.year
+        ts['month'] = future_index.month
+        ts['day'] = future_index.day
+        ts['hour'] = future_index.hour
+
+        ts.to_csv(filepath, sep=",", header=True, index=False)
+
+        # np.savetxt(filepath, np.squeeze(ts), "%5.2f",
+        #            delimiter=",", comments="#",
+        #            header=" ".join(header) + " ".join(std_cols))
+
+        if os.path.isfile(filepath):
+            success = True
+        else:
+            success = False
+
+    if success:
+        print("Write success.")
+    else:
+        print("Some error prevented file from being written.")
+    # print("You asked for {0} files to be written out. ".format(n_samples) +
+    #       "I was able to write out {0} files successfully.".format(
+    #               np.sum(success)))
 
 # ----------- End give_weather function. -----------

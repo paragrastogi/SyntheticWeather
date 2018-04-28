@@ -54,6 +54,12 @@ PARSER.add_argument("--store_path", type=str, default="SyntheticWeather",
                     help="Path to the folder where all outputs will go." +
                     " Default behaviour is to create a folder in the " +
                     "present working directory called SyntheticWeather.")
+PARSER.add_argument("--climate_change", type=int, choices=[0, 1], default=0,
+                    help="Enter 0 to not include climate change models, or" +
+                    " 1 to do so. If you want to use a CC model, you have" +
+                    " to pass a path to the file containing those outputs.")
+PARSER.add_argument("--path_cc_file", type=str, default="ccfile.p",
+                    help="Path to the file containing CC model outputs.")
 PARSER.add_argument("--station_coordinates", type=str, default="[0, 0, 0]",
                     help="Station latitude, longitude, altitude. " +
                     "Not currently used.")
@@ -88,6 +94,8 @@ file_type = ARGS.file_type
 store_path = ARGS.store_path
 station_coordinates = [float(x.strip("[").strip("]"))
                        for x in ARGS.station_coordinates.split(",")]
+climate_change = ARGS.climate_change
+path_cc_file = ARGS.path_cc_file
 randseed = ARGS.randseed
 arma_params = [int(x.strip("[").strip("]"))
                for x in ARGS.arma_params.split(",")]
@@ -106,6 +114,8 @@ if __name__ == "__main__":
           path_file_out=path_file_out,
           file_type=file_type,
           store_path=store_path,
+          climate_change=climate_change,
+          path_cc_file=path_cc_file,
           station_coordinates=station_coordinates,
           randseed=randseed,
           arma_params=arma_params,
