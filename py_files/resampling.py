@@ -6,16 +6,19 @@ Created on Mon Oct  2 11:47:58 2017
 @author: rasto
 
 Translating, as faithfully as possible, the resampling method first proposed
-my thesis (Rastogi, 2016, EPFL).
+in (Rastogi, 2016, EPFL).
 """
 
 import pickle
 import copy
 
+from tqdm import tqdm
+
 import numpy as np
 import pandas as pd
 
 from scipy.optimize import curve_fit
+from sklearn.preprocessing import StandardScaler
 
 import fourier
 from ts_models import select_models
@@ -37,60 +40,34 @@ STD_LEN_OUT = 8760
 # COLUMNS = ('year', 'month', 'day', 'hour', 'tdb', 'tdp', 'rh',
 #            'ghi', 'dni', 'dhi', 'wspd', 'wdr')
 
+# Key for netcdf data.
+# 'tas' = 'TDBdmean',
+# 'tasmin' = 'TDBdmin',
+# 'tasmax' = 'TDBdmax',
+# 'ps' = 'ATMPRdmean',
+# 'sfcWind' = 'Wspd_dmean'
+# 'rsds' = 'GHIdmean',
+# 'huss' = 'Wdmean'
 
-def resampling(xy_train, train=True, n_samples=10,
-               picklepath='test_out.npy', counter=0,
-               arma_params=None, bounds=None,
-               cc_data=None, cc_scenario=None):
-
-    # Reassign defaults if incoming list params are None
-    # (i.e., nothing passed.)
-    if arma_params is None:
-        arma_params = [2, 2, 1, 1, 24]
-
-    if bounds is None:
-        bounds = [0.01, 99.9]
-
-    # if train is True, then the model must be fit to incoming data.
-    if train:
-
-        ffit, selmdl, xout = trainer(xy_train, n_samples, arma_params,
-                                     bounds, cc_data, cc_scenario)
-
-        # Save the outputs as a pickle.
-
-        with open(picklepath, 'wb') as f:
-            pickle.dump(xout, f)
-
-        sample = None
-
-    else:
-
-        # The non-training call is only meant to return a sample.
-        ffit = None
-        selmdl = None
-
-        sample = sampler(picklepath, counter)
-
-    # Return all three outputs.
-
-    return ffit, selmdl, sample
+cc_cols = [["tdb", "tas"], ["rh", None], ["atmpr", "ps"],
+           ["wspd", "sfcWind"], ["ghi", "rsds"]]
 
 
-def trainer(xy_train, n_samples, arma_params, bounds, cc_data, cc_scenario):
-    '''Train the model with this function.'''
+def trainer(xy_train, n_samples, picklepath, arma_params, bounds, cc_data):
+    """Train the model with this function."""
 
     # Save a copy of all data to calculate quantiles later.
     xy_train_all = xy_train
 
-    # Get the unique years. Remove the last element since that is 2223,
-    # which exists because Python interprets the last hour of a typical
-    # year (2222) as the first hour of the next year.
-    all_years = np.unique(xy_train.index.year)[:-1]
+    # ARIMA models cannot be fit to overly long time series.
+    # Select a random year from all the data available for ARIMA.
+
+    # Get the unique years. The typical years are read as 2223.
+    all_years = np.unique(xy_train_all.index.year)
 
     xy_train = pd.DataFrame()
 
-    while xy_train.shape[0] < 8760:
+    while xy_train.shape[0] < STD_LEN_OUT:
 
         select_year = all_years[np.random.randint(0, len(all_years), 1)[0]]
 
@@ -100,7 +77,7 @@ def trainer(xy_train, n_samples, arma_params, bounds, cc_data, cc_scenario):
 
         xy_train = petite.remove_leap_day(xy_train)
 
-        if xy_train.shape[0] > 8760:
+        if xy_train.shape[0] > STD_LEN_OUT:
             xy_train = xy_train.iloc[0:STD_LEN_OUT, :]
 
     x_calc_params = np.arange(0, xy_train_all.shape[0])
@@ -121,40 +98,47 @@ def trainer(xy_train, n_samples, arma_params, bounds, cc_data, cc_scenario):
     ffit = [fourier.fit('tdb', x_fit_models, *params[0][0]),
             fourier.fit('rh', x_fit_models, *params[1][0])]
 
-    # ARIMA models cannot be fit to overly long time series.
-    # Select a random year from all the data available.
-    # unique_years = np.unique(xy_train.index.year)
-    # selected_year = unique_years[np.random.randint(0, len(unique_years))]
+    if cc_data is not None:
 
-    #  Filtered_xy = xy_train[xy_train.index.year==selected_year]
-    # Filtered_DM = DeMeaned[DeMeaned.index.year==selected_year]
+        params_cc = [
+            curve_fit(fourier.fit_tdb_low, x_calc_params,
+                      xy_train_all['tdb']),
+            curve_fit(fourier.fit_tdb_high, x_calc_params,
+                      xy_train_all['tdb']),
+            curve_fit(fourier.fit_rh_low, x_calc_params,
+                      xy_train_all['rh']),
+            curve_fit(fourier.fit_rh_high, x_calc_params,
+                      xy_train_all['rh'])
+            ]
+
+        ffit_cc = [fourier.fit('tdb_low', x_fit_models, *params_cc[0][0]),
+                   fourier.fit('tdb_high', x_fit_models, *params_cc[1][0]),
+                   fourier.fit('rh_low', x_fit_models, *params_cc[2][0]),
+                   fourier.fit('rh_high', x_fit_models, *params_cc[3][0])]
 
     # Now subtract the low- and high-frequency fourier fits
     # (whichever is applicable) from the raw values to get the
     # 'de-meaned' values (values from which the mean has
     # been removed).
 
-    DeMeaned = pd.concat([x - y for x, y in
-                          zip([xy_train["tdb"], xy_train["rh"]], ffit)],
-                         axis=1)
-    DeMeaned.index = xy_train.index
+    sans_means = pd.concat([x - y for x, y in
+                            zip([xy_train["tdb"], xy_train["rh"]], ffit)],
+                           axis=1)
+    sans_means.index = xy_train.index
 
     # Fit ARIMA models.
 
     selmdl = list()
-    resid = np.zeros([DeMeaned["tdb"].shape[0], NUM_VARS])
+    resid = np.zeros([sans_means["tdb"].shape[0], NUM_VARS])
 
-    for idx, ser in enumerate(DeMeaned):
+    for idx, ser in enumerate(sans_means):
         mdl_temp, resid[:, idx] = select_models(
-            arma_params, DeMeaned[ser])
+            arma_params, sans_means[ser])
         selmdl.append(mdl_temp)
 
-    print("Done with fitting models to TDB and RH.\r\n")
-
-    print(("Simulating the learnt model to get synthetic noise series."
+    print(("Done with fitting models to TDB and RH.\r\n"
+           "Simulating the learnt model to get synthetic noise series. "
            "This might take some time.\r\n"))
-
-    # num_years = int(xy_train.shape[0] / STD_LEN_OUT)
 
     resampled = np.zeros([STD_LEN_OUT, NUM_VARS, n_samples])
 
@@ -168,44 +152,19 @@ def trainer(xy_train, n_samples, arma_params, bounds, cc_data, cc_scenario):
     # Add the resampled time series back to the fourier series.
 
     if cc_data is None:
-        # First make the xout array using all variables. Variables other
-        # than RH and TDB are just repeated from the incoming files.
-        xout = list()
 
-        # Clean the generated temperature values using extreme percentiles
-        # as proxies for 'outliers'.
-
-        # Clean the RH values using phyiscal limits (0-100).
-
-        # Add the fourier fits from the training data to the
-        # resampled/resimulated ARMA model outputs.
-
-        for nidx in range(0, n_samples):
-
-            # Copy the master datatable of all values.
-            xout_temp = copy.deepcopy(xy_train)
-
-            for idx, var in enumerate(DeMeaned[["tdb", "rh"]]):
-
-                # Replace only var (tdb or rh).
-                # Also send it to the quantile cleaner.
-                xout_temp[var] = petite.quantilecleaner(
-                    (resampled[:, idx, nidx] + ffit[idx]), xy_train_all,
-                    var, bounds=bounds)
-
-            xout.append(xout_temp)
+        xout = create_future_no_cc(
+            xy_train, sans_means, ffit, resampled, n_samples, bounds)
 
     else:
 
-        # ccindex = cc_data[cc_scenario].index.get_level_values(1)
-        cc_models = set(cc_data[cc_scenario].index.get_level_values(0))
+        cc_models = set(cc_data.index.get_level_values(0))
         xout = list()  # ([xy_train] * n_samples)
 
-#        for idx, var in enumerate(DeMeaned[["tdb", "rh"]]):
-        for model in cc_models:
+        for model in tqdm(cc_models):
 
-            this_cc_out = cc_data[cc_scenario].loc[model]
-            gcm_years = np.unique(cc_data[cc_scenario].loc[model].index.year)
+            this_cc_out = cc_data.loc[model]
+            gcm_years = np.unique(this_cc_out.index.year)
 
             for yidx, future_year in enumerate(gcm_years):
 
@@ -224,29 +183,48 @@ def trainer(xy_train, n_samples, arma_params, bounds, cc_data, cc_scenario):
 
                     xout_temp = copy.deepcopy(xy_train)
 
-                    for idx, var in enumerate(["tdb", "rh"]):
+                    for idx, var in enumerate(cc_cols):
 
-                        tas = cctable["tas"].values
-
-                        if var == "tdb":
-                            ccvar = np.repeat(tas, [24], axis=0)
-                        elif var == "rh":
+                        if var[0] == "rh":
                             huss = cctable["huss"].values
-                            ps = cctable["ps"].values
-
                             # Convert specific humifity to humidity ratio.
                             w = -huss / (huss - 1)
 
                             # Convert humidity ratio (w) to
                             # Relative Humidity (RH).
-                            rh = petite.w2rh(w, tas, ps)
+                            rh = petite.w2rh(
+                                w, cctable["tas"].values,
+                                cctable["ps"].values)
 
                             # Is there some way to replace the fourier fit at
                             # a finer grain instead of repeating the daily
                             # mean value 24 times?
                             ccvar = np.repeat(rh, [24], axis=0)
 
-                        xout_temp[var] = resampled[:, idx, nidx] + ccvar
+                        elif var[0] == "tdb":
+                            ccvar = np.repeat(
+                                cctable[var[1]].values - 273.15, [24],
+                                axis=0)
+
+                        else:
+                            ccvar = np.repeat(
+                                cctable[var[1]].values, [24], axis=0)
+
+                        # Add the resampled time series to the high-frequency
+                        # fourier fit and the cc model output.
+
+                        if var[0] == 'tdb':
+                            xout_temp[var[0]] = (
+                                resampled[:, idx, nidx] + ffit_cc[1] -
+                                ffit_cc[0] + ccvar)
+                        elif var[0] == 'rh':
+
+                            xout_temp[var[0]] = (
+                                resampled[:, idx, nidx] + ffit_cc[3] -
+                                ffit_cc[2] + ccvar)
+                        else:
+                            xout_temp[var[0]] = ccvar
+
                         future_index = pd.DatetimeIndex(
                             start=str(future_year) + "-01-01 00:00:00",
                             end=str(future_year) + "-12-31 23:00:00",
@@ -256,6 +234,10 @@ def trainer(xy_train, n_samples, arma_params, bounds, cc_data, cc_scenario):
                             ~((future_index.month == 2) &
                               (future_index.day == 29))]
                         xout_temp.index = future_index
+                        xout_temp['year'] = future_index.year
+
+                        xout_temp['tdp'] = petite.calc_tdp(
+                            xout_temp["tdb"], xout_temp["rh"])
 
                     xout.append(xout_temp)
 
@@ -265,100 +247,40 @@ def trainer(xy_train, n_samples, arma_params, bounds, cc_data, cc_scenario):
 
     # Calculate TDP.
 
-# %%
-    for idx, df in enumerate(xout):
+    xout = nearest_neighbour(xout, xy_train_all, 'tdb', 'ghi')
+    # xout = nearest_neighbour(xout, xy_train_all, 'tdb', 'wspd')
 
-        df["tdp"] = petite.calc_tdp(df["tdb"], df["rh"])
-        xout[idx] = df
+    # tdp = (np.asarray([x.loc[:, 'tdp'] for x in xout])).T
+    # tdb = (np.asarray([x.loc[:, 'tdb'] for x in xout])).T
 
-    # Calculate daily means of temperature.
-    mean_list = list()
-    for df in xout:
-        df_dm = df['tdb'].resample('1D').mean()
+    # for idx, df in enumerate(xout):
+    #     if np.any(df["tdp"] > df["tdb"]):
+    #         print(np.where(df["tdp"] > df["tdb"]))
+    #         df["tdp"] = petite.tdpcleaner(df['tdp'], df['tdb'])
+    #         xout[idx] = df
 
-        if len(df_dm) > 365:
-            df_dm = petite.remove_leap_day(df_dm)
-
-        mean_list.append(df_dm)
-
-    tdb_dailymeans = dict(syn=mean_list,
-                          rec=xy_train['tdb'].resample('1D').mean())
-
-    sol_idx = [x for x, y in enumerate(xy_train)
-               if y in ['ghi', 'dhi', 'dni']]
-
-    # Number of nearest neighbours to keep when varying solar quantities.
-    nn_top = 10
-
-    for this_month in range(1, 13):
-
-        # This month's indices.
-        idx_this_month = tdb_dailymeans['rec'].index.month == this_month
-
-        nearest_nbours = list()
-
-        # Cycle through each array of daily means.
-        for _, syn_means in enumerate(tdb_dailymeans['syn']):
-            # Find the nearest neighbour to each element of the syn_means
-            # array. Nearest neighbours must be in the same month to preserve
-            # length of day.
-
-            # First find 10 nearest neighbours.
-            nearest_nbours_temp = [(np.abs(
-                x - tdb_dailymeans['rec'][idx_this_month])).argsort()[:nn_top]
-                for x in syn_means[idx_this_month]]
-            # This works by sorting the values in ascending order, taking the
-            # indices, and picking the first nn_top.
-
-            # Pick one of the ten nearest neighbours.
-            nearest_nbours.append([x[np.random.randint(
-                0, nn_top, size=1)] for x in nearest_nbours_temp])
-
-        # Find the solar data for this month.
-        idx_solar_this_month = np.asarray(
-            [xy_train.iloc[xy_train.index.month == this_month, x]
-             for x in sol_idx]).T
-        # Reshape into day-sized blocks.
-        idx_solar_this_month = np.reshape(idx_solar_this_month, [-1, 24, 3])
-
-        solar_samples = np.zeros([len(nearest_nbours),
-                                  np.sum(idx_this_month),
-                                  24, len(sol_idx)])
-
-        for ng_idx, n_group in enumerate(nearest_nbours):
-            for sg_idx, n_subgroup in enumerate(n_group):
-                solar_samples[ng_idx, sg_idx, :, :] = np.array(
-                    [idx_solar_this_month[x, :, :].tolist()
-                     for x in n_subgroup][0])
-
-        # Send the solar columns to cleaning.
-        for nidx in range(0, n_samples):
-
-            # Put the solar samples back in to xout.
-            for sidx, solcol in enumerate(sol_idx):
-                xout[nidx].iloc[:, sidx].mask(
-                    xout[nidx].index.month == this_month,
-                    other=pd.Series(np.reshape(
-                        solar_samples[nidx, :, :, sidx], [-1])))
-
-    # End month loop.
-
-    for nidx in range(0, n_samples):
-        xout[nidx].iloc[:, solcol] = petite.solarcleaner(
-            xout[nidx].iloc[:, solcol], xy_train.iloc[:, solcol])
+    # Save the outputs as a pickle.
+    pickle.dump(xout, open(picklepath, 'wb'))
 
     # End nidx loop.
 
     return ffit, selmdl, xout
 
 
-def sampler(picklepath, counter):
-    '''Only opens the pickle of saved samples and returns ONE sample.'''
+def sampler(picklepath, year, n):
+    """Only opens the pickle of saved samples and returns ONE sample."""
 
     try:
 
-        xout = pickle.load(open(picklepath, 'rb'))
-        sample = xout[counter]
+        if isinstance(picklepath, list):
+            xout = picklepath
+        else:
+            xout = pickle.load(open(picklepath, 'rb'))
+
+        # years = np.unique([np.unique(x.index.year) for x in xout])
+        yidx = [idx for idx, x in enumerate(xout)
+                if np.unique(x.index.year) == year]
+        sample = xout[yidx[n]]
 
     except AttributeError:
 
@@ -367,3 +289,170 @@ def sampler(picklepath, counter):
         sample = None
 
     return sample
+
+
+def create_future_no_cc(rec, sans_means, ffit, resampled, n_samples, bounds):
+    # First make the xout array using all variables. Variables other
+    # than RH and TDB are just repeated from the incoming files.
+    xout = list()
+
+    all_years = np.unique(rec.index.year)[:-1]
+
+    select_year = all_years[np.random.randint(0, len(all_years), 1)[0]]
+
+    # Keep only that one year of data.
+    rec_year = rec[str(select_year) + '-01-01':
+                   str(select_year) + '-12-31']
+
+    rec_year = petite.remove_leap_day(rec_year)
+
+    if rec_year.shape[0] > STD_LEN_OUT:
+        rec_year = rec_year.iloc[0:STD_LEN_OUT, :]
+
+    # Clean the generated temperature values using extreme percentiles
+    # as proxies for 'outliers'.
+
+    # Clean the RH values using phyiscal limits (0-100).
+
+    # Add the fourier fits from the training data to the
+    # resampled/resimulated ARMA model outputs.
+
+    for nidx in range(0, n_samples):
+
+        # Copy the master datatable of all values.
+        xout_temp = copy.deepcopy(rec_year)
+
+        for idx, var in enumerate(sans_means[["tdb", "rh"]]):
+
+            # Replace only var (tdb or rh).
+            # Also send it to the quantile cleaner.
+            xout_temp[var] = petite.quantilecleaner(
+                (resampled[:, idx, nidx] + ffit[idx]), rec,
+                var, bounds=bounds)
+
+        xout.append(xout_temp)
+
+    return xout
+
+
+def nearest_neighbour(syn, rec, basevar, othervar):
+
+    # Calculate daily means of temperature.
+    mean_list = {basevar: list(), othervar: list()}
+
+    for var in [basevar, othervar]:
+        for df in syn:
+
+            df_dm = df[var].resample('1D').mean()
+
+            if len(df_dm) > 365:
+                df_dm = petite.remove_leap_day(df_dm)
+
+            mean_list[var].append(df_dm)
+
+    if othervar == 'ghi':
+        othervar_idx = [x for x, y in enumerate(rec)
+                        if y in ['ghi', 'dhi', 'dni']]
+    elif othervar == 'wspd':
+        othervar_idx = [x for x, y in enumerate(rec)
+                        if y in ['wspd', 'wdir']]
+    else:
+        othervar_idx = [x for x, y in enumerate(rec)
+                        if y in [othervar]]
+
+    # import ipdb; ipdb.set_trace()
+
+    # Number of nearest neighbours to keep when varying solar quantities.
+    nn_top = 10
+    # days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+    for this_month in range(1, 13):
+
+        print('Month ' + str(this_month))
+
+        # This month's indices.
+        idx_this_month_rec = rec.index.month == this_month
+
+        rec_this_month = rec.iloc[idx_this_month_rec, :]
+
+        rec_means_this_month = (np.asarray(
+            [rec_this_month[basevar].resample(
+                '1D').mean().dropna(),
+             rec_this_month[othervar].resample(
+                 '1D').mean().dropna()])).T
+
+        # Find the solar data for this month.
+        othervar_this_month = np.asarray(
+            [rec_this_month.iloc[:, x]
+             for x in othervar_idx]).T
+        # Reshape into day-sized blocks.
+        othervar_this_month = np.reshape(
+            othervar_this_month, [-1, 24, len(othervar_idx)])
+
+        # Scale values for calculating the nearest neighbour.
+        scaler_rec = StandardScaler()
+        scaler_rec.fit(rec_means_this_month)
+        rec_means_scaled = scaler_rec.transform(rec_means_this_month)
+
+        # Cycle through each array of daily means.
+        for sample_idx, (syn_sample_tdb, syn_sample_ghi) in enumerate(zip(
+                mean_list[basevar], mean_list[othervar])):
+
+            idx_this_month_syn = syn_sample_tdb.index.month == this_month
+
+            syn_sample = np.asarray(
+                [syn_sample_tdb[idx_this_month_syn].values,
+                 syn_sample_ghi[idx_this_month_syn].values]).T
+
+            scaler_syn = StandardScaler()
+            scaler_syn.fit(syn_sample)
+            syn_sample_scaled = scaler_syn.transform(syn_sample)
+
+            nearest_nbours = list()
+
+            for day_sample in syn_sample_scaled:
+
+                # Sort samples by Euclidean distance.
+                # argsort gives the arguments (indices) from sorting.
+                nbours = np.argsort(
+                    np.asarray([petite.euclidean(day_sample, x)
+                                for x in rec_means_scaled]))
+
+                # Keep only the first nn_top samples.
+                nbours = nbours[:nn_top]
+                # Select only one of those.
+                nbours = nbours[np.random.randint(0, len(nbours), size=1)]
+                # Save it as an integer.
+                nearest_nbours.append(int(nbours))
+
+            # Array to store the hourly samples.
+            othervar_samples = np.zeros([len(nearest_nbours),
+                                         24, len(othervar_idx)])
+
+            # Cycle through the nearest neighbours.
+            for ng_idx, nbour_idx in enumerate(nearest_nbours):
+                othervar_samples[ng_idx, :, :] = othervar_this_month[
+                    nbour_idx, :, :]
+
+            # Reshape solar samples to be continuous.
+            othervar_samples = np.reshape(
+                othervar_samples, [-1, len(othervar_idx)])
+
+            # Put the solar samples back in to syn.
+            for sidx, othervar_col in enumerate(othervar_idx):
+                cleaned_solar = petite.solarcleaner(
+                    pd.Series(othervar_samples[:, sidx]),
+                    rec.iloc[:, othervar_col])
+
+                this_month_idx = [idx for idx, x in
+                                  enumerate(syn[sample_idx].index.month)
+                                  if x == this_month]
+
+                syn[sample_idx].iloc[this_month_idx,
+                                     othervar_col] = cleaned_solar.values
+
+        # End syn_sample loop
+
+    # End month loop.
+
+    return syn

@@ -22,7 +22,6 @@ Description of algorithm:
 
 import os
 import glob
-import sys
 import pickle
 import time
 import pandas as pd
@@ -32,22 +31,22 @@ import pandas as pd
 import wfileio as wf
 
 from petites import setseed
-from resampling import resampling
+import resampling as resampling
 
 # Custom functions to calculate error metrics - not currently used.
 # import losses.
 # from losses import rmseloss
 # from losses import maeloss
 
-supported_fmts = ["espr", "epw", "csv"]
+supported_fmts = ["espr", "epw", "csv", "fin4"]
 
 
 def indra(train=False, station_code="abc", n_samples=10,
           path_file_in="wf_in.epw", path_file_out="wf_out.epw",
           file_type="epw", store_path=".",
           climate_change=False, path_cc_file='ccfile.p',
-          station_coordinates=None,
-          randseed=None,
+          cc_scenario='rcp85', epoch=[2051, 2060],
+          randseed=None, year=0, variant=0,
           arma_params=None,
           bounds=None):
 
@@ -58,9 +57,6 @@ def indra(train=False, station_code="abc", n_samples=10,
 
     if bounds is None:
         bounds = [0.01, 99.9]
-
-    if station_coordinates is None:
-        station_coordinates = [0.0, 0.0, 0.0]
 
     # Uncomment when debugging this script to avoid having to call the
     # whole function.
@@ -79,20 +75,31 @@ def indra(train=False, station_code="abc", n_samples=10,
     # Convert incoming station_code to lowercase.
     station_code = station_code.lower()
 
-    # Make a folder named using the station code in case no path to
-    # folder was passed.
-    if store_path == '.':
-        store_path = station_code
+    if isinstance(store_path, str):
 
-    # Store everything in a folder named <station_code>.
-    if not os.path.isdir(store_path):
-        os.makedirs(store_path)
+        # Make a folder named using the station code in case no path to
+        # folder was passed.
+        if store_path == '.':
+            store_path = station_code
 
-    # These will be the files where the outputs will be stored.
-    path_model_save = os.path.join(store_path, "model.p")
-    # Save output time series.
-    picklepath = os.path.join(store_path, "syn.npy")
-    path_counter_save = os.path.join(store_path, "counter.p")
+        # Store everything in a folder named <station_code>.
+        if not os.path.isdir(store_path):
+            os.makedirs(store_path)
+
+        # These will be the files where the outputs will be stored.
+        path_model_save = os.path.join(
+            store_path, 'model_{:d}_{:d}.p'.format(epoch[0], epoch[1]))
+        # Save output time series.
+
+        path_syn_save = os.path.join(
+            store_path, 'syn_{:d}_{:d}.p'.format(epoch[0], epoch[1]))
+        path_counter_save = os.path.join(
+            store_path, 'counter_{:d}_{:d}.p'.format(epoch[0], epoch[1]))
+
+    else:
+        # This is for the sampling run, where a list of dataframes has
+        # been passed.
+        path_syn_save = store_path
 
     # ----------------
 
@@ -105,9 +112,9 @@ def indra(train=False, station_code="abc", n_samples=10,
         # number draws as before.
 
         # If the user did not specify a random seed, then the generator
-        # uses the current time, in seconds since an epoch, which differs
-        # between Unix and Windows. Anyhow, this is saved in the model
-        # output in case the results need to be reproduced.
+        # uses the current time, in seconds since some past year, which
+        # differs between Unix and Windows. Anyhow, this is saved in the
+        # model output in case the results need to be reproduced.
         if randseed is None:
             randseed = int(time.time())
 
@@ -116,56 +123,74 @@ def indra(train=False, station_code="abc", n_samples=10,
         setseed(randseed)
 
         # See accompanying script "wfileio".
-        try:
-            if os.path.isfile(path_file_in):
-                xy_train, locdata, header = wf.get_weather(
-                    station_code, path_file_in, file_type)
+        # try:
+        if os.path.isfile(path_file_in):
+            xy_train, locdata, header = wf.get_weather(
+                station_code, path_file_in, file_type)
 
-            elif os.path.isdir(path_file_in):
+        elif os.path.isdir(path_file_in):
 
-                list_wfiles = [glob.glob(os.path.join(path_file_in, "*." + x))
-                               for x in supported_fmts]
-                list_wfiles = sum(list_wfiles, [])
+            list_wfiles = [glob.glob(os.path.join(path_file_in, "*." + x))
+                           for x in supported_fmts]
+            list_wfiles = sum(list_wfiles, [])
 
-                xy_list = list()
+            xy_list = list()
 
-                for file in list_wfiles:
-                    xy_temp, locdata, header = wf.get_weather(
-                        station_code, file, file[-3:])
-                    xy_list.append(xy_temp)
+            for file in list_wfiles:
+                xy_temp, locdata, header = wf.get_weather(
+                    station_code, file, file.split('.')[-1])
+                xy_list.append(xy_temp)
 
-                xy_train = pd.concat(xy_list)
+            xy_train = pd.concat(xy_list)
 
-            print("Successfully retrieved weather data.\r\n")
-
-        except Exception as err:
-            print("Error: " + str(err))
-            exc_type, _, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(exc_type, fname, exc_tb.tb_lineno)
-            print("I could not read the incoming weather file. " +
-                  "Terminating this run.\r\n")
+        print("Successfully retrieved weather data.\r\n")
 
         # Train the models.
         print("Training the model. Go get a coffee or something...\r\n")
 
         if climate_change:
-            with open(path_cc_file, 'rb') as f:
-                cc_data = pickle.load(f)
+
+            cc_data = pickle.load(open(path_cc_file, 'rb'))
+            cc_data = cc_data[cc_scenario]
+            cc_models = set(cc_data.index.get_level_values(0))
+
+            # Pass only the relevant epochs to resampling.
+            # For some reason, some models have repetitions and NaNs.
+            # This will drop models with no data.
+
+            temp_dict = dict()
+            for model in cc_models:
+
+                temp = cc_data.loc[model]
+                temp = temp.dropna(how='any')
+                # Some times there are non-unique indices, as in duplicate
+                # days. Get rid of them by taking the means.
+                temp = temp.groupby(temp.index).mean()
+                orig_index = temp.index
+
+                if orig_index.shape[0] > 0:
+                    temp_dict[model] = temp[
+                        (orig_index.year <= epoch[1]) &
+                        (orig_index.year >= epoch[0])]
+
+            # import ipdb; ipdb.set_trace()
+
+            cc_data = pd.concat(temp_dict)
+
         else:
             cc_data = None
 
         # Hard-coded the scenario as of now - should be added as a
         # parameter later.
-        cc_scenario = 'rcp85'
+        # cc_scenario = 'rcp85'
 
         # Call resampling with null selmdl and ffit, since those
         # haven"t been trained yet.
-        ffit, selmdl, _ = resampling(
-            xy_train, train=True, n_samples=n_samples,
-            picklepath=picklepath,
+        ffit, selmdl, _ = resampling.trainer(
+            xy_train, n_samples=n_samples,
+            picklepath=path_syn_save,
             arma_params=arma_params,
-            bounds=bounds, cc_data=cc_data, cc_scenario=cc_scenario)
+            bounds=bounds, cc_data=cc_data)
 
         # The non-seasonal order of the model. This exists in both
         # ARIMA and SARIMAX models, so it has to exist in the output
@@ -200,9 +225,9 @@ def indra(train=False, station_code="abc", n_samples=10,
             pickle.dump(arma_save, open_file)
 
         # Save counter.
-        csave = dict(counter=0, n_samples=n_samples, randseed=randseed)
-        with open(path_counter_save, "wb") as open_file:
-            pickle.dump(csave, open_file)
+        csave = dict(n_samples=n_samples, randseed=randseed)
+        # with open(path_counter_save, "wb") as open_file:
+        pickle.dump(csave, open(path_counter_save, "wb"))
 
         print(("I've saved the model for station '{0}'. "
                "You can now ask me for samples in folder '{1}'."
@@ -221,30 +246,27 @@ def indra(train=False, station_code="abc", n_samples=10,
         # mean something. For now, any number will do.
 
         # Load counter.
-        with open(path_counter_save, "rb") as open_file:
-            csave = pickle.load(open_file)
+        # csave = pickle.load(open(path_counter_save, "rb"))
 
-        _, _, sample = resampling(
-            pd.DataFrame(), train=False, counter=csave["counter"],
-            picklepath=os.path.join(store_path, 'syn.npy'))
+        sample = resampling.sampler(
+            picklepath=path_syn_save, year=year, n=variant)
+
+        # import ipdb; ipdb.set_trace()
 
         if os.path.isdir(path_file_in):
 
-            list_wfiles = glob.glob(os.path.join(path_file_in, "*.epw"))
-            path_file_in = list_wfiles[0]
+            list_wfiles = [glob.glob(os.path.join(path_file_in, "*." + x))
+                           for x in supported_fmts]
+            list_wfiles = sum(list_wfiles, [])
 
-        xy_master, locdata, header = wf.get_weather(
-                    station_code, path_file_in, file_type)
+        else:
+            list_wfiles = [path_file_in]
+
+        _, locdata, header = wf.get_weather(
+                    station_code, list_wfiles[0], file_type)
+
         # Save / write-out synthetic time series.
         wf.give_weather(sample, locdata, station_code, header,
-                        file_type=file_type, s_shift=0,
-                        path_file_out=path_file_out, masterfile=path_file_in)
-
-        # This function has been asked to give a sample, so update
-        # the counter.
-        csave["counter"] += 1
-        if csave["counter"] >= (csave["n_samples"]-1):
-            csave["counter"] = 0
-
-        with open(path_counter_save, "wb") as open_file:
-            pickle.dump(csave, open_file)
+                        file_type=file_type,
+                        path_file_out=path_file_out,
+                        masterfile=list_wfiles[0])

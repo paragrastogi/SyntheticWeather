@@ -7,8 +7,6 @@ from scipy import interpolate
 
 import petites as petite
 
-import pdb
-
 """
 This file contains functions to:
     1. load weather data from "typical" and "actual" (recorded) weather
@@ -34,7 +32,7 @@ keywords = dict(tmy=("nrel", "iwec", "ishrae", "cwec",
                      "igdg", "tmy3", "meteonorm"),
                 amy=("ncdc", "nsrdb", "nrel_indiasolar",
                      "ms", "WY2", "nasa_saudi"))
-wformats = ("epw", "espr", "csv")
+wformats = ("epw", "espr", "csv", "fin4")
 
 # List of values that could be NaNs.
 nanlist = ("9900", "-9900", "9999", "99", "-99", "9999.9", "999.9", " ", "-")
@@ -54,9 +52,9 @@ espr_generic_header = """*CLIMATE
  {3},{4},{5},{6}   # year, latitude, long diff, direct normal rad flag
  {7},{8}    # period (julian days)"""
 
-# The standard columns used by indra.
-std_cols = ("year", "month", "day", "hour", "tdb", "tdp", "rh",
-            "ghi", "dni", "dhi", "wspd", "wdr")
+# # The standard columns used by indra.
+# std_cols = ("year", "month", "day", "hour", "tdb", "tdp", "rh",
+#             "ghi", "dni", "dhi", "wspd", "wdr")
 
 
 def get_weather(stcode, fpath, file_type="epw"):
@@ -68,10 +66,8 @@ def get_weather(stcode, fpath, file_type="epw"):
     locdata = None
     header = None
 
-    # if os.path.isfile(fpath):
-    #     # print("Running weather file reader for station " +
-    #     #       "{0}. Expecting format {1}.\r\n".format(stcode, file_type))
-    # else:
+    file_type = file_type.lower()
+
     if not os.path.isfile(fpath):
         print("I cannot find file {0}.".format(fpath) +
               " Returning empty dataframe.\r\n")
@@ -88,6 +84,8 @@ def get_weather(stcode, fpath, file_type="epw"):
                   "Trying all other formats.\r\n")
             print("Error: " + str(err))
             wdata = None
+            header = None
+            locdata = None
 
     elif file_type == "epw" or fpath[-4:] == ".epw":
 
@@ -98,6 +96,8 @@ def get_weather(stcode, fpath, file_type="epw"):
         except Exception as err:
             print("Error: " + str(err))
             wdata = None
+            header = None
+            locdata = None
 
     elif file_type == "espr" or fpath[-4:] == ".espr":
 
@@ -108,12 +108,14 @@ def get_weather(stcode, fpath, file_type="epw"):
         except Exception as err:
             print("Error: " + str(err))
             wdata = None
+            header = None
+            locdata = None
 
     elif file_type == "csv" or fpath[-4:] == ".csv":
 
         try:
             wdata = pd.read_csv(fpath, header=0)
-            wdata.columns = ["month", "day", "hour", "tdb", "tdp", "rh",
+            wdata.columns = ["year", "month", "day", "hour", "tdb", "tdp", "rh",
                              "ghi", "dni", "dhi", "wspd", "wdr"]
             # Location data is nonsensical, except for station code,
             # which will be reassigned later in this function.
@@ -138,97 +140,89 @@ def get_weather(stcode, fpath, file_type="epw"):
             header = None
             locdata = None
 
+    elif file_type == 'fin4' or fpath[:-4] == 'fin4':
+
+        try:
+            wdata, locdata, header = read_fin4(fpath)
+        except Exception as err:
+            print("Error: " + str(err))
+            import ipdb; ipdb.set_trace()
+            wdata = None
+            header = None
+            locdata = None
+
     # End file_type if statement.
 
-    # The first try didn"t work for some reason.
+    locdata["loc"] = stcode
 
     if wdata is None:
         print("I could not read the file you gave me with the format " +
               "you specified. Trying all readers.\r\n")
 
-        # Once more unto the breach.
-
-        for fmt in wformats:
-            if fmt == "epw":
-                try:
-                    wdata, locdata, header = read_epw(fpath)
-                    # Remove leap day.
-                    wdata = petite.remove_leap_day(wdata)
-                except Exception as err:
-                    print("Error: " + str(err))
-                    wdata = None
-            elif fmt == "espr":
-                try:
-                    wdata, locdata, header = read_espr(fpath)
-                    # Remove leap day.
-                    wdata = petite.remove_leap_day(wdata)
-                except Exception as err:
-                    print("Error: " + str(err))
-                    wdata = None
-            elif fmt == "csv":
-                try:
-                    wdata = pd.read_csv(fpath, header=0)
-                    wdata.columns = ["month", "day", "hour", "tdb", "tdp",
-                                     "rh", "ghi", "dni", "dhi", "wspd", "wdr"]
-                    locdata = dict(loc="xxx", lat="00", long="00",
-                                   tz="00", alt="00", wmo="000000")
-                    header = ("# Unknown incoming file format " +
-                              "(not epw or espr)\r\n" +
-                              "# Dummy location data: " +
-                              "loc: {0}".format(locdata["loc"]) +
-                              "lat: {0}".format(locdata["lat"]) +
-                              "long: {0}".format(locdata["long"]) +
-                              "tz: {0}".format(locdata["tz"]) +
-                              "alt: {0}".format(locdata["alt"]) +
-                              "wmo: {0}".format(locdata["wmo"]) +
-                              "\r\n")
-                    # Remove leap day.
-                    wdata = petite.remove_leap_day(wdata)
-
-                except Exception as err:
-                    print("Error: " + str(err))
-                    wdata = None
-                    header = None
-                    locdata = None
-
-            if wdata is not None:
-                break
-
-    # End wformats for loop and if wdata is None.
-
-    locdata["loc"] = stcode
-
-    # Remove leap day.
-    wdata = petite.remove_leap_day(wdata)
-
-    if wdata is None:
-        print("All attempts to read your file were unsuccesful, " +
-              "returning empty table.")
         return wdata, locdata, header
 
     else:
+        # Remove leap day.
+        wdata = petite.remove_leap_day(wdata)
 
-        if len(np.unique(wdata.year.values)) > 1:
+        if len(np.unique(wdata['year'].values)) > 1:
             # Incoming file is probably a TMY or TRY file,
             # so insert a dummy year.
-            wdata["year"] = 2222
+            wdata["year"] = 2223
 
-        wdata.index = pd.to_datetime(
-            pd.concat([wdata.year, wdata.month, wdata.day,
-                       wdata.hour], axis=1))
+        date_index = pd.DatetimeIndex(
+            start='{:d}-01-01 00:00:00'.format(int(wdata["year"][0])),
+            end='{:d}-12-31 23:00:00'.format(int(wdata["year"][0])),
+            freq='1H')
+        wdata.index = date_index[
+            ~((date_index.day == 29) & (date_index.month == 2))]
 
         return wdata, locdata, header
 
-    # Ignore this bit of code for now.
 
-    # Load actual data for given station
-    # force = False
-    # dataout = read_others(stcode, force, sources, outpath=outpath)
-    # Always use NCDC in addition to the country-specific weather source
-    # (like meteosuisse), since that can help fill data.
+def read_fin4(fpath):
 
+    header_cols = ["year", "month", "day", "hour",
+                   "tdb", "tdp", "atmpr", "sky", "osky",
+                   "wspd", "wdir", "ghi", "dni", "Pres",
+                   "Rain", "vis", "chgt", "solarz"]
 
-# %%
+    locdata = dict()
+    hlines = 3
+    header = list()
+
+    with open(fpath, 'r') as openfile:
+        for ln in range(0, hlines):
+            header.append(openfile.readline())
+
+    wdata = pd.read_csv(
+        fpath, sep='\s+', skiprows=[0, 1, 2],
+        names=header_cols, dtype=str, index_col=False)
+
+    temp_index = pd.DatetimeIndex(
+        start='{:d}-01-01 00:00:00'.format(int(wdata["year"][0])),
+        end='{:d}-12-31 23:00:00'.format(int(wdata["year"][0])),
+        freq='1H')
+
+    if wdata.shape[0] == temp_index.shape[0]:
+        wdata.index = temp_index
+    elif wdata.shape[0] < temp_index.shape[0]:
+        wdata.index = temp_index[~((temp_index.day == 29) &
+                                   (temp_index.month == 2))]
+
+    wdata = wdata.dropna(axis=1, how='all')
+    for col in wdata.columns:
+        wdata[col] = wdata[col].apply(
+            lambda x: float(''.join(re.findall('[0-9.-]', x))))
+        if col in ['year', 'month', 'day', 'hour']:
+            wdata[col] = wdata[col].apply(lambda x: int(x))
+
+    wdata = petite.remove_leap_day(wdata)
+    wdata['rh'] = pd.Series(petite.calc_rh(wdata['tdb'], wdata['tdp']),
+                            index=wdata.index)
+
+    return wdata, locdata, header
+
 
 # Number of days in each month.
 m_days = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
@@ -298,104 +292,56 @@ def read_epw(fpath, epw_colnames=epw_colnames):
     # Number of header lines expected.
     hlines = 8
 
-    # See if you can find a year in the file name.
-    y_temp = list(set(re.findall(r'\d{4}', fpath)))
-
-    if y_temp:
-        if type(y_temp) is list:
-            year = [y for y in y_temp if int(y) > 1900][0]
-        else:
-            year = '2017'
-    else:
-        year = '2017'
-
-    if type(year) is list:
-        print('Found multiple years in file name, assigning 2017.')
-        year = '2017'
-
-    # Uniform date index for all tmy weather data tables.
-    dates = pd.DatetimeIndex(
-        start="1/1/{:s} 00:00:00".format(year),
-        end="31/12/{:s} 23:00:00".format(year),
-        freq="1H")
-
     # Convert the names to lowercase.
     epw_colnames = [x.lower() for x in epw_colnames]
 
-    # List of EPW files.
-    tmy_filelist = []
+    # Read table, ignoring header lines.
+    wdata = pd.read_csv(fpath, delimiter=",", skiprows=hlines,
+                        header=None, names=epw_colnames,
+                        index_col=False)
 
-    # Look in folder for weather data files.
-    if os.path.isdir(fpath):
-        filepaths = [os.path.join(fpath, f.lower())
-                     for f in os.listdir(fpath)]
-    else:
-        filepaths = fpath
+    year = np.unique(wdata['year'])[0]
 
-    if isinstance(filepaths, (list, tuple)):
-        for f in filepaths:
-            # Avoid AMY files.
-            if "epw" in f \
-                and any(s in f.lower() for s in keywords["tmy"]) \
-                    and not any(s in f.lower() for s in keywords["amy"]):
-                tmy_filelist.append(f)
-    else:
-        tmy_filelist = [filepaths]
+    if isinstance(year, list):
+        print('Found multiple years in file name, assigning 2223.')
+        year = '2223'
 
-    didx = 0
-    typdata = pd.DataFrame()
+    # Uniform date index for all tmy weather data tables.
+    dates = pd.DatetimeIndex(
+        start="{:d}-01-01 00:00:00".format(year),
+        end="{:d}-12-31 23:00:00".format(year),
+        freq="1H")
 
-    for f in tmy_filelist:
+    if len(dates) > wdata.shape[0]:
+        dates = dates[~((dates.month == 2) & (dates.day == 29))]
 
-        # Read table, ignoring header lines.
-        wdata_typ = pd.read_csv(f, delimiter=",", skiprows=hlines,
-                                header=None, names=epw_colnames,
-                                index_col=False)
+    wdata.index = dates
+    wdata = petite.remove_leap_day(wdata)
 
-        if wdata_typ.shape[0] == 8784:
-            wdata_typ.index = dates
-            wdata_typ = petite.remove_leap_day(wdata_typ)
-        elif wdata_typ.shape[0] == 8760:
-            # Remove leap day.
-            dates = dates[~((dates.month == 2) & (dates.day == 29))]
-            wdata_typ.index = dates
+    if len(wdata.columns) == 35:
+        # Some files have three extra columns
+        # (usually the TMY files from USDOE).
+        # Delete those columns if found.
+        wdata = wdata.drop(["unknownvar1", "unknownvar2",
+                            "unknownvar3"], axis=1)
 
-        if len(wdata_typ.columns) == 35:
-            # Some files have three extra columns
-            # (usually the TMY files from USDOE).
-            # Delete those columns if found.
-            wdata_typ = wdata_typ.drop(["unknownvar1", "unknownvar2",
-                                        "unknownvar3"], axis=1)
+    # Read header and assign all metadata.
+    header = list()
+    hf = open(fpath, "r")
+    for ln in range(0, hlines):
+        header.append(hf.readline())
 
-        # Read header and assign all metadata.
-        header = list()
-        hf = open(f, "r")
-        for ln in range(0, hlines):
-            header.append(hf.readline())
+    infoline = (header[0].strip()).split(",")
 
-        infoline = (header[0].strip()).split(",")
+    locdata = dict(loc=infoline[1], lat=infoline[6], long=infoline[7],
+                   tz=infoline[8], alt=infoline[9], wmo=infoline[5])
 
-        locdata = dict(loc=infoline[1], lat=infoline[6], long=infoline[7],
-                       tz=infoline[8], alt=infoline[9], wmo=infoline[5])
-
-        # Assign header information to table.
-        #        wdata_typ = wdata_typ.assign(
-        #                latitude=latitude, longitude=longitude,
-        #                altitude=altitude, wmo=wmo, tz=tz,
-        #                location=location, loccode=loccode)
-        if didx == 0:
-            typdata = wdata_typ
-        else:
-            typdata = typdata.append(wdata_typ)
-
-        didx += 1
-
-    if typdata.empty:
+    if wdata.empty:
 
         print("Could not locate a file with given station name." +
               " Returning empty table.\r\n")
 
-    return typdata, locdata, header
+    return wdata, locdata, header
 
 # ----------- END read_epw function -----------
 
@@ -405,7 +351,7 @@ def read_espr(fpath):
     # Missing functionality - reject call if path points to binary file.
 
     # Uniform date index for all tmy weather data tables.
-    dates = pd.date_range("1/1/2017", periods=8760, freq="H")
+    dates = pd.date_range("1/1/2223", periods=8760, freq="H")
 
     fpath_fldr, fpath_name = os.path.split(fpath)
     sitename = fpath_name.split(sep=".")
@@ -529,8 +475,8 @@ def read_espr(fpath):
     idx = np.arange(0, dataout.shape[0])
     duds = np.logical_or(np.isinf(dataout[:, 10]), np.isnan(dataout[:, 10]))
     int_func = interpolate.interp1d(
-            idx[np.logical_not(duds)], dataout[np.logical_not(duds), 10],
-            kind="nearest", fill_value="extrapolate")
+        idx[np.logical_not(duds)], dataout[np.logical_not(duds), 10],
+        kind="nearest", fill_value="extrapolate")
     dataout[duds, 10] = int_func(idx[duds])
 
     dataout = np.concatenate((np.reshape(np.repeat(int(year), 8760),
@@ -546,29 +492,40 @@ def read_espr(fpath):
 # ----------- END read_espr function -----------
 
 
-def give_weather(ts, locdata, stcode, header,
+def give_weather(df, locdata, stcode, header,
                  masterfile="GEN_IWEC.epw", file_type="epw",
-                 s_shift=0, path_file_out=".", std_cols=None):
+                 path_file_out=".", std_cols=None):
 
-    if file_type == 'csv' and isinstance(ts, pd.DataFrame):
-        std_cols = ts.columns
+    file_type = file_type.lower()
+
+    if file_type == 'csv' and isinstance(df, pd.DataFrame):
+        std_cols = df.columns
 
     # If no columns were passed, infer them from the columns of the dataframe.
     if std_cols is None:
-        std_cols = ts.columns
+        std_cols = df.columns
 
-    # Make dataframe into a numpy array.
-    df = ts
-    ts = df.values
+    # Check if incoming temperature values are in Kelvin.
+    for col in ['tdb', 'tdp']:
+        if any(df.loc[:, col] > 200):
+            df.loc[:, col] = df.loc[:, col] - 273.15
 
     success = False
 
-    year = np.asarray(np.unique(ts[:, 0]), dtype=int)
+    year = np.unique(df.index.year)[0]
+
+    # Convert date columns to integers.
+    if 'month' in df.columns:
+        df['month'] = pd.to_numeric(df['month'], downcast='unsigned')
+    if 'day' in df.columns:
+        df['day'] = pd.to_numeric(df['day'], downcast='unsigned')
+    if 'hour' in df.columns:
+        df['hour'] = pd.to_numeric(df['hour'], downcast='unsigned')
 
     # If last hour was interpreted as first hour of next year, you might
     # have two years.
     # This happens if the incoming file has hours from 1 to 24.
-    if len(year) > 1:
+    if isinstance(year, list):
         counts = np.bincount(year)
         year = np.argmax(counts)
 
@@ -576,7 +533,7 @@ def give_weather(ts, locdata, stcode, header,
         # Make a standardised name for output file.
         filepath = os.path.join(
             path_file_out, "wf_out_{0}_{1}".format(
-                year, s_shift))
+                year))
     else:
         # Files need to be renamed so strip out the extension.
         filepath = path_file_out.replace(
@@ -584,6 +541,8 @@ def give_weather(ts, locdata, stcode, header,
 
     if str(year) not in filepath:
         filepath = filepath + "_{:04d}".format(year)
+
+    # import ipdb; ipdb.set_trace()
 
     if file_type == "espr":
 
@@ -665,7 +624,7 @@ def give_weather(ts, locdata, stcode, header,
 
     elif file_type == "epw":
 
-        if filepath[-4:] != ".epw":
+        if filepath.split(".")[-1] != ".epw":
             filepath = filepath + ".epw"
 
         epw_fmt = (["%4u", "%2u", "%2u", "%2u", "%2u", "%44s"] +
@@ -685,7 +644,7 @@ def give_weather(ts, locdata, stcode, header,
         # Replace the year of the master file.
         epw_master["year"] = year
 
-        np.savetxt(filepath, epw_master.values, fmt=epw_fmt,
+        np.savetxt(filepath, df.values, fmt=epw_fmt,
                    delimiter=",", header="".join(header),
                    comments="")
 
@@ -696,32 +655,39 @@ def give_weather(ts, locdata, stcode, header,
 
         # End EPW writer.
 
+    elif file_type == "fin4":
+        if filepath.split(".")[-1] != ".fin4":
+            filepath = filepath + ".fin4"
+
+        _, _, header = read_fin4(masterfile)
+
+        # Strip the last end-of-line character.
+        header[-1] = header[-1].strip('\r').strip('\n')
+
+        # Convert pressure to millibars.
+        df['atmpr'] = df['atmpr'] / 100
+
+        # df.to_csv(filepath, sep=" ", header=" ".join(header), index=False)
+        fin_fmt = (["%4d", "%2d", "%2d", "%2d"] +
+                   ((np.repeat("%6.1f", len(df.columns) - (4))
+                     ).tolist()))
+
+        with open(filepath, 'wb') as openfile:
+            np.savetxt(openfile, df.values, fmt=fin_fmt,
+                       delimiter=" ", header="".join(header),
+                       comments="")
+
+        if os.path.isfile(filepath):
+            success = True
+        else:
+            success = False
+
     else:
 
-        if filepath[-4:] != ".csv":
+        if filepath.split(".")[-1] != ".csv":
             filepath = filepath + ".csv"
 
-        # # Remove string columns.
-        # ts = ts[:, [idx for idx, x in enumerate(ts[0, :])
-        #             if not isinstance(x, str)]]
-
-        # Create a datetime index for this year.
-        future_index = pd.DatetimeIndex(
-            start='{:04d}-01-01 00:00:00'.format(year),
-            end='{:04d}-12-31 23:00:00'.format(year),
-            freq='1H')
-
-        ts = pd.DataFrame(data=ts, columns=std_cols)
-        ts['year'] = future_index.year
-        ts['month'] = future_index.month
-        ts['day'] = future_index.day
-        ts['hour'] = future_index.hour
-
-        ts.to_csv(filepath, sep=",", header=True, index=False)
-
-        # np.savetxt(filepath, np.squeeze(ts), "%5.2f",
-        #            delimiter=",", comments="#",
-        #            header=" ".join(header) + " ".join(std_cols))
+        df.to_csv(filepath, sep=",", header=True, index=False)
 
         if os.path.isfile(filepath):
             success = True
@@ -732,8 +698,5 @@ def give_weather(ts, locdata, stcode, header,
         print("Write success.")
     else:
         print("Some error prevented file from being written.")
-    # print("You asked for {0} files to be written out. ".format(n_samples) +
-    #       "I was able to write out {0} files successfully.".format(
-    #               np.sum(success)))
 
 # ----------- End give_weather function. -----------

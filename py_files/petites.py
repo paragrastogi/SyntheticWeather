@@ -66,13 +66,10 @@ def solarcleaner(datain, master):
     # Using the source data - check to see if there
     # should be sunlight at a given hour. If not,
     # then set corresponding synthetic value to zero.
-
-    datain = datain.mask(master == 0, other=0)
-
     # If there is a negative value (usually at sunrise
     # or sunset), set it to zero as well.
 
-    datain = datain.mask(datain < 0, other=0)
+    datain = datain.mask(datain <= 0, other=0)
 
     return datain
 
@@ -88,9 +85,34 @@ def rhcleaner(rh):
 
     rhout = pd.DataFrame(rh)
 
-    rhout = rhout.mask(rhout > 100, other=99).mask(rhout < 0, other=1)
+    rhout = rhout.mask(rhout >= 99, other=np.NaN).mask(
+        rhout <= 10, other=np.NaN).mask(
+        np.isnan(rhout), other=np.NaN)
+
+    rhout = rhout.interpolate(method='linear')
+    rhout = rhout.fillna(method='bfill')
 
     return np.squeeze(rhout.values)
+
+# ----------- END rhcleaner function. -----------
+
+
+def tdpcleaner(tdp, tdb):
+
+    if not isinstance(tdp, pd.DataFrame):
+        tdpout = pd.DataFrame(tdp)
+
+    else:
+        tdpout = tdp
+
+    tdpout = tdpout.mask(np.squeeze(tdp) >= np.squeeze(tdb),
+                         other=np.NaN)
+
+    if ((np.isnan(tdpout.values)).any()):
+        tdpout = tdpout.interpolate(method='linear')
+        tdpout = tdpout.fillna(method='bfill')
+
+    return np.squeeze(tdpout.values)
 
 # ----------- END rhcleaner function. -----------
 
@@ -119,6 +141,12 @@ def wstats(datain, key, stat):
     return dataout
 
 # ----------- END wstats function. -----------
+
+
+def calc_rh(tdb, tdp):
+
+    rhout = 100 * (((112 - (0.1 * tdb) + tdp) / (112 + (0.9 * tdb))) ** 8)
+    return rhcleaner(rhout)
 
 
 def calc_tdp(tdb, rh):
@@ -182,15 +210,20 @@ def calc_tdp(tdb, rh):
         [np.inf, -np.inf], np.NaN).interpolate(method='nearest')
 
     # Eq. 39
-    tdp = alpha.apply(lambda x: EQ39_CONST[0] + EQ39_CONST[1]*x + EQ39_CONST[2]*(x**2) +
-           EQ39_CONST[3]*(x**3) + EQ39_CONST[4]*(p_w**0.1984))
+    tdp = alpha.apply(
+        lambda x: EQ39_CONST[0] + EQ39_CONST[1]*x + EQ39_CONST[2]*(x**2) +
+        EQ39_CONST[3]*(x**3) + EQ39_CONST[4]*(p_w**0.1984))
 
-    # Eq. 40, TDP less than 0°C and greater than 93°C
+    # Eq. 40, TDP less than 0°C and greater than -93°C
     tdp_ice = tdp < 0
     tdp[tdp_ice] = 6.09 + 12.608*alpha[tdp_ice] + 0.4959*(alpha[tdp_ice]**2)
 
     tdp = tdp.replace(
         [np.inf, -np.inf], np.NaN).interpolate(method='nearest')
+
+    tdp = tdp.fillna('bfill').fillna('ffill')
+
+    tdp = tdpcleaner(tdp, tdb)
 
     return tdp
 
@@ -251,3 +284,10 @@ def remove_leap_day(df):
     return df[~((df.index.month == 2) & (df.index.day == 29))]
 
 # ----------- END remove_leap_day function. -----------
+
+
+def euclidean(x, y):
+
+    return np.sqrt((x[0] - y[0]) ** 2 + (x[1] - y[1]) ** 2)
+
+# ----------- END euclidean function. -----------
