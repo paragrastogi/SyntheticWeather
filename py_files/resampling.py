@@ -183,6 +183,17 @@ def trainer(xy_train, n_samples, picklepath, arma_params, bounds, cc_data):
 
                     xout_temp = copy.deepcopy(xy_train)
 
+                    future_index = pd.DatetimeIndex(
+                        start=str(future_year) + "-01-01 00:00:00",
+                        end=str(future_year) + "-12-31 23:00:00",
+                        freq='1H')
+                    # Remove leap days.
+                    future_index = future_index[
+                        ~((future_index.month == 2) &
+                          (future_index.day == 29))]
+                    xout_temp.index = future_index
+                    xout_temp['year'] = future_index.year
+
                     for idx, var in enumerate(cc_cols):
 
                         if var[0] == "rh":
@@ -217,27 +228,21 @@ def trainer(xy_train, n_samples, picklepath, arma_params, bounds, cc_data):
                             xout_temp[var[0]] = (
                                 resampled[:, idx, nidx] + ffit_cc[1] -
                                 ffit_cc[0] + ccvar)
-                        elif var[0] == 'rh':
 
+                        elif var[0] == 'rh':
                             xout_temp[var[0]] = (
                                 resampled[:, idx, nidx] + ffit_cc[3] -
                                 ffit_cc[2] + ccvar)
                         else:
                             xout_temp[var[0]] = ccvar
 
-                        future_index = pd.DatetimeIndex(
-                            start=str(future_year) + "-01-01 00:00:00",
-                            end=str(future_year) + "-12-31 23:00:00",
-                            freq='1H')
-                        # Remove leap days.
-                        future_index = future_index[
-                            ~((future_index.month == 2) &
-                              (future_index.day == 29))]
-                        xout_temp.index = future_index
-                        xout_temp['year'] = future_index.year
+                        xout_temp[var[0]] = petite.quantilecleaner(
+                            xout_temp[var[0]], xy_train, var[0])
 
-                        xout_temp['tdp'] = petite.calc_tdp(
-                            xout_temp["tdb"], xout_temp["rh"])
+                    xout_temp['tdp'] = petite.calc_tdp(
+                        xout_temp["tdb"], xout_temp["rh"])
+                    xout_temp['tdp'] = petite.quantilecleaner(
+                        xout_temp['tdp'], xy_train, 'tdp')
 
                     xout.append(xout_temp)
 

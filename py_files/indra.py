@@ -22,9 +22,12 @@ Description of algorithm:
 
 import os
 import glob
+# import sys
 import pickle
 import time
+# import copy
 import pandas as pd
+# import numpy as np
 
 # These custom functions load and clean recorded data.
 # For now, we are only concerned with ncdc and nsrdb.
@@ -38,14 +41,14 @@ import resampling as resampling
 # from losses import rmseloss
 # from losses import maeloss
 
-supported_fmts = ["espr", "epw", "csv", "fin4"]
+WEATHER_FMTS = ["espr", "epw", "csv", "fin4"]
 
 
 def indra(train=False, station_code="abc", n_samples=10,
           path_file_in="wf_in.epw", path_file_out="wf_out.epw",
           file_type="epw", store_path=".",
           climate_change=False, path_cc_file='ccfile.p',
-          cc_scenario='rcp85', epoch=[2051, 2060],
+          cc_scenario='rcp85', epoch=[2031, 2040],
           randseed=None, year=0, variant=0,
           arma_params=None,
           bounds=None):
@@ -130,8 +133,10 @@ def indra(train=False, station_code="abc", n_samples=10,
 
         elif os.path.isdir(path_file_in):
 
-            list_wfiles = [glob.glob(os.path.join(path_file_in, "*." + x))
-                           for x in supported_fmts]
+            list_wfiles = ([glob.glob(os.path.join(path_file_in, "*." + x))
+                            for x in WEATHER_FMTS] +
+                           [glob.glob(os.path.join(path_file_in, "*." + x.upper()))
+                            for x in WEATHER_FMTS])
             list_wfiles = sum(list_wfiles, [])
 
             xy_list = list()
@@ -256,7 +261,7 @@ def indra(train=False, station_code="abc", n_samples=10,
         if os.path.isdir(path_file_in):
 
             list_wfiles = [glob.glob(os.path.join(path_file_in, "*." + x))
-                           for x in supported_fmts]
+                           for x in WEATHER_FMTS]
             list_wfiles = sum(list_wfiles, [])
 
         else:

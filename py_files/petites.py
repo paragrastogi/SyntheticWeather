@@ -42,14 +42,27 @@ def quantilecleaner(datain, xy_train, var, bounds=None):
     if bounds is None:
         bounds = [0.01, 99.9]
 
-    datain_quantiles = np.percentile(xy_train[var], bounds)
-
     dataout = pd.DataFrame(datain)
 
-    dataout = dataout.mask(
-        np.logical_or(dataout < datain_quantiles[0],
-                      dataout > datain_quantiles[1]),
-        other=np.NaN).interpolate(method='linear')
+    for this_month in range(1, 13):
+
+        idx_this_month_rec = xy_train.index.month == this_month
+        idx_this_month_syn = datain.index.month == this_month
+
+        rec_quantiles = np.percentile(
+            xy_train[var].iloc[idx_this_month_rec], bounds)
+
+        # import ipdb; ipdb.set_trace()
+
+        dataout = dataout.mask(
+            np.logical_and(
+                idx_this_month_syn,
+                np.squeeze(np.logical_or(dataout < rec_quantiles[0],
+                                         dataout > rec_quantiles[1]))),
+            other=np.NaN)
+
+        dataout = dataout.interpolate(
+            method='linear').fillna(method='bfill').fillna(method='ffill')
 
     # Pass back values with only one dimension.
     return np.squeeze(dataout.values)
@@ -107,10 +120,13 @@ def tdpcleaner(tdp, tdb):
 
     tdpout = tdpout.mask(np.squeeze(tdp) >= np.squeeze(tdb),
                          other=np.NaN)
+    tdpout = tdpout.mask(
+        np.logical_or(np.squeeze(tdp) >= 50, np.squeeze(tdp) <= -50),
+        other=np.NaN)
 
     if ((np.isnan(tdpout.values)).any()):
         tdpout = tdpout.interpolate(method='linear')
-        tdpout = tdpout.fillna(method='bfill')
+        tdpout = tdpout.fillna(method='bfill').fillna(method='ffill')
 
     return np.squeeze(tdpout.values)
 
@@ -207,7 +223,7 @@ def calc_tdp(tdb, rh):
     p_w[p_w <= 0] = 1e-6
     alpha = pd.DataFrame(np.log(p_w))
     alpha = alpha.replace(
-        [np.inf, -np.inf], np.NaN).interpolate(method='nearest')
+        [np.inf, -np.inf], np.NaN).interpolate(method='linear')
 
     # Eq. 39
     tdp = alpha.apply(
@@ -219,9 +235,11 @@ def calc_tdp(tdb, rh):
     tdp[tdp_ice] = 6.09 + 12.608*alpha[tdp_ice] + 0.4959*(alpha[tdp_ice]**2)
 
     tdp = tdp.replace(
-        [np.inf, -np.inf], np.NaN).interpolate(method='nearest')
+        [np.inf, -np.inf], np.NaN).interpolate(method='linear')
 
-    tdp = tdp.fillna('bfill').fillna('ffill')
+    tdp = tdp.fillna(method='bfill').fillna(method='ffill')
+
+    # tdp = (tdp).rename('tdp')
 
     tdp = tdpcleaner(tdp, tdb)
 

@@ -624,7 +624,7 @@ def give_weather(df, locdata, stcode, header,
 
     elif file_type == "epw":
 
-        if filepath.split(".")[-1] != ".epw":
+        if filepath.split(".")[-1] != "epw":
             filepath = filepath + ".epw"
 
         epw_fmt = (["%4u", "%2u", "%2u", "%2u", "%2u", "%44s"] +
@@ -656,8 +656,8 @@ def give_weather(df, locdata, stcode, header,
         # End EPW writer.
 
     elif file_type == "fin4":
-        if filepath.split(".")[-1] != ".fin4":
-            filepath = filepath + ".fin4"
+        if filepath.split(".")[-1] != "fin4":
+            filepath = filepath + "fin4"
 
         _, _, header = read_fin4(masterfile)
 
@@ -666,6 +666,9 @@ def give_weather(df, locdata, stcode, header,
 
         # Convert pressure to millibars.
         df['atmpr'] = df['atmpr'] / 100
+
+        df = df.drop(labels='rh', axis=1)
+        df['tdp'] = petite.tdpcleaner(df['tdp'], df['tdb'])
 
         # df.to_csv(filepath, sep=" ", header=" ".join(header), index=False)
         fin_fmt = (["%4d", "%2d", "%2d", "%2d"] +
@@ -677,6 +680,8 @@ def give_weather(df, locdata, stcode, header,
                        delimiter=" ", header="".join(header),
                        comments="")
 
+        # import ipdb; ipdb.set_trace()
+
         if os.path.isfile(filepath):
             success = True
         else:
@@ -684,8 +689,8 @@ def give_weather(df, locdata, stcode, header,
 
     else:
 
-        if filepath.split(".")[-1] != ".csv":
-            filepath = filepath + ".csv"
+        if filepath.split(".")[-1] != "csv":
+            filepath = filepath + "csv"
 
         df.to_csv(filepath, sep=",", header=True, index=False)
 
