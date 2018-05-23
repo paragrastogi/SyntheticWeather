@@ -60,10 +60,9 @@ PARSER.add_argument("--climate_change", type=int, choices=[0, 1], default=0,
                     " to pass a path to the file containing those outputs.")
 PARSER.add_argument("--path_cc_file", type=str, default="ccfile.p",
                     help="Path to the file containing CC model outputs.")
-PARSER.add_argument("--epoch", type=int, default=None,
-                    help="Epoch for which future years are generated. " +
-                    "NOT currently used - change inside call_indra script" +
-                    " to change defaults.")
+# PARSER.add_argument("--station_coordinates", type=str, default="[0, 0, 0]",
+#                     help="Station latitude, longitude, altitude. " +
+#                     "Not currently used.")
 PARSER.add_argument("--randseed", type=int, default=42,
                     help="Set the seed for this sampling " +
                     "run. If you don't know what this " +
@@ -77,12 +76,12 @@ PARSER.add_argument("--arma_params", type=str, default="[2,2,1,1,24]",
                           "don't worry. The default is [2,2,1,1,24]. "
                           "The default frequency of Indra is hours, so "
                           "seasonality should be declared in hours."))
-PARSER.add_argument("--bounds", type=str, default="[0.01,99.9]",
+PARSER.add_argument("--bounds", type=str, default="[1,99]",
                     help=("Lower and upper bound percentile values to "
                           "use for cleaning the synthetic data. Input "
                           "should look like a python list, i.e., [a,b,c], "
                           "WITHOUT SPACES. The defaults bounds are the "
-                          "0.01 and 99.9 percentiles, i.e., [0.01,99.9]."))
+                          "1 and 99 percentiles, i.e., [1, 99]."))
 
 ARGS = PARSER.parse_args()
 
@@ -93,16 +92,14 @@ path_file_in = ARGS.path_file_in
 path_file_out = ARGS.path_file_out
 file_type = ARGS.file_type
 store_path = ARGS.store_path
+# station_coordinates = [float(x.strip("[").strip("]"))
+#                        for x in ARGS.station_coordinates.split(",")]
 climate_change = ARGS.climate_change
 path_cc_file = ARGS.path_cc_file
 randseed = ARGS.randseed
 arma_params = [int(x.strip("[").strip("]"))
                for x in ARGS.arma_params.split(",")]
 bounds = [float(x.strip("[").strip("]")) for x in ARGS.bounds.split(",")]
-
-# Change epoch manually until I figure out how to input a list of lists
-# at command line!
-epoch = [[2051, 2060]]
 
 print("\r\nInvoking indra for {0}.\r\n".format(station_code))
 
@@ -111,15 +108,14 @@ if store_path == "SyntheticWeather":
 
 # Call indra using the processed arguments.
 if __name__ == "__main__":
-    indra(train=train, station_code=station_code,
+    indra(train, station_code=station_code,
           n_samples=n_samples,
-          file_type=file_type,
           path_file_in=path_file_in,
           path_file_out=path_file_out,
+          file_type=file_type,
           store_path=store_path,
           climate_change=climate_change,
           path_cc_file=path_cc_file,
-          epoch=epoch,
           randseed=randseed,
           arma_params=arma_params,
           bounds=bounds)
