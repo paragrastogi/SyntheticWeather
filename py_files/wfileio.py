@@ -101,15 +101,15 @@ def get_weather(stcode, fpath, file_type="epw"):
 
     elif file_type == "espr" or fpath[-4:] == ".espr":
 
-        try:
-            wdata, locdata, header = read_espr(fpath)
-            # Remove leap day.
-            wdata = petite.remove_leap_day(wdata)
-        except Exception as err:
-            print("Error: " + str(err))
-            wdata = None
-            header = None
-            locdata = None
+        # try:
+        wdata, locdata, header = read_espr(fpath)
+        # Remove leap day.
+        wdata = petite.remove_leap_day(wdata)
+        # except Exception as err:
+        #     print("Error: " + str(err))
+        #     wdata = None
+        #     header = None
+        #     locdata = None
 
     elif file_type == "csv" or fpath[-4:] == ".csv":
 
@@ -368,10 +368,12 @@ def read_espr(fpath):
     # Find the year of the current file.
     yline = [line for line in header if "year" in line]
 
-    if "," in yline[0]:
-        yline_split = yline[0].split(",")
+    yline = yline[0].split("#")[0]
+
+    if "," in yline:
+        yline_split = yline.split(",")
     else:
-        yline_split = yline[0].split()
+        yline_split = yline.split()
     year = yline_split[0].strip()
 
     locline = [line for line in header if ("latitude" in line)][0]
@@ -479,6 +481,8 @@ def read_espr(fpath):
         kind="nearest", fill_value="extrapolate")
     dataout[duds, 10] = int_func(idx[duds])
 
+    # import ipdb; ipdb.set_trace()
+
     dataout = np.concatenate((np.reshape(np.repeat(int(year), 8760),
                                          [-1, 1]), dataout), axis=1)
 
@@ -533,7 +537,7 @@ def give_weather(df, locdata, stcode, header,
         # Make a standardised name for output file.
         filepath = os.path.join(
             path_file_out, "wf_out_{0}_{1}".format(
-                year))
+                np.random.randint(0, 99, 1), year))
     else:
         # Files need to be renamed so strip out the extension.
         filepath = path_file_out.replace(

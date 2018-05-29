@@ -301,9 +301,13 @@ def create_future_no_cc(rec, sans_means, ffit, resampled, n_samples, bounds):
     # than RH and TDB are just repeated from the incoming files.
     xout = list()
 
-    all_years = np.unique(rec.index.year)[:-1]
+    all_years = np.unique(rec.index.year)
 
-    select_year = all_years[np.random.randint(0, len(all_years), 1)[0]]
+    if len(all_years) == 1:
+        select_year = all_years[0]
+    else:
+        all_years = all_years[:-1]
+        select_year = all_years[np.random.randint(0, len(all_years), 1)[0]]
 
     # Keep only that one year of data.
     rec_year = rec[str(select_year) + '-01-01':
@@ -329,11 +333,16 @@ def create_future_no_cc(rec, sans_means, ffit, resampled, n_samples, bounds):
 
         for idx, var in enumerate(sans_means[["tdb", "rh"]]):
 
+            syn = pd.Series(data=resampled[:, idx, nidx] + ffit[idx],
+                            index=pd.DatetimeIndex(
+                                start="2223-01-01 00:00:00",
+                                end="2223-12-31 23:00:00",
+                                freq='1H'))
+
             # Replace only var (tdb or rh).
             # Also send it to the quantile cleaner.
             xout_temp[var] = petite.quantilecleaner(
-                (resampled[:, idx, nidx] + ffit[idx]), rec,
-                var, bounds=bounds)
+                syn, rec, var, bounds=bounds)
 
         xout.append(xout_temp)
 
@@ -364,8 +373,6 @@ def nearest_neighbour(syn, rec, basevar, othervar):
     else:
         othervar_idx = [x for x, y in enumerate(rec)
                         if y in [othervar]]
-
-    # import ipdb; ipdb.set_trace()
 
     # Number of nearest neighbours to keep when varying solar quantities.
     nn_top = 10
