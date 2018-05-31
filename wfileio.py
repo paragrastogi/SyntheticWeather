@@ -543,10 +543,12 @@ def give_weather(df, locdata, stcode, header,
         filepath = path_file_out.replace(
             ".a", "").replace(".epw", "").replace(".csv", "")
 
-    if str(year) not in filepath:
-        filepath = filepath + "_{:04d}".format(year)
+    # if str(year) not in filepath:
+    #     filepath = filepath + "_{:04d}".format(year)
 
-    # import ipdb; ipdb.set_trace()
+    # # If no variant or counter number is found, add it.
+    # if re.findall('\d', filepath):
+    #     filepath = filepath + "_{:04d}".format(year)
 
     if file_type == "espr":
 
