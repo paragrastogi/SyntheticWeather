@@ -272,7 +272,7 @@ def trainer(xy_train, n_samples, picklepath, arma_params, bounds, cc_data):
     return ffit, selmdl, xout
 
 
-def sampler(picklepath, year, n):
+def sampler(picklepath, year=0, n=0, counter=0):
     """Only opens the pickle of saved samples and returns ONE sample."""
 
     try:
@@ -282,10 +282,14 @@ def sampler(picklepath, year, n):
         else:
             xout = pickle.load(open(picklepath, 'rb'))
 
-        # years = np.unique([np.unique(x.index.year) for x in xout])
-        yidx = [idx for idx, x in enumerate(xout)
-                if np.unique(x.index.year) == year]
-        sample = xout[yidx[n]]
+        if np.logical_not(year == 0 and n == 0):
+            yidx = [idx for idx, x in enumerate(xout)
+                    if np.unique(x.index.year) == year]
+
+            sample = xout[yidx[n]]
+
+        else:
+            sample = xout[counter]
 
     except AttributeError:
 

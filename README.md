@@ -1,30 +1,15 @@
-<h1>INDRA</h1>
+<h1>Vali</h1>
 
-This repository contains scripts to create synthetic weather time series from a short weather record of at least one year. This tool is named `indra` <sup>(1)</sup>. _All the scripts here should be treated as **experimental** unless explicitly stated otherwise._
+Vali is a cross-platform, Python-based program to create synthetic weather time series from a weather record of at least one year.
 
 <h2>Great, where do I begin?</h2>
 
 <strong>Please, please see the <a href='https://github.com/paragrastogi/SyntheticWeather/wiki'>wiki</a> first.</strong> I can't make you do it though, so yes, be your own boss. The wiki contains a step-by-step guide to installing and running mighty <b>indra</b>.
 
-If you know your way around MATLAB or Python, go directly into either the folder `m-files` (MATLAB files) or the folder `py-files` (Python files). Most of the scripts explain themselves. **Sample Python commands** are <a href='https://github.com/paragrastogi/SyntheticWeather/wiki/Sample-Commands'>given here</a>.
+If you know your way around Python, go directly to the sample commands below. This version of indra (<i>v2.78_esru</i>) has been
 
-<h2>The methods</h2>
-
-The MATLAB/R scripts are based on the algorithms published in Parag's thesis. While these scripts are well documented (in two conference papers and the thesis), I won't be working on these any more.
-
-The Python scripts in the repository are translations of these original scripts. The method is an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>.
-
-<h2>License, implementation, and compatibility</h2>
-
-This tool is distributed under the GPLv3 license. Please read what this means <a href='https://en.wikipedia.org/wiki/GNU_General_Public_License'>here</a>.
-
-This tool is in the process of being made compatible with <a href='https://github.com/ESP-rCommunity'>ESP-r</a> and <a href='https://github.com/chriswmackey/Dragonfly'>Dragonfly</a>. However, it exists on its own as a command-line tool.
-
-Using the older scripts requires only a valid MATLAB license and R (R is free to download and reuse). While you are free to use the scripts as you please, I am not liable for anything that happens as a result of using my scripts. Like if you accidentally release the nuclear missiles stored in the Dakotas, ruin the ski season in Switzerland, or cause a drought in Scotland.
-
-This work is linked to my PhD thesis at the Ecole Polytechnique Federale de Lausanne, EPFL. You can find the full text of the thesis on [EPFL's scientific repository](https://infoscience.epfl.ch/record/220971?ln=en) or [my website](https://paragrastogi.com). Please cite it as:
-
-Rastogi, Parag. 2016. ‘On the Sensitivity of Buildings to Climate: The Interaction of Weather and Building Envelopes in Determining Future Building Energy Consumption’. PhD, Lausanne, Switzerland: Ecole polytechnique fédérale de Lausanne. EPFL Infoscience. https://infoscience.epfl.ch/record/220971?ln=en.
+<h2>Bibliography</h2>
+The program is based on the algorithms published in Rastogi (2016), Rastogi and Andersen (2015, 2016).
 
 @phdthesis{rastogi_sensitivity_2016,
 	address = {Lausanne, Switzerland},
@@ -39,6 +24,17 @@ Rastogi, Parag. 2016. ‘On the Sensitivity of Buildings to Climate: The Interacti
 	year = {2016},
 	note = {doi:10.5075/epfl-thesis-6881}
 }
+
+<ul>
+<li>Rastogi, Parag. 2016. “On the Sensitivity of Buildings to Climate: The Interaction of Weather and Building Envelopes in Determining Future Building Energy Consumption.” PhD, Lausanne, Switzerland: Ecole polytechnique fédérale de Lausanne. EPFL Infoscience. https://infoscience.epfl.ch/record/220971?ln=en.
+<li>Rastogi, Parag, and Marilyne Andersen. 2015. “Embedding Stochasticity in Building Simulation Through Synthetic Weather Files.” In Proceedings of BS 2015. Hyderabad, India. http://infoscience.epfl.ch/record/208743.
+<li>———. 2016. “Incorporating Climate Change Predictions in the Analysis of Weather-Based Uncertainty.” In Proceedings of SimBuild 2016. Salt Lake City, UT, USA. http://infoscience.epfl.ch/record/208743.
+</ul>
+
+
+<h2>License, implementation, and compatibility</h2>
+
+This tool is distributed under the GPLv3 license. Please read what this means <a href='https://en.wikipedia.org/wiki/GNU_General_Public_License'>here</a>.
 
 <h2>I'm panicking/clueless</h2>
 
