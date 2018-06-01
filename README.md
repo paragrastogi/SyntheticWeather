@@ -18,8 +18,6 @@ The Python scripts in the repository are translations of these original scripts.
 
 This tool is distributed under the GPLv3 license. Please read what this means <a href='https://en.wikipedia.org/wiki/GNU_General_Public_License'>here</a>.
 
-This tool is in the process of being made compatible with <a href='https://github.com/ESP-rCommunity'>ESP-r</a> and <a href='https://github.com/chriswmackey/Dragonfly'>Dragonfly</a>. However, it exists on its own as a command-line tool.
-
 Using the older scripts requires only a valid MATLAB license and R (R is free to download and reuse). While you are free to use the scripts as you please, I am not liable for anything that happens as a result of using my scripts. Like if you accidentally release the nuclear missiles stored in the Dakotas, ruin the ski season in Switzerland, or cause a drought in Scotland.
 
 This work is linked to my PhD thesis at the Ecole Polytechnique Federale de Lausanne, EPFL. You can find the full text of the thesis on [EPFL's scientific repository](https://infoscience.epfl.ch/record/220971?ln=en) or [my website](https://paragrastogi.com). Please cite it as:
@@ -53,13 +51,13 @@ Happy creating fake weather!
 
 (2) The difference lies in the 'simulation' of the SARMA model to produce synthetic 'de-mean-ed' series. I am not convinced that I should reproduce the 'custom noise' functionality used in the old scripts to simulate the SARMA models with bootstrapped residuals. For now, I am doing a 'conventional' simulation by using white noise.
 
-### Acknowledgements
+<h2>Acknowledgements</h2>
 
 1. This work began during my PhD at the Ecole Polytechnique Federale de Lausanne. It was funded by the CCEM SECURE project and the EuroTech consortium. February 2012 - August 2016
 2. Newer work and the Python translation is being undertaken by me as a visiting scientist at the Energy Systems Research Unit (ESRU), University of Strathclyde, Glasgow; and the RIKEN Institute for Advanced Intelligence Project (RIKEN-AIP), Tokyo. His stay at these institutions is being financed by the Swiss National Science Foundation (SNSF).
 
 I woud like to thank his hosts: Prof. Joe Clarke (Strathclyde, Glasgow) and Dr Mohammad Emtiyaz Khan and Prof. Masashi Sugiyama (RIKEN-AIP, Tokyo). The advice of Prof. Anthony Davison (EPFL, Lausanne) was crucial in creating the first models.
 
-### Disclaimer
+<h2>Disclaimer</h2>
 
 Parag is the sole author of these scripts. The original PhD thesis was supervised by Professor Marilyne Andersen. The scripts are the intellectual property of Parag and EPFL. Their redistribution under the liberal __GPLv3__ license is with the approval of EPFL, acting through Prof. Marilyne Andersen.
