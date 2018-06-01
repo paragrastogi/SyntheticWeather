@@ -39,3 +39,39 @@ The program is based on the algorithms published in Rastogi (2016), Rastogi and 
 This tool is distributed under the GNU General Public License v3 (GPLv3). Please read what this means <a href='https://en.wikipedia.org/wiki/GNU_General_Public_License'>here</a>.
 
 These scripts come with absolutely no warranties/guarantees of any kind. Happy creating fake weather!
+
+<h2>Sample Commands</h2>
+
+If you type <kbd>python indra.py --help</kbd> into the command line, you will see how to use the commands. Some sample customisations are given below:
+
+<h3>Change ARMA parameters and bounds</h3>
+
+<h4>Windows</h4>
+<pre>
+<code>
+	python indra.py --train 1 --station_code gen --n_samples 10 --path_file_in gen\gen_iwec.epw --path_file_out gen\gen_iwec_syn.epw --file_type epw --store_path gen --arma_params [2,2,0,0,0] --bounds [1,99]
+</code>
+</pre>
+
+<h4>Unix</h4>
+<pre>
+<code>
+	python indra.py --train 1 --station_code 'gen' --n_samples 10 --path_file_in 'gen/gen_iwec.epw' --path_file_out 'gen/gen_iwec_syn.epw' --file_type 'epw' --store_path 'gen' --arma_params '[2,2,0,0,0]' --bounds '[1,99]'
+</code>
+</pre>
+
+<h3>Change number of samples requested</h3>
+
+<h4>Windows</h4>
+<pre>
+<code>
+	python indra.py --train 1 --station_code gen --n_samples 100 --path_file_in gen\gen_iwec.epw --path_file_out gen\gen_iwec_syn.epw --file_type epw --store_path gen
+</code>
+</pre>
+
+<h4>Unix</h4>
+<pre>
+<code>
+	python indra.py --train 1 --station_code 'gen' --n_samples 100 --path_file_in 'gen/gen_iwec.epw' --path_file_out 'gen/gen_iwec_syn.epw' --file_type 'epw' --store_path 'gen'
+</code>
+</pre>
