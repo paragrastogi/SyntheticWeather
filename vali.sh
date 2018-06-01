@@ -5,7 +5,7 @@
 
 	echo 'Running for '$n_samples' samples'
 
-	# python indra.py --train 1 --station_code 'gen' --n_samples $n_samples --path_file_in 'gen/che_geneva.iwec.a' --path_file_out 'gen/gen_iwec_syn.a' --file_type 'espr' --store_path 'gen' --arma_params 1,1,0,0,0
+	python indra.py --train 1 --station_code 'gen' --n_samples $n_samples --path_file_in 'gen/che_geneva.iwec.a' --path_file_out 'gen/gen_iwec_syn.a' --file_type 'espr' --store_path 'gen' --arma_params 1,1,0,0,0
 
 	for SAMPLE in $(seq $n_samples)
 	do
