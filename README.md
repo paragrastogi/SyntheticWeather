@@ -4,7 +4,7 @@
 
 Indra is a cross-platform, Python-based program to create synthetic weather time series from a weather record of at least one year. Vali is the child of Indra created for use with ESP-r on 31 May 2018 (<i>v2.78_esru</i>).
 
-See the <a href='https://github.com/paragrastogi/SyntheticWeather/wiki'><i>wiki<i></a> if you want to find out more about <b>indra</b>. It contains a step-by-step guide to installing and running mighty <b>indra</b>. If you know your way around, go directly to the sample commands below.
+See the <a href='https://github.com/paragrastogi/SyntheticWeather/wiki'><i>wiki</i></a> if you want to find out more about <b>indra</b>. It contains a step-by-step guide to installing and running mighty <b>indra</b>. If you know your way around, go directly to the sample commands below.
 <br>
 <strong>Indra is NOT a weather forecasting tool.</strong> It is designed to be used to create variations on weather patterns learned from a source file.
 <br>
