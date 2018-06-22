@@ -298,7 +298,7 @@ def indra(train=False, station_code="abc", n_samples=10,
                         masterfile=list_wfiles[0])
 
 
-
+# Parser for command line arguments.
 # Define a parser.
 PARSER = argparse.ArgumentParser(
     description="This is INDRA, a generator of synthetic weather " +
