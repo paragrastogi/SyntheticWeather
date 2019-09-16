@@ -101,15 +101,15 @@ def get_weather(stcode, fpath, file_type="epw"):
 
     elif file_type == "espr" or fpath[-4:] == ".espr":
 
-        # try:
-        wdata, locdata, header = read_espr(fpath)
-        # Remove leap day.
-        wdata = petite.remove_leap_day(wdata)
-        # except Exception as err:
-        #     print("Error: " + str(err))
-        #     wdata = None
-        #     header = None
-        #     locdata = None
+        try:
+            wdata, locdata, header = read_espr(fpath)
+            # Remove leap day.
+            wdata = petite.remove_leap_day(wdata)
+        except Exception as err:
+            print("Error: " + str(err))
+            wdata = None
+            header = None
+            locdata = None
 
     elif file_type == "csv" or fpath[-4:] == ".csv":
 
@@ -360,7 +360,22 @@ def read_espr(fpath):
     with open(fpath, "r") as f:
         content = f.readlines()
 
-    hlines = 12
+    # Read first line to get format.
+    if content[0].strip() == '*WEATHER 2':
+        hlines = 14
+        iver = 2
+    elif content[0].strip() == '*CLIMATE 2':
+        hlines = 13
+        iver = 1
+    elif content[0].strip() == '*CLIMATE':
+        hlines = 12
+        iver = 0
+    else:
+        print('Error: Format of ESP-r weather file not recognised\r\n')
+        clmdata = None
+        locdata = None
+        header = None
+        return clmdata, locdata, header        
 
     # Split the contents into a header and body.
     header = content[0:hlines]
@@ -377,7 +392,11 @@ def read_espr(fpath):
     year = yline_split[0].strip()
 
     locline = [line for line in header if ("latitude" in line)][0]
-    siteline = [line for line in header if ("site name" in line)][0]
+
+    if iver == 0 or iver == 1:
+        siteline = [line for line in header if ("site name" in line)][0]
+    elif iver == 2:
+        siteline = header[1]
 
     if "," in locline:
         locline = locline.split(",")
@@ -392,6 +411,31 @@ def read_espr(fpath):
     locdata = dict(loc=siteline[0], lat=locline[1], long=locline[2],
                    tz="00", alt="0000", wmo="000000")
     # ESP-r files do not contain timezone, altitude, or WMO number.
+
+    # Decide what parameters are in which columns depending on file
+    # version.
+    if iver == 0:
+        dhicol = 0
+        tdbcol = 1
+        dnicol = 2
+        wspdcol = 3
+        wdrcol = 4
+        rhcol = 5
+    elif iver == 1:
+        colslist = header[12].strip().split(',')
+        tdbcol = int(colslist[0])-1
+        dhicol = int(colslist[1])-1
+        dnicol = int(colslist[2])-1
+        wspdcol = int(colslist[4])-1
+        wdrcol = int(colslist[5])-1
+        rhcol = int(colslist[6])-1
+    elif iver == 2:
+        tdbcol = int(header[4].strip().split('|')[1])-1
+        dhicol = int(header[5].strip().split('|')[1])-1
+        dnicol = int(header[6].strip().split('|')[1])-1
+        wspdcol = int(header[8].strip().split('|')[1])-1
+        wdrcol = int(header[9].strip().split('|')[1])-1
+        rhcol = int(header[10].strip().split('|')[1])-1
 
     body = content[hlines:]
 
@@ -443,26 +487,26 @@ def read_espr(fpath):
         dataout[dayslice, 2] = np.arange(0, 24, 1)
 
         # tdb, input is in deci-degrees, convert to degrees.
-        dataout[dayslice, 3] = daydata[:, 1]/10
+        dataout[dayslice, 3] = daydata[:, tdbcol]/10
 
         # tdp is calculated after this loop.
 
         # rh, in percent.
-        dataout[dayslice, 5] = daydata[:, 5]
+        dataout[dayslice, 5] = daydata[:, rhcol]
 
         # ghi is calculated after this loop.
 
         # dni, in W/m2.
-        dataout[dayslice, 7] = daydata[:, 2]
+        dataout[dayslice, 7] = daydata[:, dnicol]
 
         # dhi, in W/m2.
-        dataout[dayslice, 8] = daydata[:, 0]
+        dataout[dayslice, 8] = daydata[:, dhicol]
 
         # wspd, input is in deci-m/s.
-        dataout[dayslice, 9] = daydata[:, 3]/10
+        dataout[dayslice, 9] = daydata[:, wspdcol]/10
 
         # wdr, clockwise deg from north.
-        dataout[dayslice, 10] = daydata[:, 4]
+        dataout[dayslice, 10] = daydata[:, wdrcol]
 
         dcount += 24
 
