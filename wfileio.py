@@ -102,7 +102,7 @@ def get_weather(stcode, fpath, file_type="epw"):
     elif file_type == "espr" or fpath[-4:] == ".espr":
 
         try:
-            wdata, locdata, header = read_espr(fpath)
+            wdata, locdata, header, columns = read_espr(fpath)
             # Remove leap day.
             wdata = petite.remove_leap_day(wdata)
         except Exception as err:
@@ -421,21 +421,37 @@ def read_espr(fpath):
         wspdcol = 3
         wdrcol = 4
         rhcol = 5
+        esp_columns = ["dhi", "tdb", "dni", "wspd", "wdr", "rh"]
     elif iver == 1:
         colslist = header[12].strip().split(',')
+        esp_columns = [None]*6
         tdbcol = int(colslist[0])-1
+        esp_columns[tdbcol] = 'tdb'
         dhicol = int(colslist[1])-1
+        esp_columns[dhicol] = 'dhi'
         dnicol = int(colslist[2])-1
+        esp_columns[dnicol] = 'dni'
         wspdcol = int(colslist[4])-1
+        esp_columns[wspdcol] = 'wspd'
         wdrcol = int(colslist[5])-1
+        esp_columns[wdrcol] = 'wdr'
         rhcol = int(colslist[6])-1
+        esp_columns[rhcol] = 'rh'
     elif iver == 2:
+        esp_columns = [None]*6
         tdbcol = int(header[4].strip().split('|')[1])-1
+        esp_columns[tdbcol] = 'tdb'
         dhicol = int(header[5].strip().split('|')[1])-1
+        esp_columns[dhicol] = 'dhi'
         dnicol = int(header[6].strip().split('|')[1])-1
+        esp_columns[dnicol] = 'dni'
         wspdcol = int(header[8].strip().split('|')[1])-1
+        esp_columns[wspdcol] = 'wspd'
         wdrcol = int(header[9].strip().split('|')[1])-1
+        esp_columns[wdrcol] = 'wdr'
         rhcol = int(header[10].strip().split('|')[1])-1
+        esp_columns[rhcol] = 'rh'
+
 
     body = content[hlines:]
 
@@ -535,7 +551,7 @@ def read_espr(fpath):
                                     "tdb", "tdp", "rh",
                                     "ghi", "dni", "dhi", "wspd", "wdr"])
 
-    return clmdata, locdata, header
+    return clmdata, locdata, header, esp_columns
 
 # ----------- END read_espr function -----------
 
@@ -596,13 +612,7 @@ def give_weather(df, locdata, stcode, header,
 
     if file_type == "espr":
 
-        # These columns will be replaced.
-        esp_columns = ["dhi", "tdb", "dni", "wspd", "rh"]
-
-        if filepath[-2:] != ".a":
-            filepath = filepath + ".a"
-
-        esp_master, locdata, header = read_espr(masterfile)
+        esp_master, locdata, header, esp_columns = read_espr(masterfile)
 
         # Replace the year in the header.
         yline = [line for line in header if "year" in line]
@@ -639,19 +649,17 @@ def give_weather(df, locdata, stcode, header,
 
         master_aslist = esp_master.values.tolist()
 
-        for md in range(0, monthday.shape[0], 25):
+        md_master = 0
+        for md in range(0, monthday.shape[0], 24):
             md_list = [str("* day {0} month {1}".format(
                 monthday["day"][md], monthday["month"][md]))]
-            master_aslist.insert(md, md_list)
+            master_aslist.insert(md_master, md_list)
+            md_master += 25
 
         # Write the header to file - though the delimiter is
         # mostly meaningless in this case.
         with open(filepath, "w") as f:
-            spamwriter = csv.writer(f, delimiter="\n", quotechar="",
-                                    quoting=csv.QUOTE_NONE,
-                                    escapechar=" ",
-                                    lineterminator="\n")
-            spamwriter.writerow(["".join(header)])
+            f.write(''.join(header)+'\n')
 
             spamwriter = csv.writer(f, delimiter=",", quotechar="",
                                     quoting=csv.QUOTE_NONE,
