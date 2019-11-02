@@ -18,14 +18,14 @@ ARGS = PARSER.parse_args()
 n_samples = ARGS.n_samples
 
 indra(train=1, station_code='gen', n_samples=10,
-      path_file_in='gen/che_geneva.iwec.a',
-      path_file_out='gen/gen_iwec_syn.a',
+      path_file_in='gen/gen_iwec.epw',
+      path_file_out='gen/gen_iwec_syn.epw',
       file_type='espr', store_path='gen', arma_params=[1, 1, 0, 0, 0])
 
 for SAMPLE in range(0, n_samples):
     indra(train=0, station_code='gen',
-          path_file_in='gen/che_geneva.iwec.a',
+          path_file_in='gen/gen_iwec.epw',
           path_file_out='gen/gen_iwec_syn_{:02d}.a'.format(SAMPLE),
-          file_type='espr', store_path='gen')
+          file_type='epw', store_path='gen')
 
 print("I've run out of samples - call me again to get a fresh set.")
