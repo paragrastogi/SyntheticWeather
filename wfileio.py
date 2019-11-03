@@ -311,9 +311,7 @@ def read_epw(fpath, epw_colnames=epw_colnames):
     if len(wdata['year'].unique()) > 1:
         wdata['year'] = 2223
 
-        dates= pd.DatetimeIndex(start='{}-01-01 00:00:00'.format(wdata['year'].unique()[0]),
-                                   end='{}-12-31 23:00:00'.format(wdata['year'].unique()[0]),
-                                   freq='1H')
+    dates= pd.date_range(start='{}-01-01 00:00:00'.format(wdata['year'].unique()[0]), end='{}-12-31 23:00:00'.format(wdata['year'].unique()[0]), freq='1H')
 
     if len(dates) > wdata.shape[0]:
         dates = dates[~((dates.month == 2) & (dates.day == 29))]
