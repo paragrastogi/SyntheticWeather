@@ -183,7 +183,7 @@ def trainer(xy_train, n_samples, picklepath, arma_params, bounds, cc_data):
 
                     xout_temp = copy.deepcopy(xy_train)
 
-                    future_index = pd.DatetimeIndex(
+                    future_index = pd.date_range(
                         start=str(future_year) + "-01-01 00:00:00",
                         end=str(future_year) + "-12-31 23:00:00",
                         freq='1H')
@@ -338,7 +338,7 @@ def create_future_no_cc(rec, sans_means, ffit, resampled, n_samples, bounds):
         for idx, var in enumerate(sans_means[["tdb", "rh"]]):
 
             syn = pd.Series(data=resampled[:, idx, nidx] + ffit[idx],
-                            index=pd.DatetimeIndex(
+                            index=pd.date_range(
                                 start="2223-01-01 00:00:00",
                                 end="2223-12-31 23:00:00",
                                 freq='1H'))

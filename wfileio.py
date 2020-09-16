@@ -170,7 +170,7 @@ def get_weather(stcode, fpath, file_type="epw"):
             # so insert a dummy year.
             wdata["year"] = 2223
 
-        date_index = pd.DatetimeIndex(
+        date_index = pd.date_range(
             start='{:d}-01-01 00:00:00'.format(int(wdata["year"][0])),
             end='{:d}-12-31 23:00:00'.format(int(wdata["year"][0])),
             freq='1H')
@@ -199,7 +199,7 @@ def read_fin4(fpath):
         fpath, sep='\s+', skiprows=[0, 1, 2],
         names=header_cols, dtype=str, index_col=False)
 
-    temp_index = pd.DatetimeIndex(
+    temp_index = pd.date_range(
         start='{:d}-01-01 00:00:00'.format(int(wdata["year"][0])),
         end='{:d}-12-31 23:00:00'.format(int(wdata["year"][0])),
         freq='1H')
@@ -307,7 +307,7 @@ def read_epw(fpath, epw_colnames=epw_colnames):
         year = '2223'
 
     # Uniform date index for all tmy weather data tables.
-    dates = pd.DatetimeIndex(
+    dates = pd.date_range(
         start="{:d}-01-01 00:00:00".format(year),
         end="{:d}-12-31 23:00:00".format(year),
         freq="1H")
@@ -630,7 +630,7 @@ def give_weather(df, locdata, stcode, header,
                 # Deci-degrees and deci-m/s respectively.
                 esp_master.loc[:, col] *= 10
         # Create a datetime index for this year.
-        esp_master.index = pd.DatetimeIndex(
+        esp_master.index = pd.date_range(
             start='{:04d}-01-01 00:00:00'.format(year),
             end='{:04d}-12-31 23:00:00'.format(year),
             freq='1H')
