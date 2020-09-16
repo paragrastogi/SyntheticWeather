@@ -1,5 +1,7 @@
 <h1>INDRA</h1>
 
+Update 01 July 2020: This repository provides the code to generate your own variations on a seed file. For commercial purchase of projected files for simulation, based on climate model outputs, please email info@arbnco.com to request a quote.
+
 This repository contains scripts to create synthetic weather time series from a short weather record of at least one year. This tool is named `indra` <sup>(1)</sup>. _All the scripts here should be treated as **experimental** unless explicitly stated otherwise._
 
 <h2>Great, where do I begin?</h2>
@@ -22,7 +24,7 @@ Using the older scripts requires only a valid MATLAB license and R (R is free to
 
 This work is linked to my PhD thesis at the Ecole Polytechnique Federale de Lausanne, EPFL. You can find the full text of the thesis on [EPFL's scientific repository](https://infoscience.epfl.ch/record/220971?ln=en) or [my website](https://paragrastogi.com). Please cite it as:
 
-Rastogi, Parag. 2016. ‘On the Sensitivity of Buildings to Climate: The Interaction of Weather and Building Envelopes in Determining Future Building Energy Consumption’. PhD, Lausanne, Switzerland: Ecole polytechnique fédérale de Lausanne. EPFL Infoscience. https://infoscience.epfl.ch/record/220971?ln=en.
+Rastogi, Parag. 2016. â€˜On the Sensitivity of Buildings to Climate: The Interaction of Weather and Building Envelopes in Determining Future Building Energy Consumptionâ€™. PhD, Lausanne, Switzerland: Ecole polytechnique fÃ©dÃ©rale de Lausanne. EPFL Infoscience. https://infoscience.epfl.ch/record/220971?ln=en.
 
 @phdthesis{rastogi_sensitivity_2016,
 	address = {Lausanne, Switzerland},
@@ -31,7 +33,7 @@ Rastogi, Parag. 2016. ‘On the Sensitivity of Buildings to Climate: The Interacti
 	shorttitle = {Sensitivity of {Buildings} to {Climate}},
 	url = {https://infoscience.epfl.ch/record/220971?ln=en},
 	language = {EN},
-	school = {Ecole polytechnique fédérale de Lausanne},
+	school = {Ecole polytechnique fÃ©dÃ©rale de Lausanne},
 	author = {Rastogi, Parag},
 	month = aug,
 	year = {2016},
@@ -47,16 +49,16 @@ Happy creating fake weather!
 
 <h2>Footnotes</h2>
 
-(1) I haven't thought up a smarmy, contrived acronym yet but I'm working on it.
+1. I haven't thought up a smarmy, contrived acronym yet but I'm working on it.
 
-(2) The difference lies in the 'simulation' of the SARMA model to produce synthetic 'de-mean-ed' series. I am not convinced that I should reproduce the 'custom noise' functionality used in the old scripts to simulate the SARMA models with bootstrapped residuals. For now, I am doing a 'conventional' simulation by using white noise.
+2. The difference lies in the 'simulation' of the SARMA model to produce synthetic 'de-mean-ed' series. I am not convinced that I should reproduce the 'custom noise' functionality used in the old scripts to simulate the SARMA models with bootstrapped residuals. For now, I am doing a 'conventional' simulation by using white noise.
 
 <h2>Acknowledgements</h2>
 
 1. This work began during my PhD at the Ecole Polytechnique Federale de Lausanne. It was funded by the CCEM SECURE project and the EuroTech consortium. February 2012 - August 2016
-2. Newer work and the Python translation is being undertaken by me as a visiting scientist at the Energy Systems Research Unit (ESRU), University of Strathclyde, Glasgow; and the RIKEN Institute for Advanced Intelligence Project (RIKEN-AIP), Tokyo. His stay at these institutions is being financed by the Swiss National Science Foundation (SNSF).
+2.Subsequent work and the Python translation was carried out when I was a visiting scientist at the Energy Systems Research Unit (ESRU), University of Strathclyde, Glasgow, and the RIKEN Institute for Advanced Intelligence Project (RIKEN-AIP), Tokyo. My stay at these institutions was financed by the Swiss National Science Foundation (SNSF).
 
-I woud like to thank his hosts: Prof. Joe Clarke (Strathclyde, Glasgow) and Dr Mohammad Emtiyaz Khan and Prof. Masashi Sugiyama (RIKEN-AIP, Tokyo). The advice of Prof. Anthony Davison (EPFL, Lausanne) was crucial in creating the first models.
+I woud like to thank my hosts: Prof. Joe Clarke (Strathclyde, Glasgow) and Dr Mohammad Emtiyaz Khan and Prof. Masashi Sugiyama (RIKEN-AIP, Tokyo). The advice of Prof. Anthony Davison (EPFL, Lausanne) was crucial in creating the first models.
 
 <h2>Disclaimer</h2>
 

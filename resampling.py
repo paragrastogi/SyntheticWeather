@@ -144,8 +144,8 @@ def trainer(xy_train, n_samples, picklepath, arma_params, bounds, cc_data):
 
     for midx, mdl in enumerate(selmdl):
         for sample_num in range(0, n_samples):
-            resampled[:, midx, sample_num] = mdl.simulate(
-                nsimulations=STD_LEN_OUT)
+            resampled_temp = mdl.simulate(nsimulations=STD_LEN_OUT)
+            resampled[:, midx, sample_num] = ((resampled_temp-np.mean(resampled_temp))/np.std(resampled_temp))*np.std(resid) + np.mean(resid)
         # End n for loop.
     # End mdl for loop.
 

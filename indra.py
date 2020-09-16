@@ -132,8 +132,7 @@ def indra(train=False, station_code="abc", n_samples=10,
         # See accompanying script "wfileio".
         # try:
         if os.path.isfile(path_file_in):
-            xy_train, locdata, header = wf.get_weather(
-                station_code, path_file_in, file_type)
+            xy_train, locdata, header = wf.get_weather(station_code, path_file_in)
 
         elif os.path.isdir(path_file_in):
 
@@ -147,8 +146,7 @@ def indra(train=False, station_code="abc", n_samples=10,
             xy_list = list()
 
             for file in list_wfiles:
-                xy_temp, locdata, header = wf.get_weather(
-                    station_code, file, file.split('.')[-1])
+                xy_temp, locdata, header = wf.get_weather(station_code, file)
                 xy_list.append(xy_temp)
 
             xy_train = pd.concat(xy_list, sort=False)
@@ -288,8 +286,7 @@ def indra(train=False, station_code="abc", n_samples=10,
         else:
             list_wfiles = [path_file_in]
 
-        _, locdata, header = wf.get_weather(
-            station_code, list_wfiles[0], file_type)
+        _, locdata, header = wf.get_weather(            station_code, list_wfiles[0])
 
         # Save / write-out synthetic time series.
         wf.give_weather(sample, locdata, station_code, header,
