@@ -201,7 +201,7 @@ def read_fin4(fpath):
         fpath, sep='\s+', skiprows=[0, 1, 2],
         names=header_cols, dtype=str, index_col=False)
 
-    temp_index = pd.DatetimeIndex(
+    temp_index = pd.date_range(
         start='{:d}-01-01 00:00:00'.format(int(wdata["year"][0])),
         end='{:d}-12-31 23:00:00'.format(int(wdata["year"][0])),
         freq='1H')
