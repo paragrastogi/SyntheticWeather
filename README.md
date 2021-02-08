@@ -10,19 +10,51 @@ This repository contains scripts to create synthetic weather time series from a 
 
 If you know your way around MATLAB or Python, go directly into either the folder `m-files` (MATLAB files) or the folder `py-files` (Python files). Most of the scripts explain themselves. **Sample Python commands** are <a href='https://github.com/paragrastogi/SyntheticWeather/wiki/Sample-Commands'>given here</a>.
 
+If you're interested in reading the methods used first, see the list of papers given below.
+
 <h2>The methods</h2>
 
-The MATLAB/R scripts are based on the algorithms published in Parag's thesis. While these scripts are well documented (in two conference papers and the thesis), I won't be working on these any more.
+The MATLAB/R scripts are based on the algorithms published in Parag's thesis. While these scripts are well documented (in the two conference papers and thesis mentioned below), I won't be working on these any more. The Python scripts in the repository are translations of these original scripts. The method is an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>.
 
-The Python scripts in the repository are translations of these original scripts. The method is an almost-completely-faithful translation of the MATLAB scripts<sup>(2)</sup>.
+This work is linked to my PhD thesis at the Ecole Polytechnique Federale de Lausanne, EPFL. The method is described in the following publications/**references**:
+
+1. P. Rastogi and M. Andersen, ‘Incorporating Climate Change Predictions in the Analysis of Weather-Based Uncertainty’, presented at the ASHRAE and IBPSA-USA Building Performance Modeling Conference, Salt Lake City, UT, USA, Aug. 2016, [Online]. Available: http://infoscience.epfl.ch/record/208743.
+
+@inproceedings{rastogi2016incorporating,
+  title={Incorporating Climate Change Predictions in the Analysis of Weather-Based Uncertainty},
+  author={Rastogi, Parag and Andersen, Marilyne},
+  booktitle={Sixth National Conference of IBPSA-USA, Salt Lake City, UT},
+  year={2016}
+}
+
+2. P. Rastogi, ‘On the sensitivity of buildings to climate: the interaction of weather and building envelopes in determining future building energy consumption’, PhD, Ecole polytechnique fédérale de Lausanne, Lausanne, Switzerland, 2016.
+
+@phdthesis{rastogi2016sensitivity,
+  title={On the sensitivity of buildings to climate: the interaction of weather and building envelopes in determining future building energy consumption},
+  author={Rastogi, Parag},
+  year={2016},
+  school={Ecole Polytechnique F{\'e}d{\'e}rale de Lausanne}
+}
+
+3. P. Rastogi and M. Andersen, ‘Embedding Stochasticity in Building Simulation Through Synthetic Weather Files’, presented at the 14th International Conference of the International Building Performance Simulation Association, Hyderabad, India, Dec. 2015, [Online]. Available: http://infoscience.epfl.ch/record/208743.
+
+@article{rastogi2015embedding,
+  title={Embedding stochasticity in building simulation through synthetic weather files},
+  author={Rastogi, Parag and Andersen, Marilyne},
+  journal={Proceedings of BS},
+  year={2015}
+}
+
 
 <h2>License, implementation, and compatibility</h2>
 
 This tool is distributed under the GPLv3 license. Please read what this means <a href='https://en.wikipedia.org/wiki/GNU_General_Public_License'>here</a>.
 
-Using the older scripts requires only a valid MATLAB license and R (R is free to download and reuse). While you are free to use the scripts as you please, I am not liable for anything that happens as a result of using my scripts. Like if you accidentally release the nuclear missiles stored in the Dakotas, ruin the ski season in Switzerland, or cause a drought in Scotland.
+Using the older scripts requires only a valid MATLAB license and R (R is free to download and reuse). While you are free to use the scripts as you please, I am not liable for anything that happens as a result of using my scripts. Like if you accidentally release nuclear missiles, ruin the ski season in Switzerland, or cause a drought in Scotland.
 
-This work is linked to my PhD thesis at the Ecole Polytechnique Federale de Lausanne, EPFL. You can find the full text of the thesis on [EPFL's scientific repository](https://infoscience.epfl.ch/record/220971?ln=en) or [my website](https://paragrastogi.com). Please cite it as:
+<h2>Citation</h2>
+
+Please cite this work using the citation for my thesis:
 
 Rastogi, Parag. 2016. ‘On the Sensitivity of Buildings to Climate: The Interaction of Weather and Building Envelopes in Determining Future Building Energy Consumption’. PhD, Lausanne, Switzerland: Ecole polytechnique fédérale de Lausanne. EPFL Infoscience. https://infoscience.epfl.ch/record/220971?ln=en.
 
